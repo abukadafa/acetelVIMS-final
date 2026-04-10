@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { getAllCompanies, createCompany, updateCompany, deleteCompany, getCompanyById, getCompanyMetadata } from '../controllers/company.controller';
+import { authenticate, authorize } from '../middleware/auth.middleware';
+const r = Router();
+r.use(authenticate);
+r.get('/', getAllCompanies);
+r.get('/meta', getCompanyMetadata);
+r.get('/:id', getCompanyById);
+r.post('/', authorize('admin','prog_coordinator', 'internship_coordinator'), createCompany);
+r.put('/:id', authorize('admin','prog_coordinator', 'internship_coordinator'), updateCompany);
+r.delete('/:id', authorize('admin'), deleteCompany);
+export default r;

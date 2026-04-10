@@ -1,0 +1,83 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: acetel-gateway
+    ports:
+      - "8081:80"
+    volumes:
+      - ./nginx/production.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - frontend_net
+    restart: on-failure
+
+  frontend:
+    build: ./client
+    container_name: acetel-frontend
+    networks:
+      - frontend_net
+    restart: on-failure
+
+  backend:
+    build: ./server
+    container_name: acetel-backend
+    environment:
+      - MONGODB_URI=mongodb://${DB_USER}:${DB_PASS}@acetel-mongodb:27017/${DB_NAME}?authSource=admin
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - PORT=5000
+    depends_on:
+      acetel-mongodb:
+        condition: service_healthy
+    networks:
+      - frontend_net
+      - backend_net
+    restart: on-failure
+
+  acetel-mongodb:
+    image: mongo:latest
+    container_name: acetel-mongodb
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${DB_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${DB_PASS}
+    volumes:
+      - acetel-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - backend_net
+    restart: on-failure
+
+  acetel-backups:
+    image: mongo:latest
+    container_name: acetel-backups
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_NAME=${DB_NAME}
+    volumes:
+      - ./infra/backups:/scripts
+      - acetel-mongo-backups:/backup/archive
+    entrypoint: ["/bin/sh", "-c", "chmod +x /scripts/backup_task.sh && while true; do /scripts/backup_task.sh; sleep 86400; done"]
+    depends_on:
+      acetel-mongodb:
+        condition: service_healthy
+    networks:
+      - backend_net
+    restart: on-failure
+
+networks:
+  frontend_net:
+    driver: bridge
+  backend_net:
+    driver: bridge
+
+volumes:
+  acetel-mongo-data:
+  acetel-mongo-backups:
