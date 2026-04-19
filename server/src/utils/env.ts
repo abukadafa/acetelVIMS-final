@@ -12,6 +12,7 @@ export function validateEnv() {
   const missing = REQUIRED_ENV_VARS.filter(key => !process.env[key]);
 
   if (missing.length > 0) {
+    console.error(`CRITICAL APP CRASH: Missing required environment variables: ${missing.join(', ')}`);
     logger.error('CRITICAL: Missing required environment variables: %s', missing.join(', '));
     if (process.env.NODE_ENV === 'production') {
       logger.error('Server cannot start without these variables in production.');

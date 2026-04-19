@@ -148,6 +148,7 @@ initDatabase().then(() => {
     logger.info('🗄️  Database initialized');
   });
 }).catch(err => {
+  console.error('CRITICAL APP CRASH: Failed to initialize database:', err);
   logger.error('Failed to initialize database: %s', (err as Error).message);
   process.exit(1);
 });
