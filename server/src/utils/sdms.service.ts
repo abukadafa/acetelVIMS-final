@@ -12,6 +12,8 @@ interface SDMSData {
   lastName: string;
   otherNames?: string;
   programme: string;
+  programmeName?: string;
+  level?: string;
   email: string;
 }
 

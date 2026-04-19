@@ -232,3 +232,11 @@ export async function manualAttendance(req: AuthRequest, res: Response): Promise
     res.status(500).json({ error: 'Server error' });
   }
 }
+
+export async function getAttendanceAnalytics(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json({ message: "Analytics not yet implemented" });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}

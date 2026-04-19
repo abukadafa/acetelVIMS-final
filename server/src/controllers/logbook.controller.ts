@@ -9,7 +9,7 @@ import { z } from 'zod';
 
 const logbookQuerySchema = z.object({
   studentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ID format').optional(),
-  status: z.enum(['submitted', 'approved', 'declined']).optional(),
+  status: z.enum(['submitted', 'approved', 'rejected']).optional(),
   week: z.preprocess((val) => Number(val), z.number().min(1).max(52)).optional(),
 });
 
@@ -27,7 +27,7 @@ const logbookEntrySchema = z.object({
 const reviewSchema = z.object({
   supervisorComment: z.string().max(1000).optional(),
   supervisorRating: z.number().min(1).max(5).optional(),
-  status: z.enum(['approved', 'declined']).optional().default('approved'),
+  status: z.enum(['approved', 'rejected']).optional().default('approved'),
 });
 
 const idParamSchema = z.object({
@@ -305,6 +305,22 @@ export async function deleteLogbookEntry(req: AuthRequest, res: Response): Promi
       return;
     }
     logger.error('Error in deleteLogbookEntry: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+export async function getSupervisorStudents(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json({ students: [] });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+export async function getWeeklyPerformance(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json({ performance: [] });
+  } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 }

@@ -299,7 +299,7 @@ export async function updateUser(req: AuthRequest, res: Response): Promise<void>
     }
 
     // Single Admin Policy: Do not allow promoting other users to admin
-    if (role === 'admin' && user.role !== 'admin') {
+    if ((role as string) === 'admin' && user.role !== 'admin') {
       res.status(403).json({ error: 'The Administrator role is unique and cannot be assigned to other users.' });
       return;
     }
