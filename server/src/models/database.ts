@@ -80,22 +80,30 @@ async function seedSettings(tenantId: mongoose.Types.ObjectId) {
 async function seedAdmin(tenantId: mongoose.Types.ObjectId) {
   const adminEmail = 'admin@acetel.ng';
 
-  const count = await User.countDocuments({ email: adminEmail });
+  const admin = await User.findOne({ email: adminEmail });
   
-  if (count === 0) {
-    const admin = new User({
+  if (!admin || process.env.RESET_ADMIN === 'true') {
+    const adminData = {
       email: adminEmail,
+      username: 'admin',
       password: 'password123',
       role: 'admin',
-      firstName: 'System',
+      firstName: 'ACETEL',
       lastName: 'Administrator',
       tenant: tenantId,
-      isActive: true,
-      username: 'admin'
-    });
-    
-    // Using save will trigger the pre-save hook to hash 'password123'
-    await admin.save();
-    logger.warn('🗝️ Default Admin seeded! Email: admin@acetel.ng | Password: password123');
+      isActive: true
+    };
+
+    if (!admin) {
+      console.log('🌱 Seeding fresh admin user...');
+      await User.create(adminData);
+      logger.warn('🗝️ Default Admin seeded! Email: admin@acetel.ng | Password: password123');
+    } else {
+      console.log('🔄 Force-resetting admin password...');
+      admin.password = 'password123';
+      admin.isActive = true;
+      await admin.save();
+      logger.warn('🗝️ Admin password reset! Email: admin@acetel.ng | Password: password123');
+    }
   }
 }
