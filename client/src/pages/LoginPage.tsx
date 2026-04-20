@@ -46,9 +46,9 @@ export default function LoginPage() {
               <div className="search-bar">
                 <Mail className="search-icon" size={18} />
                 <input 
-                  type="email" 
+                  type="text" 
                   className="form-control" 
-                  placeholder="admin@acetel.ng"
+                  placeholder="admin@acetel.ng or admin"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
