@@ -69,17 +69,18 @@ export async function login(req: Request, res: Response): Promise<void> {
     }
 
     const { identifier, password } = validatedData.data;
+    const cleanIdentifier = identifier.trim().toLowerCase();
     
     const user = await User.findOne({ 
       $or: [
-        { email: identifier.toLowerCase() }, 
-        { username: identifier.toLowerCase() }
+        { email: cleanIdentifier }, 
+        { username: cleanIdentifier }
       ], 
       isActive: true 
     });
 
     if (!user) {
-      logger.warn('Login Failure: Non-existent or inactive user %s from IP %s', identifier, req.ip);
+      logger.warn('DEBUG: Login Failure - User not found or inactive for identifier: %s', cleanIdentifier);
       await AuditLog.create({
         action: 'LOGIN_FAILED',
         module: 'AUTH',
@@ -92,7 +93,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      logger.warn('Login Failure: Incorrect password for user %s from IP %s', user.email, req.ip);
+      logger.warn('DEBUG: Login Failure - Password mismatch for user: %s', user.email);
       await AuditLog.create({
         user: user._id,
         action: 'LOGIN_FAILED',
