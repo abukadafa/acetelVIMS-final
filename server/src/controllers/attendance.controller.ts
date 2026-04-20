@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import Attendance from '../models/Attendance.model';
 import Student from '../models/Student.model';
 import Setting from '../models/Setting.model';
+import Programme from '../models/Programme.model';
 import { calculateDistance } from '../utils/geo.utils';
 import logger from '../utils/logger';
 import { z } from 'zod';
@@ -277,7 +278,7 @@ export async function getAttendanceAnalytics(req: AuthRequest, res: Response): P
     ]);
 
     const programmeStats = await Promise.all(programmes.map(async (p) => {
-      const prog = await Student.db.model('Programme').findById(p._id);
+      const prog = await Programme.findById(p._id);
       const present = await Attendance.countDocuments({
         tenant: tenantId,
         checkInTime: { $gte: today },

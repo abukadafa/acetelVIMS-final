@@ -872,7 +872,7 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
       }
 
       const role = type === 'staff' ? (row.role || 'supervisor') : 'student';
-      if (role === 'admin') {
+      if ((role as string) === 'admin') {
         results.failed.push({ email, reason: 'Bulk creation of Admin role is prohibited' });
         continue;
       }
