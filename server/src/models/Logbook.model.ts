@@ -15,7 +15,7 @@ export interface ILogbookEntry extends Document {
   supervisorRating?: number;
   isSupervisorSigned: boolean;
   supervisorSignedAt?: Date;
-  status: 'draft' | 'submitted' | 'approved' | 'rejected';
+  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'revision_requested';
   isOfflineSync: boolean;
 }
 
@@ -36,7 +36,7 @@ const LogbookSchema: Schema = new Schema({
   supervisorSignedAt: { type: Date },
   status: { 
     type: String, 
-    enum: ['draft', 'submitted', 'approved', 'rejected'],
+    enum: ['draft', 'submitted', 'approved', 'rejected', 'revision_requested'],
     default: 'draft'
   },
   isOfflineSync: { type: Boolean, default: false }

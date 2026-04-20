@@ -206,8 +206,8 @@ export async function register(req: Request, res: Response): Promise<void> {
         // Create programme if it doesn't exist yet but was returned from SDMS
         const newProg = new Programme({
           code: sdmsData.programme,
-          name: sdmsData.programmeName || sdmsData.programme,
-          level: (sdmsData.level as any) || 'MSc',
+          name: (sdmsData as any).programmeName || sdmsData.programme,
+          level: (sdmsData as any).level || 'MSc',
           tenant: tenant._id
         });
         await newProg.save();

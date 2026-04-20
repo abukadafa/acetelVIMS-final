@@ -6,7 +6,7 @@ import mongoose from 'mongoose';
  * For this implementation, we provide a mock lookup that simulates the fetch.
  */
 
-interface SDMSData {
+export interface SDMSData {
   matricNumber: string;
   firstName: string;
   lastName: string;

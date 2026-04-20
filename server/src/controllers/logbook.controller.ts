@@ -28,7 +28,7 @@ const logbookEntrySchema = z.object({
 const reviewSchema = z.object({
   supervisorComment: z.string().max(1000).optional(),
   supervisorRating: z.number().min(1).max(5).optional(),
-  status: z.enum(['approved', 'rejected']).optional().default('approved'),
+  status: z.enum(['approved', 'rejected', 'revision_requested']).optional().default('approved'),
 });
 
 const idParamSchema = z.object({
