@@ -5,7 +5,8 @@ const REQUIRED_ENV_VARS = [
   'JWT_REFRESH_SECRET',
   'MONGO_URI',
   'FRONTEND_URL',
-  'COOKIE_SECRET'
+  'COOKIE_SECRET',
+  'GEMINI_API_KEY'
 ];
 
 export function validateEnv() {

@@ -22,6 +22,7 @@ import notificationRoutes from './routes/notification.routes';
 import settingsRoutes from './routes/settings.routes';
 import adminRoutes from './routes/admin.routes';
 import feedbackRoutes from './routes/feedback.routes';
+import aiRoutes from './routes/ai.routes';
 import morgan from 'morgan';
 import { errorHandler } from './middleware/error.middleware';
 import { startMonitoringSchedule } from './jobs/monitoring.job';
@@ -133,6 +134,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/ai', aiRoutes);
 
 // GLOBAL ERROR HANDLER (MUST BE LAST)
 app.use(errorHandler);
