@@ -320,8 +320,7 @@ export async function updateUser(req: AuthRequest, res: Response): Promise<void>
     let newPassword: string | undefined;
     if (resetPassword) {
       newPassword = `Reset@${Math.floor(1000 + Math.random() * 9000)}`;
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(newPassword, salt);
+      user.password = newPassword;
     }
 
     await user.save();
@@ -879,8 +878,6 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
       }
 
       const tempPassword = `Acetel@${Math.floor(1000 + Math.random() * 9000)}`;
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(tempPassword, salt);
 
       try {
         const user = new User({
@@ -888,7 +885,7 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
           lastName: lastName.trim(),
           email,
           username,
-          password: hashedPassword,
+          password: tempPassword,
           role,
           phone: row['Phone Number'] || row.phone,
           programme: programmeId || undefined,

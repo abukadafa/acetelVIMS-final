@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import Attendance from '../models/Attendance.model';
@@ -235,8 +236,73 @@ export async function manualAttendance(req: AuthRequest, res: Response): Promise
 
 export async function getAttendanceAnalytics(req: AuthRequest, res: Response): Promise<void> {
   try {
-    res.json({ message: "Analytics not yet implemented" });
+    const tenantId = req.user!.tenant;
+    
+    // 1. Overall Compliance Rate
+    const totalStudents = await Student.countDocuments({ tenant: tenantId, status: 'active' });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const presentToday = await Attendance.countDocuments({ 
+      tenant: tenantId, 
+      checkInTime: { $gte: today },
+      isValid: true 
+    });
+
+    // 2. Daily Trend (Last 7 days)
+    const trend = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      const nextD = new Date(d);
+      nextD.setDate(d.getDate() + 1);
+
+      const count = await Attendance.countDocuments({
+        tenant: tenantId,
+        checkInTime: { $gte: d, $lt: nextD },
+        isValid: true
+      });
+
+      trend.push({
+        date: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        count
+      });
+    }
+
+    // 3. Programme-wise Breakdown
+    const programmes = await Student.aggregate([
+      { $match: { tenant: new mongoose.Types.ObjectId(tenantId), status: 'active' } },
+      { $group: { _id: '$programme', total: { $sum: 1 } } }
+    ]);
+
+    const programmeStats = await Promise.all(programmes.map(async (p) => {
+      const prog = await Student.db.model('Programme').findById(p._id);
+      const present = await Attendance.countDocuments({
+        tenant: tenantId,
+        checkInTime: { $gte: today },
+        student: { $in: await Student.find({ programme: p._id }).distinct('_id') }
+      });
+
+      return {
+        name: prog?.name || 'Unknown',
+        total: p.total,
+        present,
+        rate: p.total > 0 ? Math.round((present / p.total) * 100) : 0
+      };
+    }));
+
+    res.json({
+      summary: {
+        totalActive: totalStudents,
+        presentToday,
+        complianceRate: totalStudents > 0 ? Math.round((presentToday / totalStudents) * 100) : 0
+      },
+      trend,
+      programmeStats
+    });
   } catch (err) {
+    logger.error('Attendance Analytics Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }

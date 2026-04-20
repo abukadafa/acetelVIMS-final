@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import Logbook from '../models/Logbook.model';
@@ -311,16 +312,66 @@ export async function deleteLogbookEntry(req: AuthRequest, res: Response): Promi
 
 export async function getSupervisorStudents(req: AuthRequest, res: Response): Promise<void> {
   try {
-    res.json({ students: [] });
+    const { id: supervisorId, tenant: userTenant } = req.user!;
+    
+    // Find students assigned to this supervisor
+    const students = await Student.find({ 
+      supervisor: supervisorId, 
+      tenant: userTenant,
+      isDeleted: false 
+    })
+    .populate('user', 'firstName lastName email avatar')
+    .populate('programme', 'name code level')
+    .sort({ 'user.lastName': 1 });
+
+    const studentsWithSummary = await Promise.all(students.map(async (s) => {
+      const logs = await Logbook.find({ student: s._id, tenant: userTenant });
+      return {
+        ...s.toObject(),
+        logCount: logs.length,
+        pendingCount: logs.filter(l => l.status === 'submitted').length,
+        lastActivity: logs.length > 0 ? logs.sort((a,b) => b.entryDate.getTime() - a.entryDate.getTime())[0].entryDate : null
+      };
+    }));
+
+    res.json({ students: studentsWithSummary });
   } catch (err) {
+    logger.error('Error fetching supervisor students: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
 
 export async function getWeeklyPerformance(req: AuthRequest, res: Response): Promise<void> {
   try {
-    res.json({ performance: [] });
+    const { studentId } = req.query;
+    const { id: userId, role: userRole, tenant: userTenant } = req.user!;
+    
+    let targetId = studentId as string;
+    if (userRole === 'student') {
+      const student = await Student.findOne({ user: userId, tenant: userTenant });
+      targetId = student?._id.toString() || '';
+    }
+
+    if (!targetId) {
+      res.status(400).json({ error: 'Student ID required' });
+      return;
+    }
+
+    // Aggregate logbooks by week
+    const performance = await Logbook.aggregate([
+      { $match: { student: new mongoose.Types.ObjectId(targetId), tenant: new mongoose.Types.ObjectId(userTenant) } },
+      { $group: {
+          _id: "$weekNumber",
+          entries: { $sum: 1 },
+          avgRating: { $avg: "$supervisorRating" },
+          lastEntry: { $max: "$entryDate" }
+      }},
+      { $sort: { _id: 1 } }
+    ]);
+
+    res.json({ performance });
   } catch (err) {
+    logger.error('Error fetching weekly performance: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }

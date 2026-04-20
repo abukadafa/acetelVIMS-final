@@ -21,64 +21,64 @@ export async function initDatabase(): Promise<void> {
     await mongoose.connect(MONGODB_URI, options);
     logger.info('✅ Connected to MongoDB successfully');
     
-    // Seed default data if needed
-    await seedProgrammes();
-    await seedSettings();
-    await seedAdmin();
+    // Ensure ACETEL tenant exists
+    let tenant = await Tenant.findOne({ slug: 'acetel' });
+    if (!tenant) {
+      tenant = new Tenant({ name: 'ACETEL', slug: 'acetel', institutionType: 'University' });
+      await tenant.save();
+    }
+
+    // Seed default data for this tenant
+    await seedProgrammes(tenant._id as mongoose.Types.ObjectId);
+    await seedSettings(tenant._id as mongoose.Types.ObjectId);
+    await seedAdmin(tenant._id as mongoose.Types.ObjectId);
   } catch (error) {
     logger.error('❌ MongoDB connection error: %s', (error as Error).message);
     process.exit(1);
   }
 }
 
-// Seed Programmes directly as Mongoose objects aren't defined yet, 
-// using the connection to check collection state
-async function seedProgrammes() {
+// Seed Programmes
+async function seedProgrammes(tenantId: mongoose.Types.ObjectId) {
   const Programme = mongoose.connection.collection('programmes');
-  const count = await Programme.countDocuments();
+  const count = await Programme.countDocuments({ tenant: tenantId });
   
   if (count === 0) {
     const programmes = [
-      { code: 'MSC-AI', name: 'MSc Artificial Intelligence', level: 'MSc' },
-      { code: 'MSC-CYB', name: 'MSc Cybersecurity', level: 'MSc' },
-      { code: 'MSC-MIS', name: 'MSc Management Information Systems', level: 'MSc' },
-      { code: 'PHD-AI', name: 'PhD Artificial Intelligence', level: 'PhD' },
-      { code: 'PHD-CYB', name: 'PhD Cybersecurity', level: 'PhD' },
-      { code: 'PHD-MIS', name: 'PhD Management Information Systems', level: 'PhD' },
+      { code: 'MSC-AI', name: 'MSc Artificial Intelligence', level: 'MSc', tenant: tenantId, isActive: true },
+      { code: 'MSC-CYB', name: 'MSc Cybersecurity', level: 'MSc', tenant: tenantId, isActive: true },
+      { code: 'MSC-MIS', name: 'MSc Management Information Systems', level: 'MSc', tenant: tenantId, isActive: true },
+      { code: 'PHD-AI', name: 'PhD Artificial Intelligence', level: 'PhD', tenant: tenantId, isActive: true },
+      { code: 'PHD-CYB', name: 'PhD Cybersecurity', level: 'PhD', tenant: tenantId, isActive: true },
+      { code: 'PHD-MIS', name: 'PhD Management Information Systems', level: 'PhD', tenant: tenantId, isActive: true },
     ];
     await Programme.insertMany(programmes);
-    logger.info('🌱 Programmemes seeded');
+    logger.info('🌱 Programmes seeded for ACETEL');
   }
 }
 
-async function seedSettings() {
+async function seedSettings(tenantId: mongoose.Types.ObjectId) {
   const Setting = mongoose.connection.collection('settings');
-  const count = await Setting.countDocuments();
+  const count = await Setting.countDocuments({ tenant: tenantId });
   
   if (count === 0) {
     const settings = [
-      { key: 'academic_session', value: '2024/2025', description: 'Current academic session' },
-      { key: 'internship_start', value: '2025-01-01', description: 'Internship start date' },
-      { key: 'internship_end', value: '2025-06-30', description: 'Internship end date' },
-      { key: 'logbook_deadline_day', value: '7', description: 'Day of week for logbook submission (1=Monday)' },
-      { key: 'attendance_radius_km', value: '0.5', description: 'Max distance from company for valid check-in (km)' },
-      { key: 'system_name', value: 'ACETEL Internship Management System', description: 'System display name' },
-      { key: 'institution', value: 'National Open University of Nigeria (NOUN)', description: 'Institution name' },
-      { key: 'centre', 'value': 'African Centre of Excellence for Technology Enhanced Learning (ACETEL)', description: 'Centre name' },
+      { key: 'academic_session', value: '2024/2025', description: 'Current academic session', tenant: tenantId },
+      { key: 'internship_start', value: '2025-01-01', description: 'Internship start date', tenant: tenantId },
+      { key: 'internship_end', value: '2025-06-30', description: 'Internship end date', tenant: tenantId },
+      { key: 'logbook_deadline_day', value: '7', description: 'Day of week for logbook submission (1=Monday)', tenant: tenantId },
+      { key: 'attendance_radius_km', value: '0.5', description: 'Max distance from company for valid check-in (km)', tenant: tenantId },
+      { key: 'system_name', value: 'ACETEL Internship Management System', description: 'System display name', tenant: tenantId },
+      { key: 'institution', value: 'National Open University of Nigeria (NOUN)', description: 'Institution name', tenant: tenantId },
+      { key: 'centre', 'value': 'African Centre of Excellence for Technology Enhanced Learning (ACETEL)', description: 'Centre name', tenant: tenantId },
     ];
     await Setting.insertMany(settings);
-    logger.info('🌱 Settings seeded');
+    logger.info('🌱 Settings seeded for ACETEL');
   }
 }
 
-async function seedAdmin() {
+async function seedAdmin(tenantId: mongoose.Types.ObjectId) {
   const adminEmail = 'admin@acetel.ng';
-  
-  let tenant = await Tenant.findOne({ slug: 'acetel' });
-  if (!tenant) {
-    tenant = new Tenant({ name: 'ACETEL', slug: 'acetel', institutionType: 'University' });
-    await tenant.save();
-  }
 
   const count = await User.countDocuments({ email: adminEmail });
   
@@ -89,7 +89,7 @@ async function seedAdmin() {
       role: 'admin',
       firstName: 'System',
       lastName: 'Administrator',
-      tenant: tenant._id,
+      tenant: tenantId,
       isActive: true,
       username: 'admin'
     });

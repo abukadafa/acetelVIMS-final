@@ -4,10 +4,13 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    chunkSizeWarningLimit: 2000,
+  },
   server: {
     host: true,
     proxy: {
-      '/api': 'http://localhost:5001'
+      '/api': 'http://localhost:5000'
     }
   },
   plugins: [
