@@ -30,6 +30,7 @@ import logger from './utils/logger';
 import { validateEnv } from './utils/env';
 
 dotenv.config();
+console.log('🚀 Starting ACETEL VIMS Server...');
 validateEnv();
 
 const app = express();

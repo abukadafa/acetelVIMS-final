@@ -1,4 +1,5 @@
 import logger from './logger';
+import dotenv from 'dotenv';
 
 const REQUIRED_ENV_VARS = [
   'JWT_SECRET',
@@ -11,6 +12,7 @@ const REQUIRED_ENV_VARS = [
 ];
 
 export function validateEnv() {
+  dotenv.config();
   const missing = REQUIRED_ENV_VARS.filter(key => !process.env[key]);
 
   if (!process.env.MONGO_URI && !process.env.MONGODB_URI) {
@@ -34,11 +36,16 @@ export function validateEnv() {
 
   // Check for weak secrets in production
   if (process.env.NODE_ENV === 'production') {
-    if (process.env.JWT_SECRET === 'secret' || 
-        process.env.JWT_SECRET === 'acetel_ims_secure_secret_2024' ||
-        process.env.JWT_REFRESH_SECRET === 'refresh') {
-      logger.error('CRITICAL: Weak or default JWT secrets detected in production!');
+    const weakSecrets = ['secret', 'password', '123456', 'refresh'];
+    if (weakSecrets.includes(process.env.JWT_SECRET || '') || 
+        weakSecrets.includes(process.env.JWT_REFRESH_SECRET || '')) {
+      logger.error('CRITICAL: Extremely weak JWT secrets detected in production!');
       process.exit(1);
+    }
+    
+    // Warning for template secrets but don't crash
+    if (process.env.JWT_SECRET === 'acetel_ims_secure_secret_2024') {
+      logger.warn('⚠️ Using template JWT secret. Please change this in production for maximum security.');
     }
   }
 }
