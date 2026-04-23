@@ -37,7 +37,7 @@ services:
     publishDir: client/dist
     envVars:
       - key: VITE_API_URL
-        value: https://acetel-backend.onrender.com/api
+        value: https://acetel-backend.onrender.com/api/
       - key: VITE_SOCKET_URL
         value: https://acetel-backend.onrender.com
     routes:
