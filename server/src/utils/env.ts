@@ -6,8 +6,6 @@ const REQUIRED_ENV_VARS = [
   'JWT_REFRESH_SECRET',
   'FRONTEND_URL',
   'COOKIE_SECRET',
-  'ADMIN_EMAIL',
-  'ADMIN_PASSWORD',
   'NODE_ENV'
 ];
 
@@ -28,6 +26,11 @@ export function validateEnv() {
     if (process.env.NODE_ENV === 'production') {
       process.exit(1);
     }
+  }
+
+  // Warning for missing secondary variables
+  if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) {
+    logger.warn('⚠️ ADMIN_EMAIL or ADMIN_PASSWORD missing. Using default system credentials. THIS IS INSECURE FOR PRODUCTION.');
   }
 
   if (!process.env.GEMINI_API_KEY) {
