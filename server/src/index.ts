@@ -81,13 +81,22 @@ const authLimiter = rateLimit({
 
 app.use(globalLimiter);
 
-// Ensure data directory exists
+// Ensure required directories exist (ephemeral on Render free tier — use a persistent disk or cloud storage for production uploads)
 const dataDir = path.join(process.cwd(), 'data');
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 const uploadsDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 const logsDir = path.join(process.cwd(), 'logs');
-if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+
+for (const dir of [dataDir, uploadsDir, logsDir]) {
+  try {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  } catch {
+    logger.warn('⚠️  Could not create directory: %s (filesystem may be read-only)', dir);
+  }
+}
+
+if (process.env.NODE_ENV === 'production') {
+  logger.warn('⚠️  File uploads are stored locally. On Render free tier the disk is ephemeral — files will be lost on redeploy. Add a Render Persistent Disk or integrate cloud storage (e.g. Cloudinary, S3) for production.');
+}
 
 // Socket.IO for real-time notifications (Global Institutional Grade)
 export const io = new Server(httpServer, {
@@ -144,6 +153,23 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/ai', aiRoutes);
+
+// Serve React frontend in production (single-service Render deployment)
+if (process.env.NODE_ENV === 'production') {
+  const clientBuildPath = path.join(process.cwd(), '..', 'client', 'dist');
+  if (fs.existsSync(clientBuildPath)) {
+    app.use(express.static(clientBuildPath));
+    // All non-API routes serve the React app (client-side routing)
+    app.get('*', (req, res) => {
+      if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads') && !req.path.startsWith('/socket.io')) {
+        res.sendFile(path.join(clientBuildPath, 'index.html'));
+      }
+    });
+    logger.info('📦 Serving React client from: %s', clientBuildPath);
+  } else {
+    logger.warn('⚠️  Client build not found at %s. Run "npm run build" in the client directory.', clientBuildPath);
+  }
+}
 
 // GLOBAL ERROR HANDLER (MUST BE LAST)
 app.use(errorHandler);

@@ -15,7 +15,9 @@ import crypto from 'crypto';
 const COOKIE_OPTIONS: CookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict',
+  // 'lax' is needed when frontend and backend share the same Render domain
+  // but are accessed from different origins during development.
+  sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
   maxAge: 8 * 60 * 60 * 1000, // 8 hours for access token
 };
 

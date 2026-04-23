@@ -13,8 +13,6 @@
     "seed": "tsx src/seed.ts"
   },
   "dependencies": {
-    "@types/mongoose": "^5.11.96",
-    "@types/morgan": "^1.9.10",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
@@ -47,6 +45,8 @@
     "@types/nodemailer": "^6.4.15",
     "@types/uuid": "^9.0.8",
     "tsx": "^4.11.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "@types/mongoose": "^5.11.96",
+    "@types/morgan": "^1.9.10"
   }
 }

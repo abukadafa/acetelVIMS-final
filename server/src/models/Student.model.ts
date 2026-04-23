@@ -64,6 +64,12 @@ const StudentSchema: Schema = new Schema({
   lat: { type: Number },
   lng: { type: Number },
   lastSeen: { type: Date },
+  thesisPhase: { 
+    type: String, 
+    enum: ['coursework', 'proposal', 'research', 'writing', 'defense'],
+    default: 'coursework'
+  },
+  researchInterests: [{ type: String }],
   overallScore: { type: Number, default: 0 },
   isDeleted: { type: Boolean, default: false },
   deletedAt: { type: Date },

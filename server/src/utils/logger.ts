@@ -1,5 +1,6 @@
 import winston from 'winston';
 import path from 'path';
+import fs from 'fs';
 
 const logFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
@@ -8,33 +9,46 @@ const logFormat = winston.format.combine(
   winston.format.json()
 );
 
+// Console transport — always active so Render captures stdout
+const consoleTransport = new winston.transports.Console({
+  format: winston.format.combine(
+    winston.format.colorize(),
+    winston.format.simple()
+  ),
+});
+
+const transports: winston.transport[] = [consoleTransport];
+
+// File transports — only added when the logs directory is writable
+// Skipped in production to avoid crashes on read-only cloud filesystems
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    const logsDir = path.join(process.cwd(), 'logs');
+    if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+
+    transports.push(
+      new winston.transports.File({
+        filename: path.join(logsDir, 'error.log'),
+        level: 'error',
+        maxsize: 5242880, // 5MB
+        maxFiles: 5,
+      }),
+      new winston.transports.File({
+        filename: path.join(logsDir, 'combined.log'),
+        maxsize: 10485760, // 10MB
+        maxFiles: 10,
+      })
+    );
+  } catch {
+    // Filesystem not writable — console logging only
+  }
+}
+
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
   format: logFormat,
   defaultMeta: { service: 'acetel-vims-api' },
-  transports: [
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      ),
-    })
-  ],
+  transports,
 });
-
-// Add file transports only in non-production environments
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.File({ 
-    filename: path.join('logs', 'error.log'), 
-    level: 'error',
-    maxsize: 5242880, // 5MB
-    maxFiles: 5,
-  }));
-  logger.add(new winston.transports.File({ 
-    filename: path.join('logs', 'combined.log'),
-    maxsize: 10485760, // 10MB
-    maxFiles: 10,
-  }));
-}
 
 export default logger;
