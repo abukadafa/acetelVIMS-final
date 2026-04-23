@@ -34,6 +34,7 @@ console.log('🚀 Starting ACETEL VIMS Server...');
 validateEnv();
 
 const app = express();
+app.set('trust proxy', 1); // Required for express-rate-limit on Render
 const httpServer = createServer(app);
 
 // Production-ready Middleware Stack
@@ -113,6 +114,11 @@ io.on('connection', (socket) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(uploadsDir));
+
+// Root route (for Render health check / monitoring)
+app.get('/', (_, res) => {
+  res.redirect('/api/health');
+});
 
 // Health check
 app.get('/api/health', (_, res) => {

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
+
 const api = axios.create({ 
   baseURL: API_BASE, 
   withCredentials: true,
@@ -8,6 +9,14 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest'
   }
+});
+
+// Interceptor to handle leading slashes in URLs which overwrite the baseURL path in Axios
+api.interceptors.request.use((config) => {
+  if (config.url?.startsWith('/')) {
+    config.url = config.url.substring(1);
+  }
+  return config;
 });
 
 api.interceptors.response.use(
