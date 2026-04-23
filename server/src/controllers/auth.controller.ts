@@ -80,7 +80,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     });
 
     if (!user) {
-      logger.warn('DEBUG: Login Failure - User not found or inactive for identifier: %s', cleanIdentifier);
+      logger.warn('Login Failure: User not found or inactive for identifier: %s', cleanIdentifier);
       await AuditLog.create({
         action: 'LOGIN_FAILED',
         module: 'AUTH',
@@ -93,7 +93,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      logger.warn('DEBUG: Login Failure - Password mismatch for user: %s', user.email);
+      logger.warn('Login Failure: Password mismatch for user: %s', user.email);
       await AuditLog.create({
         user: user._id,
         action: 'LOGIN_FAILED',
@@ -168,7 +168,7 @@ export async function register(req: Request, res: Response): Promise<void> {
       email, password, firstName, lastName, phone, 
       role, matricNumber, academicSession, level,
       stateOfOrigin, lga, address, lat, lng,
-      tenantSlug = 'acetel' // Allow specifying tenant
+      tenantSlug = 'acetel' 
     } = validatedData.data as any;
 
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -203,7 +203,6 @@ export async function register(req: Request, res: Response): Promise<void> {
 
       const prog = await Programme.findOne({ code: sdmsData.programme, tenant: tenant._id });
       if (!prog) {
-        // Create programme if it doesn't exist yet but was returned from SDMS
         const newProg = new Programme({
           code: sdmsData.programme,
           name: (sdmsData as any).programmeName || sdmsData.programme,
@@ -219,14 +218,17 @@ export async function register(req: Request, res: Response): Promise<void> {
 
     const avatarPath = req.file ? `/uploads/avatars/${req.file.filename}` : undefined;
 
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanUsername = (role === 'student' ? matricNumber.trim() : cleanEmail).toLowerCase();
+
     const user = new User({
-      email: email.toLowerCase(),
-      username: (role === 'student' ? matricNumber : email).toLowerCase(),
+      email: cleanEmail,
+      username: cleanUsername,
       password,
       role,
-      firstName,
-      lastName,
-      phone,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phone: phone?.trim(),
       avatar: avatarPath,
       tenant: tenant._id
     });

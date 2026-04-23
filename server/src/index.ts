@@ -84,6 +84,8 @@ const dataDir = path.join(process.cwd(), 'data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 const uploadsDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+const logsDir = path.join(process.cwd(), 'logs');
+if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
 
 // Socket.IO for real-time notifications (Global Institutional Grade)
 export const io = new Server(httpServer, {
