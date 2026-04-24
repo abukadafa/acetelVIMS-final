@@ -1,43 +1,41 @@
 import axios from 'axios';
 
-let API_BASE = import.meta.env.VITE_API_URL || 'https://acetel-backend.onrender.com/api/';
+const API_BASE = (import.meta.env.VITE_API_URL as string) || 'https://acetel-backend.onrender.com/api/';
 
-// Institutional hardening: ensure the base always points to the /api/ endpoint
-if (!API_BASE.includes('/api')) {
-  API_BASE = API_BASE.replace(/\/?$/, '/api/');
+// In-memory token store — used as Authorization header fallback when
+// cross-origin cookies are blocked (Safari ITP, some proxy configs)
+let memoryToken: string | null = null;
+
+export function setMemoryToken(token: string | null) {
+  memoryToken = token;
 }
 
-if (!API_BASE.endsWith('/')) {
-  API_BASE += '/';
+export function getMemoryToken() {
+  return memoryToken;
 }
 
-const api = axios.create({ 
-  baseURL: API_BASE, 
+const api = axios.create({
+  baseURL: API_BASE.endsWith('/') ? API_BASE : API_BASE + '/',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest'
-  }
+    'X-Requested-With': 'XMLHttpRequest',
+  },
 });
 
-// Interceptor to handle leading slashes in URLs which overwrite the baseURL path in Axios
+// Attach token from memory if available (cookie fallback)
 api.interceptors.request.use((config) => {
+  // Strip leading slash so it doesn't override the baseURL path
   if (config.url?.startsWith('/')) {
     config.url = config.url.substring(1);
+  }
+  // Use in-memory token as Authorization header if we have one
+  if (memoryToken) {
+    config.headers = config.headers || {};
+    config.headers['Authorization'] = `Bearer ${memoryToken}`;
   }
   return config;
 });
 
-api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    // Check if it's an authentication error
-    if (err.response?.status === 401 && !err.config._retry && !window.location.pathname.includes('/login')) {
-      // Don't redirect if we're already on login or trying to login
-      window.location.href = '/login?expired=true';
-    }
-    return Promise.reject(err);
-  }
-);
-
+// NOTE: No 401 redirect here — AuthContext handles session expiry
 export default api;

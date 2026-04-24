@@ -157,6 +157,9 @@ export async function login(req: Request, res: Response): Promise<void> {
         tenant: user.tenant,
       },
       student: studentData,
+      // accessToken also returned in body so client can use as Bearer fallback
+      // when cross-origin cookies are blocked (e.g. Safari ITP, incognito mode)
+      accessToken: access,
     });
   } catch (err) {
     logger.error('Login Error: %s', (err as Error).message);

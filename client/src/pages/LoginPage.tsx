@@ -17,9 +17,11 @@ export default function LoginPage() {
     try {
       await login(email, password);
       toast.success('Welcome to ACETEL');
-      navigate('/');
+      // Use replace so back button does not return to login
+      navigate('/', { replace: true });
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Invalid credentials');
+      const msg = err.response?.data?.error || 'Login failed. Check your credentials.';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

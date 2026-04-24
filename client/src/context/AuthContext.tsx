@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api from '../lib/api';
+import api, { setMemoryToken } from '../lib/api';
 
 interface User {
   id: string; email: string; role: string;
@@ -9,29 +9,14 @@ interface User {
 }
 
 interface StudentProfile {
-  id: string; 
-  matricNumber: string; 
+  id: string;
+  matricNumber: string;
   status: string;
-  programme?: {
-    name: string;
-    level: string;
-    code: string;
-  };
-  company?: {
-    name: string;
-    address: string;
-    state: string;
-    lat: number;
-    lng: number;
-  };
-  supervisor?: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone?: string;
-  };
-  startDate?: string; 
-  endDate?: string; 
+  programme?: { name: string; level: string; code: string; };
+  company?: { name: string; address: string; state: string; lat: number; lng: number; };
+  supervisor?: { firstName: string; lastName: string; email: string; phone?: string; };
+  startDate?: string;
+  endDate?: string;
   overallScore?: number;
 }
 
@@ -47,18 +32,39 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Persist token in sessionStorage so it survives page reloads within the tab
+const TOKEN_KEY = 'acetel_access_token';
+
+function saveToken(token: string) {
+  try { sessionStorage.setItem(TOKEN_KEY, token); } catch {}
+  setMemoryToken(token);
+}
+
+function clearToken() {
+  try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
+  setMemoryToken(null);
+}
+
+function restoreToken() {
+  try {
+    const t = sessionStorage.getItem(TOKEN_KEY);
+    if (t) setMemoryToken(t);
+    return t;
+  } catch { return null; }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [student, setStudent] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   const logout = useCallback(async () => {
+    clearToken();
     try {
-      await api.post('/auth/logout').catch(() => {});
+      await api.post('auth/logout').catch(() => {});
     } finally {
-      setUser(null); 
+      setUser(null);
       setStudent(null);
-      // Redirect to login if not already there
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }
@@ -66,26 +72,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loadProfile = useCallback(async () => {
+    // Restore token from sessionStorage first (survives React re-mounts)
+    restoreToken();
     try {
-      const { data } = await api.get('/auth/profile');
+      const { data } = await api.get('auth/profile');
       setUser(data.user);
       if (data.student) setStudent(data.student);
     } catch (err: any) {
-      // Only logout if it's a 401 and we're not already trying to login
-      if (err.response?.status === 401 && !window.location.pathname.includes('/login')) {
-        logout();
+      if (err.response?.status === 401) {
+        clearToken();
+        // Only redirect if we have no token at all (not just a race condition)
+        const hasToken = !!sessionStorage.getItem(TOKEN_KEY);
+        if (!hasToken && !window.location.pathname.includes('/login')) {
+          setUser(null);
+          setStudent(null);
+        }
       }
     } finally {
       setLoading(false);
     }
   }, [logout]);
 
+  // Load profile once on mount
   useEffect(() => {
     loadProfile();
-  }, [loadProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const login = async (identifier: string, password: string) => {
-    const { data } = await api.post('/auth/login', { identifier, password });
+    const { data } = await api.post('auth/login', { identifier, password });
+    
+    // Save token from response body — works even when cookies are blocked
+    if (data.accessToken) {
+      saveToken(data.accessToken);
+    }
+
     setUser(data.user);
     if (data.student) setStudent(data.student);
   };
