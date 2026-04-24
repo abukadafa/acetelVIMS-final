@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  X, Upload, Download, CheckCircle, AlertTriangle, 
+  X, Upload, Download, CheckCircle, 
   Building2, Users, GraduationCap, ArrowRight, ShieldCheck, 
   Copy, Check
 } from 'lucide-react';

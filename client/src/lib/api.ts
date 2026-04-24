@@ -1,11 +1,12 @@
 import axios from 'axios';
 
-// In production, API calls go to the same origin (served by Render backend).
-// In development, Vite proxies /api to localhost:5000.
-// VITE_API_URL can override for custom deployments.
-let API_BASE = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
+let API_BASE = import.meta.env.VITE_API_URL || 'https://acetel-backend.onrender.com/api/';
 
-// Ensure baseURL always ends with a slash (required by Axios for correct path joining)
+// Institutional hardening: ensure the base always points to the /api/ endpoint
+if (!API_BASE.includes('/api')) {
+  API_BASE = API_BASE.replace(/\/?$/, '/api/');
+}
+
 if (!API_BASE.endsWith('/')) {
   API_BASE += '/';
 }
@@ -19,10 +20,20 @@ const api = axios.create({
   }
 });
 
+// Interceptor to handle leading slashes in URLs which overwrite the baseURL path in Axios
+api.interceptors.request.use((config) => {
+  if (config.url?.startsWith('/')) {
+    config.url = config.url.substring(1);
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (res) => res,
   (err) => {
+    // Check if it's an authentication error
     if (err.response?.status === 401 && !err.config._retry && !window.location.pathname.includes('/login')) {
+      // Don't redirect if we're already on login or trying to login
       window.location.href = '/login?expired=true';
     }
     return Promise.reject(err);

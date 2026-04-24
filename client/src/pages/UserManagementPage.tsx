@@ -50,10 +50,7 @@ const emptyStaffForm = () => ({
   role: 'prog_coordinator' as Role, programme: '', password: '', isActive: true
 });
 
-const emptyStudentForm = () => ({
-  firstName: '', lastName: '', email: '', phone: '',
-  matricNumber: '', programme: '', password: ''
-});
+
 
 /* ═══════════════════════════════════════════════════════════════ */
 export default function UserManagementPage() {

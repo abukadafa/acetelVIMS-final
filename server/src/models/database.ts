@@ -55,6 +55,7 @@ async function ensureAdminExists(tenantId: mongoose.Types.ObjectId) {
   let admin = await User.findOne({ email: adminEmail });
 
   if (!admin || process.env.RESET_ADMIN === 'true') {
+    // Basic safety: only allow reset if the admin doesn't exist OR it's explicitly requested
     const adminData = {
       email: adminEmail,
       username: 'admin',

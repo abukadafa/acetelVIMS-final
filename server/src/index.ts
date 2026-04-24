@@ -126,7 +126,7 @@ app.use('/uploads', express.static(uploadsDir));
 
 // Root route (for Render health check / monitoring)
 app.get('/', (_, res) => {
-  res.redirect('/api/health');
+  res.status(200).json({ status: 'live', service: 'ACETEL VIMS API' });
 });
 
 // Health check
@@ -139,20 +139,26 @@ app.get('/api/health', (_, res) => {
   });
 });
 
-// Routes
-app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/students', studentRoutes);
-app.use('/api/logbook', logbookRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/companies', companyRoutes);
-app.use('/api/supervisors', supervisorRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/feedback', feedbackRoutes);
-app.use('/api/ai', aiRoutes);
+// --- Institutional API Orchestration ---
+const apiRouter = express.Router();
+
+apiRouter.use('/auth', authLimiter, authRoutes);
+apiRouter.use('/students', studentRoutes);
+apiRouter.use('/logbook', logbookRoutes);
+apiRouter.use('/attendance', attendanceRoutes);
+apiRouter.use('/companies', companyRoutes);
+apiRouter.use('/supervisors', supervisorRoutes);
+apiRouter.use('/analytics', analyticsRoutes);
+apiRouter.use('/reports', reportRoutes);
+apiRouter.use('/notifications', notificationRoutes);
+apiRouter.use('/settings', settingsRoutes);
+apiRouter.use('/admin', adminRoutes);
+apiRouter.use('/feedback', feedbackRoutes);
+apiRouter.use('/ai', aiRoutes);
+
+// Mount with and without /api prefix for maximum client compatibility
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
 
 // Serve React frontend in production (single-service Render deployment)
 if (process.env.NODE_ENV === 'production') {
