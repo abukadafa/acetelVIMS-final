@@ -1,6 +1,5 @@
 ## render.yaml — ACETEL Virtual Internship Management System
-## Two-service deployment: separate backend API + static frontend
-## See server/.env.example for all required environment variables.
+## Two-service deployment: backend API + static frontend
 
 services:
   # ── Backend API (Node.js) ──────────────────────────────────────────────────
@@ -9,32 +8,31 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: cd server && npm install --legacy-peer-deps && npm run build
-    startCommand: node server/dist/index.js
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: "5000"
-      # === REQUIRED: set these in the Render dashboard ===
       - key: MONGO_URI
-        sync: false          # MongoDB Atlas connection string
+        sync: false
       - key: JWT_SECRET
-        generateValue: true  # Auto-generated secure random value
+        generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: COOKIE_SECRET
         generateValue: true
       - key: ADMIN_EMAIL
-        sync: false          # Your admin login email
+        sync: false
       - key: ADMIN_PASSWORD
-        sync: false          # Your admin login password (min 8 chars)
+        sync: false
       - key: FRONTEND_URL
-        value: https://acetel-frontend.onrender.com   # Update if you rename the frontend service
-      # === OPTIONAL ===
+        value: https://acetel-frontend.onrender.com
       - key: GEMINI_API_KEY
-        sync: false          # AI features disabled if blank
+        sync: false
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
@@ -50,8 +48,9 @@ services:
     runtime: static
     plan: free
     region: oregon
-    buildCommand: cd client && npm install --legacy-peer-deps && npm run build
-    staticPublishPath: client/dist
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
         value: https://acetel-backend.onrender.com/api/

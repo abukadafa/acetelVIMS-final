@@ -2,20 +2,27 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import logger from '../utils/logger';
 
+// Extend Express Request — preserves all standard properties (body, query, params, ip, cookies, files, etc.)
 export interface AuthRequest extends Request {
-  user?: { id: string; role: string; email: string; programme?: string; tenant?: string };
+  user?: {
+    id: string;
+    role: string;
+    email: string;
+    programme?: string;
+    tenant?: string;
+  };
 }
 
 export function authenticate(req: AuthRequest, res: Response, next: NextFunction): void {
   let token = req.cookies?.access_token;
-  
+
   if (!token) {
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       token = authHeader.split(' ')[1];
     }
   }
-  
+
   if (!token) {
     logger.warn('Auth Failure: No token provided from IP %s', req.ip);
     res.status(401).json({ error: 'Authentication required' });
@@ -33,8 +40,8 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
   }
 
   try {
-    const decoded = jwt.verify(token, secret || 'secret') as { 
-      id: string; role: string; email: string; programme?: string; tenant?: string 
+    const decoded = jwt.verify(token, secret || 'secret') as {
+      id: string; role: string; email: string; programme?: string; tenant?: string;
     };
     req.user = decoded;
     next();
@@ -47,8 +54,12 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
 export function authorize(...roles: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user || !roles.includes(req.user.role)) {
-      logger.warn('Access Denied: User %s (Role: %s) tried to access %s without permissions', 
-        req.user?.email || 'Unknown', req.user?.role || 'None', req.originalUrl);
+      logger.warn(
+        'Access Denied: User %s (Role: %s) tried to access %s without permissions',
+        req.user?.email || 'Unknown',
+        req.user?.role || 'None',
+        req.originalUrl
+      );
       res.status(403).json({ error: 'Access denied' });
       return;
     }
