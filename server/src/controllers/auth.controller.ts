@@ -86,12 +86,13 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     if (!user) {
       logger.warn('Login Failure: User not found or inactive for identifier: %s', cleanIdentifier);
-      await AuditLog.create({
+      // Best-effort audit log - do not await, must never crash the login response
+      AuditLog.create({
         action: 'LOGIN_FAILED',
         module: 'AUTH',
         details: `Failed login attempt for identifier: ${identifier}`,
         ipAddress: req.ip
-      });
+      }).catch(() => {});
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
@@ -99,13 +100,15 @@ export async function login(req: Request, res: Response): Promise<void> {
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       logger.warn('Login Failure: Password mismatch for user: %s', user.email);
-      await AuditLog.create({
+      // Best-effort audit log - do not await, must never crash the login response
+      AuditLog.create({
         user: user._id,
+        tenant: user.tenant,
         action: 'LOGIN_FAILED',
         module: 'AUTH',
         details: `Incorrect password attempt for user: ${user.email}`,
         ipAddress: req.ip
-      });
+      }).catch(() => {});
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }

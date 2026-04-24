@@ -13,7 +13,7 @@ export interface IAuditLog extends Document {
 }
 
 const AuditLogSchema: Schema = new Schema({
-  tenant: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  tenant: { type: Schema.Types.ObjectId, ref: 'Tenant' }, // optional on failed logins where tenant is unknown
   user: { type: Schema.Types.ObjectId, ref: 'User' },
   action: { type: String, required: true },
   module: { type: String, required: true },

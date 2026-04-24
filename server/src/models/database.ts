@@ -54,32 +54,38 @@ async function ensureAdminExists(tenantId: mongoose.Types.ObjectId) {
 
   let admin = await User.findOne({ email: adminEmail });
 
-  if (!admin || process.env.RESET_ADMIN === 'true') {
-    // Basic safety: only allow reset if the admin doesn't exist OR it's explicitly requested
-    const adminData = {
+  if (!admin) {
+    logger.warn('⚠️ No admin user found. Creating default admin from environment variables...');
+    await User.create({
       email: adminEmail,
       username: 'admin',
-      password: adminPassword, // Will be hashed by pre-save hook
+      password: adminPassword,
       role: 'admin',
       firstName: 'System',
       lastName: 'Administrator',
       tenant: tenantId,
       isActive: true
-    };
-
-    if (!admin) {
-      logger.warn('⚠️ No admin user found. Creating default admin from environment variables...');
-      await User.create(adminData);
-      logger.info('✅ Default admin created: %s', adminEmail);
-    } else if (process.env.RESET_ADMIN === 'true') {
-      logger.warn('🔄 Force-resetting admin password for recovery (RESET_ADMIN=true)...');
+    });
+    logger.info('✅ Default admin created: %s', adminEmail);
+  } else if (process.env.RESET_ADMIN === 'true') {
+    logger.warn('🔄 Force-resetting admin password (RESET_ADMIN=true)...');
+    admin.password = adminPassword;
+    admin.isActive = true;
+    await admin.save();
+    logger.info('✅ Admin password reset successful: %s', adminEmail);
+  } else {
+    // Verify the stored password matches env — auto-fix if admin was created with wrong password
+    const bcrypt = require('bcryptjs');
+    const matches = await bcrypt.compare(adminPassword, admin.password);
+    if (!matches) {
+      logger.warn('🔄 Admin password in DB does not match ADMIN_PASSWORD env var — updating...');
       admin.password = adminPassword;
       admin.isActive = true;
       await admin.save();
-      logger.info('✅ Admin password reset successful: %s', adminEmail);
+      logger.info('✅ Admin password synced to env var for: %s', adminEmail);
+    } else {
+      logger.info('✅ Admin user exists and password matches: %s', admin.email);
     }
-  } else {
-    logger.info('✅ Admin user exists: %s', admin.email);
   }
 }
 
