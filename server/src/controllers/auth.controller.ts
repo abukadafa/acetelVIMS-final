@@ -92,14 +92,17 @@ export async function login(req: Request, res: Response): Promise<void> {
       // Resolve default tenant for logging if user not found
       const defaultTenant = await Tenant.findOne({ slug: 'acetel' });
       
-      // Best-effort audit log - do not await, must never crash the login response
-      AuditLog.create({
-        tenant: defaultTenant?._id,
-        action: 'LOGIN_FAILED',
-        module: 'AUTH',
-        details: `Failed login attempt for identifier: ${identifier}`,
-        ipAddress: req.ip
-      }).catch(err => logger.error('AuditLog Error: %s', err.message));
+      try {
+        await AuditLog.create({
+          tenant: defaultTenant?._id,
+          action: 'LOGIN_FAILED',
+          module: 'AUTH',
+          details: `Failed login attempt for identifier: ${identifier}`,
+          ipAddress: req.ip
+        });
+      } catch (logErr: any) {
+        logger.error('AuditLog Error: %s', logErr.message);
+      }
 
       res.status(401).json({ error: 'Invalid credentials' });
       return;
@@ -108,15 +111,18 @@ export async function login(req: Request, res: Response): Promise<void> {
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       logger.warn('Login Failure: Password mismatch for user: %s', user.email);
-      // Best-effort audit log - do not await, must never crash the login response
-      AuditLog.create({
-        user: user._id,
-        tenant: user.tenant,
-        action: 'LOGIN_FAILED',
-        module: 'AUTH',
-        details: `Incorrect password attempt for user: ${user.email}`,
-        ipAddress: req.ip
-      }).catch(err => logger.error('AuditLog Error: %s', err.message));
+      try {
+        await AuditLog.create({
+          user: user._id,
+          tenant: user.tenant,
+          action: 'LOGIN_FAILED',
+          module: 'AUTH',
+          details: `Incorrect password attempt for user: ${user.email}`,
+          ipAddress: req.ip
+        });
+      } catch (logErr: any) {
+        logger.error('AuditLog Error: %s', logErr.message);
+      }
 
       res.status(401).json({ error: 'Invalid credentials' });
       return;
@@ -133,7 +139,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       programme: user.programme?.toString()
     }, req);
 
-    res.cookie('access_token', access, COOKIE_OPTIONS);
+    res.cookie('token', access, COOKIE_OPTIONS);
     res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
 
     let studentData = null;
@@ -166,8 +172,6 @@ export async function login(req: Request, res: Response): Promise<void> {
         tenant: user.tenant,
       },
       student: studentData,
-      // accessToken also returned in body so client can use as Bearer fallback
-      // when cross-origin cookies are blocked (e.g. Safari ITP, incognito mode)
       accessToken: access,
     });
   } catch (err) {
@@ -281,7 +285,7 @@ export async function register(req: Request, res: Response): Promise<void> {
       tenant: user.tenant.toString()
     }, req);
 
-    res.cookie('access_token', access, COOKIE_OPTIONS);
+    res.cookie('token', access, COOKIE_OPTIONS);
     res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
 
     logger.info('Registration Success: New user %s registered from IP %s', user.email, req.ip);
@@ -345,7 +349,7 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
     refreshTokenRecord.replacedByToken = refresh;
     await refreshTokenRecord.save();
 
-    res.cookie('access_token', access, COOKIE_OPTIONS);
+    res.cookie('token', access, COOKIE_OPTIONS);
     res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
 
     res.json({ message: 'Token refreshed' });
@@ -442,7 +446,7 @@ export async function logout(req: AuthRequest, res: Response): Promise<void> {
       sameSite: isProduction ? 'none' : 'lax',
       path: '/',
     };
-    res.clearCookie('access_token', clearOptions);
+    res.clearCookie('token', clearOptions);
     res.clearCookie('refresh_token', clearOptions);
     res.json({ message: 'Logged out successfully' });
   } catch (err) {

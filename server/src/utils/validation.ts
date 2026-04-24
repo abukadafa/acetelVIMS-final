@@ -67,7 +67,7 @@ export const checkInSchema = z.object({
   body: z.object({
     lat: z.number().min(-90).max(90).optional(),
     lng: z.number().min(-180).max(180).optional(),
-    method: z.enum(['gps', 'biometric', 'manual']).default('gps'),
+    method: z.enum(['gps', 'biometric', 'manual', 'qr', 'offline']).default('gps'),
   })
 });
 

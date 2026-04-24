@@ -12,7 +12,7 @@ import { z } from 'zod';
 const checkInSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
-  method: z.enum(['gps', 'biometric', 'manual']).optional().default('gps'),
+  method: z.enum(['gps', 'biometric', 'manual', 'qr', 'offline']).optional().default('gps'),
 });
 
 const attendanceQuerySchema = z.object({

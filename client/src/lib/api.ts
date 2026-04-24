@@ -2,18 +2,6 @@ import axios from 'axios';
 
 const API_BASE = (import.meta.env.VITE_API_URL as string) || 'https://acetel-backend.onrender.com/api/';
 
-// In-memory token store — used as Authorization header fallback when
-// cross-origin cookies are blocked (Safari ITP, some proxy configs)
-let memoryToken: string | null = null;
-
-export function setMemoryToken(token: string | null) {
-  memoryToken = token;
-}
-
-export function getMemoryToken() {
-  return memoryToken;
-}
-
 const api = axios.create({
   baseURL: API_BASE.endsWith('/') ? API_BASE : API_BASE + '/',
   withCredentials: true,
@@ -23,19 +11,22 @@ const api = axios.create({
   },
 });
 
-// Attach token from memory if available (cookie fallback)
+// Final Production Architecture: Use sessionStorage for token persistence
+// across page reloads and as a fallback for cross-origin cookie blocking.
 api.interceptors.request.use((config) => {
-  // Strip leading slash so it doesn't override the baseURL path
+  // Strip leading slash from endpoint URL to avoid overriding baseURL path
   if (config.url?.startsWith('/')) {
     config.url = config.url.substring(1);
   }
-  // Use in-memory token as Authorization header if we have one
-  if (memoryToken) {
-    config.headers = config.headers || {};
-    config.headers['Authorization'] = `Bearer ${memoryToken}`;
+
+  // Inject Bearer token from sessionStorage
+  const token = sessionStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 
-// NOTE: No 401 redirect here — AuthContext handles session expiry
+// Error interceptor removed: AuthContext handles session expiry globally
 export default api;
