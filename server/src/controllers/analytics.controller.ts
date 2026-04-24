@@ -8,6 +8,7 @@ import Attendance from '../models/Attendance.model';
 import Programme from '../models/Programme.model';
 import Assessment from '../models/Assessment.model';
 import { z } from 'zod';
+import logger from '../utils/logger';
 
 const analyticsQuerySchema = z.object({
   programme: z.string().optional(),
@@ -165,7 +166,7 @@ export async function getAnalyticsSummary(req: AuthRequest, res: Response): Prom
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -204,7 +205,7 @@ export async function getStudentAnalytics(req: AuthRequest, res: Response): Prom
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }

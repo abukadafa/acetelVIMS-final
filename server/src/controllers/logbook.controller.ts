@@ -21,7 +21,7 @@ const logbookEntrySchema = z.object({
   skillsLearned: z.string().max(1000).optional(),
   challenges: z.string().max(1000).optional(),
   solutions: z.string().max(1000).optional(),
-  weekNumber: z.number().min(1).max(52).optional(),
+  weekNumber: z.number().min(1).max(52).optional(), // auto-calculated if not provided
   isOfflineSync: z.boolean().optional(),
 });
 
@@ -108,8 +108,15 @@ export async function createLogbookEntry(req: AuthRequest, res: Response): Promi
 
     const attachments = (req.files as Express.Multer.File[])?.map(f => `/uploads/logbooks/${f.filename}`) || [];
 
+    // Auto-calculate weekNumber from entryDate if not provided
+    const entryDateObj = new Date(data.entryDate);
+    const startOfYear = new Date(entryDateObj.getFullYear(), 0, 1);
+    const calculatedWeek = Math.ceil(((entryDateObj.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+    const weekNumber = data.weekNumber || Math.max(1, Math.min(52, calculatedWeek));
+
     const entry = new Logbook({
       ...data,
+      weekNumber,
       student: student._id,
       tenant: userTenant,
       status: 'submitted',

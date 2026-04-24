@@ -142,7 +142,7 @@ app.get('/api/health', (_, res) => {
 // --- Institutional API Orchestration ---
 const apiRouter = express.Router();
 
-apiRouter.use('/auth', authLimiter, authRoutes);
+apiRouter.use('/auth', authRoutes);
 apiRouter.use('/students', studentRoutes);
 apiRouter.use('/logbook', logbookRoutes);
 apiRouter.use('/attendance', attendanceRoutes);
@@ -156,9 +156,8 @@ apiRouter.use('/admin', adminRoutes);
 apiRouter.use('/feedback', feedbackRoutes);
 apiRouter.use('/ai', aiRoutes);
 
-// Mount with and without /api prefix for maximum client compatibility
+// Mount API routes under /api prefix
 app.use('/api', apiRouter);
-app.use('/', apiRouter);
 
 // Serve React frontend in production (single-service Render deployment)
 if (process.env.NODE_ENV === 'production') {

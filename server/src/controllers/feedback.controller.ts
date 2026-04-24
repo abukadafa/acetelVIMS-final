@@ -4,6 +4,7 @@ import Feedback from '../models/Feedback.model';
 import User from '../models/User.model';
 import Student from '../models/Student.model';
 import { z } from 'zod';
+import logger from '../utils/logger';
 
 const feedbackSchema = z.object({
   subject: z.string().min(3).max(100),
@@ -58,7 +59,7 @@ export async function createFeedback(req: AuthRequest, res: Response): Promise<v
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -100,7 +101,7 @@ export async function listFeedback(req: AuthRequest, res: Response): Promise<voi
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -148,7 +149,7 @@ export async function addResponse(req: AuthRequest, res: Response): Promise<void
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -212,7 +213,7 @@ export async function exportFeedback(req: AuthRequest, res: Response): Promise<v
     res.setHeader('Content-Disposition', `attachment; filename=ACETEL_Feedback_${new Date().toISOString().split('T')[0]}.csv`);
     res.status(200).send(csv);
   } catch (err) {
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Feedback export failed' });
   }
 }

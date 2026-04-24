@@ -8,6 +8,7 @@ import Company from '../models/Company.model';
 import Logbook from '../models/Logbook.model';
 import Attendance from '../models/Attendance.model';
 import { z } from 'zod';
+import logger from '../utils/logger';
 
 const settingUpdateSchema = z.object({
   key: z.string(),
@@ -26,7 +27,7 @@ export async function getSettings(req: AuthRequest, res: Response): Promise<void
     settings.forEach(s => { obj[s.key] = s.value; });
     res.json({ settings: obj });
   } catch (err) {
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -57,7 +58,7 @@ export async function updateSetting(req: AuthRequest, res: Response): Promise<vo
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -89,7 +90,7 @@ export async function updateMultipleSettings(req: AuthRequest, res: Response): P
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -103,7 +104,7 @@ export async function getAuditLog(req: AuthRequest, res: Response): Promise<void
       .limit(100);
     res.json({ logs });
   } catch (err) {
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -157,7 +158,7 @@ export async function getAdminDashboard(req: AuthRequest, res: Response): Promis
       recentActivity,
     });
   } catch (err) {
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }

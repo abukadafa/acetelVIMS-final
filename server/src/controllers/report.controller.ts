@@ -5,6 +5,7 @@ import Logbook from '../models/Logbook.model';
 import Assessment from '../models/Assessment.model';
 import Setting from '../models/Setting.model';
 import { z } from 'zod';
+import logger from '../utils/logger';
 
 const studentIdParamSchema = z.object({
   studentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ID format'),
@@ -78,7 +79,7 @@ export async function generateStudentReport(req: AuthRequest, res: Response): Pr
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -150,7 +151,7 @@ export async function exportAuditCSV(req: AuthRequest, res: Response): Promise<v
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }

@@ -8,6 +8,7 @@ import AuditLog from '../models/AuditLog.model';
 import Student from '../models/Student.model';
 import Company from '../models/Company.model';
 import { z } from 'zod';
+import logger from '../utils/logger';
 
 const STAFF_ROLES = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor'];
 
@@ -115,7 +116,7 @@ export async function listUsers(req: AuthRequest, res: Response): Promise<void> 
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -188,7 +189,7 @@ export async function createUser(req: AuthRequest, res: Response): Promise<void>
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -280,7 +281,7 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -347,7 +348,7 @@ export async function updateUser(req: AuthRequest, res: Response): Promise<void>
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -396,7 +397,7 @@ export async function deactivateUser(req: AuthRequest, res: Response): Promise<v
 
     res.json({ message: 'User moved to recycle bin', user });
   } catch (err) {
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -432,7 +433,7 @@ export async function listRecycleBin(req: AuthRequest, res: Response): Promise<v
 
     res.json({ users: deletedUsers, students: deletedStudents, companies: deletedCompanies });
   } catch (err) {
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -469,7 +470,7 @@ export async function getAuditLogs(req: AuthRequest, res: Response): Promise<voi
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -517,7 +518,7 @@ export async function permanentDeleteUser(req: AuthRequest, res: Response): Prom
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -558,7 +559,7 @@ export async function restoreUser(req: AuthRequest, res: Response): Promise<void
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -600,7 +601,7 @@ export async function restoreStudent(req: AuthRequest, res: Response): Promise<v
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -638,7 +639,7 @@ export async function permanentDeleteStudent(req: AuthRequest, res: Response): P
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -678,7 +679,7 @@ export async function restoreCompany(req: AuthRequest, res: Response): Promise<v
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -715,7 +716,7 @@ export async function permanentDeleteCompany(req: AuthRequest, res: Response): P
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -768,7 +769,7 @@ export async function exportSecurityAudit(req: AuthRequest, res: Response): Prom
     res.setHeader('Content-Disposition', `attachment; filename=acetel_security_audit_${new Date().getTime()}.csv`);
     res.status(200).send(csvContent);
   } catch (err) {
-    console.error(err);
+    logger.error('Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -939,7 +940,7 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
 
     res.json(results);
   } catch (err) {
-    console.error('Bulk onboard error:', err);
+    logger.error('Bulk onboard error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error during bulk processing' });
   }
 }

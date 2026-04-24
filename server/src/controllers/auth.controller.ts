@@ -12,13 +12,16 @@ import logger from '../utils/logger';
 import { loginSchema, registerSchema } from '../utils/validation';
 import crypto from 'crypto';
 
+// Cross-origin cookie config:
+// Frontend (acetel-frontend.onrender.com) and backend (acetel-backend.onrender.com)
+// are on different subdomains, so cookies MUST use sameSite:'none' + secure:true
+// in production to be sent with cross-origin requests (withCredentials:true).
 const COOKIE_OPTIONS: CookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  // 'lax' is needed when frontend and backend share the same Render domain
-  // but are accessed from different origins during development.
-  sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   maxAge: 8 * 60 * 60 * 1000, // 8 hours for access token
+  path: '/',
 };
 
 const REFRESH_COOKIE_OPTIONS: CookieOptions = {
@@ -418,8 +421,14 @@ export async function logout(req: AuthRequest, res: Response): Promise<void> {
       });
     }
     
-    res.clearCookie('access_token');
-    res.clearCookie('refresh_token');
+    const clearOptions: CookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+    };
+    res.clearCookie('access_token', clearOptions);
+    res.clearCookie('refresh_token', clearOptions);
     res.json({ message: 'Logged out successfully' });
   } catch (err) {
     logger.error('Logout Error: %s', (err as Error).message);

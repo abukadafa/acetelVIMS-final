@@ -42,9 +42,8 @@ services:
         sync: false
 
   # ── Frontend (Static Site) ────────────────────────────────────────────────
-  - type: web
+  - type: static
     name: acetel-frontend
-    runtime: static
     plan: free
     region: oregon
     rootDir: client
