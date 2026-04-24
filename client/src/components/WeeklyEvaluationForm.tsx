@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import api from '../lib/api';
 import { toast } from 'react-hot-toast';
-import { Star, Save, X } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 
 interface Props {
   studentId: string;

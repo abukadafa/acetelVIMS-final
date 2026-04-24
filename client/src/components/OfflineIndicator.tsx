@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { CloudOff, RefreshCcw, Wifi } from 'lucide-react';
 import { getPendingSyncCount, isOnline, setupOfflineAutoSync } from '../lib/offline';
 import api from '../lib/api';

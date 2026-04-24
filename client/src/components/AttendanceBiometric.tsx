@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { Fingerprint, MapPin, CheckCircle, AlertCircle } from 'lucide-react';
+import { Fingerprint, MapPin, AlertCircle } from 'lucide-react';
 
 export default function AttendanceBiometric({ onComplete }: { onComplete: () => void }) {
   const { student } = useAuth();

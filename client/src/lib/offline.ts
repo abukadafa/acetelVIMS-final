@@ -12,7 +12,6 @@ export interface OfflineLogbookEntry {
 }
 
 const LOGBOOK_KEY = 'ims_offline_logbook';
-const ATTENDANCE_KEY = 'ims_offline_attendance';
 
 // ─── Logbook ──────────────────────────────────────────────
 export function saveLogbookOffline(entry: Omit<OfflineLogbookEntry, 'timestamp'>): void {

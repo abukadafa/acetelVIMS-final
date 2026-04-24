@@ -1,5 +1,4 @@
 ## render.yaml — ACETEL Virtual Internship Management System
-## Two-service deployment: backend API + static frontend
 
 services:
   # ── Backend API (Node.js) ──────────────────────────────────────────────────
@@ -16,7 +15,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: "5000"
+        value: "10000"
       - key: MONGO_URI
         sync: false
       - key: JWT_SECRET

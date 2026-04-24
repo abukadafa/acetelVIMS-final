@@ -3,9 +3,9 @@ import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement,
   Title, Tooltip, Legend, ArcElement,
 } from 'chart.js';
-import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { Bar, Doughnut } from 'react-chartjs-2';
 import api from '../lib/api';
-import { Users, CheckCircle, Clock, AlertTriangle, BookOpen, Star, Activity, Download } from 'lucide-react';
+import { Users, CheckCircle, Clock, AlertTriangle, Star, Activity, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 ChartJS.register(
@@ -24,7 +24,7 @@ interface ProgrammeStat {
   attendanceRate: number;
 }
 
-export default function AnalyticsDashboard({ visibleRoles = [] }: { visibleRoles?: string[] }) {
+export default function AnalyticsDashboard({ visibleRoles: _visibleRoles = [] }: { visibleRoles?: string[] }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,7 +37,7 @@ export default function AnalyticsDashboard({ visibleRoles = [] }: { visibleRoles
 
   if (loading || !data) return <div className="page-loader"><div className="spinner"></div></div>;
 
-  const { summary, byProgramme, registrationTrend } = data;
+  const { summary, byProgramme, registrationTrend: _registrationTrend } = data;
 
   // Global KPIs
   const kpis = [
