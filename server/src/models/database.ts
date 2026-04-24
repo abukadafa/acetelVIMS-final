@@ -23,7 +23,7 @@ export async function initDatabase(): Promise<void> {
     await mongoose.connect(MONGODB_URI, options);
     logger.info('✅ Connected to MongoDB successfully');
     
-    // Ensure ACETEL tenant exists
+    // Ensure default ACETEL tenant exists
     let tenant = await Tenant.findOneAndUpdate(
       { slug: 'acetel' },
       { $setOnInsert: { name: 'ACETEL', slug: 'acetel', institutionType: 'University' } },
@@ -50,7 +50,7 @@ export async function initDatabase(): Promise<void> {
  */
 async function ensureAdminExists(tenantId: mongoose.Types.ObjectId) {
   const adminEmail = (process.env.ADMIN_EMAIL || 'admin@acetel.ng').toLowerCase();
-  const adminPassword = process.env.ADMIN_PASSWORD || 'password123';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'Acetel@2024';
 
   let admin = await User.findOne({ email: adminEmail });
 

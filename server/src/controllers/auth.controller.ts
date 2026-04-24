@@ -12,14 +12,16 @@ import logger from '../utils/logger';
 import { loginSchema, registerSchema } from '../utils/validation';
 import crypto from 'crypto';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 // Cross-origin cookie config:
 // Frontend (acetel-frontend.onrender.com) and backend (acetel-backend.onrender.com)
 // are on different subdomains, so cookies MUST use sameSite:'none' + secure:true
 // in production to be sent with cross-origin requests (withCredentials:true).
 const COOKIE_OPTIONS: CookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  secure: isProduction,
+  sameSite: isProduction ? 'none' : 'lax',
   maxAge: 8 * 60 * 60 * 1000, // 8 hours for access token
   path: '/',
 };
@@ -86,13 +88,19 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     if (!user) {
       logger.warn('Login Failure: User not found or inactive for identifier: %s', cleanIdentifier);
+      
+      // Resolve default tenant for logging if user not found
+      const defaultTenant = await Tenant.findOne({ slug: 'acetel' });
+      
       // Best-effort audit log - do not await, must never crash the login response
       AuditLog.create({
+        tenant: defaultTenant?._id,
         action: 'LOGIN_FAILED',
         module: 'AUTH',
         details: `Failed login attempt for identifier: ${identifier}`,
         ipAddress: req.ip
-      }).catch(() => {});
+      }).catch(err => logger.error('AuditLog Error: %s', err.message));
+
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
@@ -108,7 +116,8 @@ export async function login(req: Request, res: Response): Promise<void> {
         module: 'AUTH',
         details: `Incorrect password attempt for user: ${user.email}`,
         ipAddress: req.ip
-      }).catch(() => {});
+      }).catch(err => logger.error('AuditLog Error: %s', err.message));
+
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
@@ -429,8 +438,8 @@ export async function logout(req: AuthRequest, res: Response): Promise<void> {
     
     const clearOptions: CookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       path: '/',
     };
     res.clearCookie('access_token', clearOptions);
