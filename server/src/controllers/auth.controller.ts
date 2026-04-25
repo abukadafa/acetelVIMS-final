@@ -19,9 +19,9 @@ const isProduction = process.env.NODE_ENV === 'production';
 // in production to be sent with cross-origin requests (withCredentials:true).
 const COOKIE_OPTIONS: CookieOptions = {
   httpOnly: true,
-  secure: isProduction,
-  sameSite: isProduction ? 'none' : 'lax',
-  maxAge: 8 * 60 * 60 * 1000, // 8 hours for access token
+  secure: true, // Always true for Render/HTTPS
+  sameSite: 'none', // Required for cross-origin cookies on Render subdomains
+  maxAge: 8 * 60 * 60 * 1000,
   path: '/',
 };
 
@@ -381,10 +381,16 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
 
 export async function getProfile(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { id: userId, tenant: userTenant } = req.user!;
+    if (!req.user) {
+      res.status(401).json({ error: 'Session invalid' });
+      return;
+    }
+
+    const { id: userId, tenant: userTenant } = req.user;
     const user = await User.findOne({ _id: userId, tenant: userTenant }).select('-password');
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
+    
+    if (!user || !user.isActive) {
+      res.status(401).json({ error: 'Unauthorized or account disabled' });
       return;
     }
 
