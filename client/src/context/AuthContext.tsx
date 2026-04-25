@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api from '../lib/api';
+import api, { setAuthToken } from '../lib/api';
 
 interface User {
   id: string; email: string; role: string;
@@ -35,7 +35,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const logout = useCallback(async () => {
-    sessionStorage.removeItem('token');
+    // Clear token from axios instance AND sessionStorage immediately
+    setAuthToken(null);
     try {
       await api.post('auth/logout').catch(() => {});
     } finally {
@@ -58,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.student) setStudent(data.student);
     } catch (err: any) {
       if (err.response?.status === 401) {
-        sessionStorage.removeItem('token');
+        setAuthToken(null);
         setUser(null);
         setStudent(null);
       }
@@ -73,9 +74,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (identifier: string, password: string) => {
     const { data } = await api.post('auth/login', { identifier, password });
-    
+
     if (data.accessToken) {
-      sessionStorage.setItem('token', data.accessToken);
+      // setAuthToken sets BOTH the axios instance default header AND sessionStorage
+      // in one call — this ensures the very next request (fired by Dashboard useEffect)
+      // already has the Authorization header attached.
+      setAuthToken(data.accessToken);
     }
 
     setUser(data.user);
