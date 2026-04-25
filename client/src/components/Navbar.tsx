@@ -21,23 +21,23 @@ export default function Navbar() {
 
   return (
     <nav className="vims-topbar">
-      {/* Left — crossfading logo + institution name */}
+      {/* Left — crossfading logo + fixed institution text */}
       <div className="vims-topbar-left">
         <div className="vims-topbar-logo-wrap">
-          <img src="/assets/noun-logo.png" alt="NOUN" className="vims-topbar-logo" style={{ opacity: showNoun ? 1 : 0 }} />
+          <img src="/assets/noun-logo.png"   alt="NOUN"   className="vims-topbar-logo" style={{ opacity: showNoun ? 1 : 0 }} />
           <img src="/assets/acetel-logo.png" alt="ACETEL" className="vims-topbar-logo" style={{ opacity: showNoun ? 0 : 1 }} />
         </div>
         <div className="vims-topbar-text">
           <div className="vims-topbar-inst">
-            {showNoun ? 'National Open University of Nigeria (NOUN)' : 'Africa Centre of Excellence for Technology Enhanced Learning'}
+            Africa Centre of Excellence for Technology Enhanced Learning
           </div>
           <div className="vims-topbar-sub">
-            {showNoun ? 'ACETEL — Virtual Internship Management System' : 'ACETEL VIMS — Empowering Virtual Career Transitions'}
+            ACETEL VIMS — Empowering Virtual Career Transitions
           </div>
         </div>
       </div>
 
-      {/* Right — bell + avatar only (no centre text) */}
+      {/* Right — bell + avatar */}
       <div className="vims-topbar-right">
         <button className="vims-topbar-bell">
           <Bell size={18} />

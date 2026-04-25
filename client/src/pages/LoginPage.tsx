@@ -37,7 +37,7 @@ export default function LoginPage() {
       <div className="vims-left">
         <div className="vims-left-inner">
 
-          {/* Crossfading logo + bigger institution name */}
+          {/* Crossfading logo + fixed institution name */}
           <div className="vims-logo-wrap">
             <div className="vims-logo-crossfade">
               <img src="/assets/noun-logo.png" alt="NOUN" className="vims-logo-img" style={{ opacity: showNoun ? 1 : 0 }} />
@@ -45,10 +45,10 @@ export default function LoginPage() {
             </div>
             <div className="vims-logo-text">
               <div className="vims-logo-name">
-                {showNoun ? 'National Open University of Nigeria' : 'Africa Centre of Excellence for TEL'}
+                Africa Centre of Excellence for Technology Enhanced Learning (ACETEL)
               </div>
               <div className="vims-logo-sub">
-                {showNoun ? 'NOUN — Abuja, Nigeria' : 'ACETEL — Virtual Internship Management'}
+                Virtual Internship Management System
               </div>
             </div>
           </div>

@@ -983,34 +983,34 @@ tr:hover td { background: var(--surface-2); }
 }
 .vims-logo-crossfade {
   position: relative;
-  width: 52px;
-  height: 52px;
+  width: 68px;
+  height: 68px;
   flex-shrink: 0;
 }
 .vims-logo-img {
   position: absolute;
   inset: 0;
-  width: 52px;
-  height: 52px;
+  width: 68px;
+  height: 68px;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: 10px;
   transition: opacity 0.8s ease-in-out;
 }
 .vims-logo-text { display: flex; flex-direction: column; }
 .vims-logo-name {
   font-family: 'Syne', sans-serif;
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   font-weight: 800;
   color: #0a0a0a;
   line-height: 1.2;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 .vims-logo-sub {
-  font-size: 0.78rem;
+  font-size: 0.92rem;
   color: #1e6b2e;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-top: 3px;
+  letter-spacing: 0.04em;
+  margin-top: 4px;
   font-weight: 700;
 }
 
@@ -1339,17 +1339,17 @@ tr:hover td { background: var(--surface-2); }
 }
 .vims-topbar-logo-wrap {
   position: relative;
-  width: 42px;
-  height: 42px;
+  width: 52px;
+  height: 52px;
   flex-shrink: 0;
 }
 .vims-topbar-logo {
   position: absolute;
   inset: 0;
-  width: 42px;
-  height: 42px;
+  width: 52px;
+  height: 52px;
   object-fit: contain;
-  border-radius: 5px;
+  border-radius: 6px;
   transition: opacity 0.8s ease-in-out;
 }
 .vims-topbar-text { display: flex; flex-direction: column; }
