@@ -8,6 +8,8 @@ import { sendEmail } from '../utils/mail.service';
 import { z } from 'zod';
 import logger from '../utils/logger';
 
+const STAFF_ROLES = ['admin', 'prog_coordinator', 'internship_coordinator', 'supervisor', 'ict_support'];
+
 const BASE_STYLE = `font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;margin:0;padding:0;`;
 const CARD = `max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);`;
 const HEADER = `<div style="background:linear-gradient(135deg,#0a5c36 0%,#147a4a 100%);padding:28px 40px;"><h1 style="color:#fff;margin:0;font-size:20px;">ACETEL IMS</h1></div>`;
@@ -28,39 +30,66 @@ const composeSchema = z.object({
   programmeId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
 });
 
-/** POST /api/email/compose — send email to selected recipients */
+/** POST /api/email/compose — all authenticated users can send email */
 export async function composeEmail(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { subject, body, recipientScope, recipientIds, programmeId } = composeSchema.parse(req.body);
     const tenantId = req.user!.tenant;
+    const userRole = req.user!.role;
+    const isStaff = STAFF_ROLES.includes(userRole);
+
     const sender = await User.findById(req.user!.id).select('firstName lastName email');
     if (!sender) { res.status(404).json({ error: 'Sender not found' }); return; }
     const senderName = `${sender.firstName} ${sender.lastName}`;
     const html = buildHtml(senderName, body);
 
-    // Resolve recipient list
+    // Students can ONLY send to individual contacts (their supervisor/coordinator)
+    // They cannot broadcast to all_students / all_staff / programme
+    if (!isStaff && ['all_students', 'all_staff', 'programme'].includes(recipientScope)) {
+      res.status(403).json({ error: 'Students can only send emails to individual contacts' });
+      return;
+    }
+
     let recipientUsers: { _id: any; email: string; firstName: string; lastName: string; }[] = [];
 
     if (recipientScope === 'all_students') {
       const students = await User.find({ tenant: tenantId, role: 'student', isActive: true }).select('email firstName lastName');
       recipientUsers = students as any[];
     } else if (recipientScope === 'all_staff') {
-      const staff = await User.find({ tenant: tenantId, role: { $ne: 'student' }, isActive: true }).select('email firstName lastName');
+      const staff = await User.find({ tenant: tenantId, role: { $in: STAFF_ROLES }, isActive: true }).select('email firstName lastName');
       recipientUsers = staff as any[];
     } else if (recipientScope === 'programme' && programmeId) {
       const students = await Student.find({ programme: programmeId, tenant: tenantId }).populate('user', 'email firstName lastName');
       recipientUsers = students.map(s => s.user as any).filter(Boolean);
     } else if ((recipientScope === 'individual' || recipientScope === 'custom') && recipientIds?.length) {
-      const users = await User.find({ _id: { $in: recipientIds }, tenant: tenantId, isActive: true }).select('email firstName lastName');
+      // For students: validate they can only email staff or their own supervisor
+      let allowedIds = recipientIds;
+      if (!isStaff) {
+        const studentRecord = await Student.findOne({ user: req.user!.id, tenant: tenantId });
+        const allowedUsers = await User.find({
+          tenant: tenantId,
+          isActive: true,
+          $or: [
+            { role: { $in: ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support'] } },
+            { _id: studentRecord?.supervisor },
+          ],
+        }).select('_id');
+        const allowedSet = new Set(allowedUsers.map(u => u._id.toString()));
+        allowedIds = recipientIds.filter(id => allowedSet.has(id));
+        if (allowedIds.length === 0) {
+          res.status(403).json({ error: 'You can only email your supervisor or institutional coordinators' });
+          return;
+        }
+      }
+      const users = await User.find({ _id: { $in: allowedIds }, tenant: tenantId, isActive: true }).select('email firstName lastName');
       recipientUsers = users as any[];
     }
 
     if (recipientUsers.length === 0) {
-      res.status(400).json({ error: 'No valid recipients found for the selected scope' });
+      res.status(400).json({ error: 'No valid recipients found' });
       return;
     }
 
-    // Save record before sending
     const record = await EmailRecord.create({
       tenant: tenantId,
       sender: req.user!.id,
@@ -75,12 +104,10 @@ export async function composeEmail(req: AuthRequest, res: Response): Promise<voi
       status: 'sending',
     });
 
-    // Send emails (non-blocking for large batches — process and update record)
     let sent = 0;
     let failed = 0;
-
-    // For large broadcasts (>20), respond immediately and process in background
     const isLarge = recipientUsers.length > 20;
+
     if (isLarge) {
       res.status(202).json({
         message: `Sending to ${recipientUsers.length} recipients in the background. Check Email History for delivery status.`,
@@ -115,13 +142,13 @@ export async function composeEmail(req: AuthRequest, res: Response): Promise<voi
   }
 }
 
-/** GET /api/email/history — sent email history */
+/** GET /api/email/history — all users see their own sent emails; staff see all */
 export async function getEmailHistory(req: AuthRequest, res: Response): Promise<void> {
   try {
     const tenantId = req.user!.tenant;
-    const isAdmin = ['admin', 'prog_coordinator', 'internship_coordinator'].includes(req.user!.role);
+    const isStaff = STAFF_ROLES.includes(req.user!.role);
     const filter: any = { tenant: tenantId };
-    if (!isAdmin) filter.sender = req.user!.id; // non-admins only see their own
+    if (!isStaff) filter.sender = req.user!.id;
 
     const emails = await EmailRecord.find(filter)
       .populate('sender', 'firstName lastName role')
@@ -136,15 +163,32 @@ export async function getEmailHistory(req: AuthRequest, res: Response): Promise<
   }
 }
 
-/** GET /api/email/contacts — users available to email */
+/** GET /api/email/contacts — scoped by role */
 export async function getEmailContacts(req: AuthRequest, res: Response): Promise<void> {
   try {
     const tenantId = req.user!.tenant;
-    const users = await User.find({ tenant: tenantId, isActive: true, _id: { $ne: req.user!.id } })
+    const userRole = req.user!.role;
+    const isStaff = STAFF_ROLES.includes(userRole);
+
+    let userFilter: any = { tenant: tenantId, isActive: true, _id: { $ne: req.user!.id } };
+
+    if (!isStaff) {
+      // Students can only contact staff + their own supervisor
+      const studentRecord = await Student.findOne({ user: req.user!.id, tenant: tenantId });
+      userFilter.$or = [
+        { role: { $in: ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor'] } },
+        ...(studentRecord?.supervisor ? [{ _id: studentRecord.supervisor }] : []),
+      ];
+    }
+
+    const users = await User.find(userFilter)
       .select('firstName lastName email role')
       .sort({ role: 1, firstName: 1 });
 
-    const programmes = await Programme.find({ tenant: tenantId, isActive: true }).select('name code');
+    const programmes = isStaff
+      ? await Programme.find({ tenant: tenantId, isActive: true }).select('name code')
+      : [];
+
     res.json({ users, programmes });
   } catch (err) {
     logger.error('Email contacts error: %s', (err as Error).message);

@@ -2,6 +2,7 @@ import { Response } from 'express';
 import mongoose from 'mongoose';
 import { AuthRequest } from '../middleware/auth.middleware';
 import Chat from '../models/Chat.model';
+import Student from '../models/Student.model';
 import User from '../models/User.model';
 import Notification from '../models/notification.model';
 import { sendEmail, emailTemplates } from '../utils/mail.service';
@@ -200,9 +201,25 @@ export async function getChatContacts(req: AuthRequest, res: Response): Promise<
       isDeleted: { $ne: true },
     };
 
-    // Students can only chat with their supervisor and coordinators
+    // Students can chat with staff + fellow students in same programme
     if (role === 'student') {
-      filter.role = { $in: ['supervisor', 'prog_coordinator', 'internship_coordinator', 'admin'] };
+      const studentRecord = await Student.findOne({ user: userId, tenant: tenantId });
+      if (studentRecord?.programme) {
+        // Get fellow students in same programme
+        const fellowStudents = await Student.find({
+          programme: studentRecord.programme,
+          tenant: tenantId,
+          user: { $ne: userId },
+        }).select('user');
+        const fellowIds = fellowStudents.map(s => s.user);
+        filter.$or = [
+          { role: { $in: ['supervisor', 'prog_coordinator', 'internship_coordinator', 'admin', 'ict_support'] } },
+          { _id: { $in: fellowIds } },
+          ...(studentRecord.supervisor ? [{ _id: studentRecord.supervisor }] : []),
+        ];
+      } else {
+        filter.role = { $in: ['supervisor', 'prog_coordinator', 'internship_coordinator', 'admin', 'ict_support'] };
+      }
     }
 
     const contacts = await User.find(filter)

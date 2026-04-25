@@ -1,14 +1,14 @@
 import { Router } from 'express';
-import { authenticate, authorize } from '../middleware/auth.middleware';
+import { authenticate } from '../middleware/auth.middleware';
 import { composeEmail, getEmailHistory, getEmailContacts } from '../controllers/email.controller';
 
 const r = Router();
 
 r.use(authenticate);
 
-// Only staff roles can compose broadcast emails
-r.post('/compose', authorize('admin', 'prog_coordinator', 'internship_coordinator', 'supervisor', 'ict_support'), composeEmail);
+// All authenticated users can compose — scope enforcement is in the controller
+r.post('/compose', composeEmail);
 r.get('/history', getEmailHistory);
-r.get('/contacts', authorize('admin', 'prog_coordinator', 'internship_coordinator', 'supervisor', 'ict_support'), getEmailContacts);
+r.get('/contacts', getEmailContacts);
 
 export default r;
