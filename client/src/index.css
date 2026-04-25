@@ -178,7 +178,7 @@ h3 { font-size: 1.25rem; }
 }
 .nav-item .nav-icon { flex-shrink: 0; }
 .nav-item .nav-label { overflow: hidden; text-overflow: ellipsis; transition: opacity .2s; }
-.nav-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+.nav-item:hover { background: #f0fdf4; color: #1e6b2e; }
 .nav-item.active {
   background: rgba(255,255,255,.14);
   color: #fff;
@@ -904,13 +904,11 @@ tr:hover td { background: var(--surface-2); }
   background: #fff;
 }
 
-/* ── LEFT DARK PANEL ── */
+/* ── LEFT PANEL — white background, black text, green accents ── */
 .vims-left {
   flex: 1;
-  background: linear-gradient(160deg, #0a1f0d 0%, #134a1f 45%, #1e6b2e 100%);
-  background-image:
-    radial-gradient(ellipse at 10% 70%, rgba(34,197,94,0.1) 0%, transparent 55%),
-    radial-gradient(ellipse at 90% 15%, rgba(255,255,255,0.04) 0%, transparent 50%);
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
   display: flex;
   position: relative;
   overflow: hidden;
@@ -920,8 +918,8 @@ tr:hover td { background: var(--surface-2); }
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(30,107,46,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30,107,46,0.04) 1px, transparent 1px);
   background-size: 44px 44px;
   pointer-events: none;
 }
@@ -961,18 +959,17 @@ tr:hover td { background: var(--surface-2); }
   font-family: 'Outfit', sans-serif;
   font-size: 1.1rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #0a0a0a;
   line-height: 1.15;
   letter-spacing: -0.01em;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.3);
 }
 .vims-logo-sub {
   font-size: 0.7rem;
-  color: #a7f3d0;   /* bright mint — fully visible on green */
+  color: #1e6b2e;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-top: 2px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* Status pills */
@@ -987,28 +984,27 @@ tr:hover td { background: var(--surface-2); }
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: rgba(255,255,255,0.15);
-  border: 1px solid rgba(255,255,255,0.35);
+  background: #f0fdf4;
+  border: 1.5px solid #16a34a;
   border-radius: 100px;
   padding: 6px 14px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #ffffff;          /* solid white */
+  color: #14532d;
   letter-spacing: 0.02em;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 .vims-status-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #86efac;
-  box-shadow: 0 0 8px rgba(134,239,172,1);
+  background: #16a34a;
+  box-shadow: 0 0 8px rgba(22,163,74,0.8);
   flex-shrink: 0;
   animation: vims-blink 2s infinite;
 }
 @keyframes vims-blink {
-  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(134,239,172,1); }
-  50%       { opacity: 0.6; box-shadow: 0 0 4px rgba(134,239,172,0.5); }
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(22,163,74,0.8); }
+  50%       { opacity: 0.5; box-shadow: 0 0 3px rgba(22,163,74,0.3); }
 }
 
 /* Hero text */
@@ -1017,15 +1013,14 @@ tr:hover td { background: var(--surface-2); }
   font-family: 'Outfit', sans-serif;
   font-size: 2.6rem;
   font-weight: 900;
-  color: #ffffff;           /* solid white, fully sharp */
+  color: #0a0a0a;
   line-height: 1.1;
   letter-spacing: -0.025em;
   margin-bottom: 20px;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
 .vims-hero-desc {
   font-size: 0.95rem;
-  color: #d1fae5;           /* light green-white, sharp on dark green */
+  color: #374151;
   line-height: 1.75;
   max-width: 420px;
   margin-bottom: 32px;
@@ -1033,25 +1028,24 @@ tr:hover td { background: var(--surface-2); }
 }
 .vims-tags { display: flex; flex-wrap: wrap; gap: 9px; }
 .vims-tag {
-  background: rgba(255,255,255,0.15);
-  border: 1px solid rgba(255,255,255,0.3);
-  color: #ffffff;           /* solid white */
+  background: #f0fdf4;
+  border: 1.5px solid #16a34a;
+  color: #14532d;
   font-size: 0.8rem;
   font-weight: 700;
   padding: 7px 14px;
   border-radius: 6px;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .vims-left-footer {
   font-size: 0.68rem;
-  color: #a7f3d0;           /* bright mint — visible on green bg */
+  color: #1e6b2e;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   padding-top: 22px;
-  border-top: 1px solid rgba(255,255,255,0.2);
+  border-top: 1.5px solid #bbf7d0;
   margin-top: 40px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* ── RIGHT WHITE PANEL ── */
@@ -1115,14 +1109,14 @@ tr:hover td { background: var(--surface-2); }
   font-family: 'Outfit', sans-serif;
   font-size: 1.7rem;
   font-weight: 800;
-  color: #1e6b2e;
+  color: #0a0a0a;
   margin-bottom: 6px;
   line-height: 1.2;
   letter-spacing: -0.02em;
 }
 .vims-form-subtitle {
   font-size: 0.875rem;
-  color: #94a3b8;
+  color: #374151;
   margin-bottom: 24px;
   line-height: 1.5;
 }
@@ -1390,23 +1384,30 @@ tr:hover td { background: var(--surface-2); }
   cursor: default;
 }
 
-/* ─── SIDEBAR OVERRIDES — clean navy blue ─── */
+/* ─── SIDEBAR — white background, black & green text ─── */
 .sidebar {
-  background: linear-gradient(180deg, #0a1f0d 0%, #1e6b2e 50%, #0a1f0d 100%) !important;
+  background: #ffffff !important;
   background-image: none !important;
-  box-shadow: 3px 0 20px rgba(0,0,0,0.2) !important;
+  border-right: 2px solid #bbf7d0 !important;
+  box-shadow: 3px 0 16px rgba(30,107,46,0.1) !important;
 }
 .sidebar-toggle {
-  background: #22c55e !important;
-  border-color: rgba(255,255,255,0.15) !important;
+  background: #1e6b2e !important;
+  border-color: #134a1f !important;
 }
-.sidebar-toggle:hover { background: #16a34a !important; }
-.logo-text  { color: #ffffff !important; font-weight: 800 !important; }
-.logo-sub   { color: #a7f3d0 !important; font-weight: 600 !important; }
-.logo-badge { background: #86efac !important; color: #134a1f !important; font-weight: 800 !important; }
-.nav-group-label { color: #a7f3d0 !important; font-weight: 700 !important; font-size: 0.65rem !important; letter-spacing: 0.12em !important; }
+.sidebar-toggle:hover { background: #134a1f !important; }
+.logo-text  { color: #0a0a0a !important; font-weight: 800 !important; }
+.logo-sub   { color: #1e6b2e !important; font-weight: 700 !important; }
+.logo-badge { background: #1e6b2e !important; color: #ffffff !important; font-weight: 800 !important; }
+.nav-group-label {
+  color: #1e6b2e !important;
+  font-weight: 800 !important;
+  font-size: 0.65rem !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+}
 .nav-item {
-  color: #d1fae5 !important;   /* bright mint-white, sharp on dark green */
+  color: #0a0a0a !important;
   border-radius: 7px !important;
   margin: 2px 8px !important;
   padding: 9px 12px !important;
@@ -1418,22 +1419,22 @@ tr:hover td { background: var(--surface-2); }
   padding: 11px 0 !important;
 }
 .nav-item:hover {
-  background: rgba(255,255,255,0.15) !important;
-  color: #ffffff !important;
+  background: #f0fdf4 !important;
+  color: #1e6b2e !important;
 }
 .nav-item.active {
-  background: rgba(134,239,172,0.2) !important;
-  color: #ffffff !important;
+  background: #dcfce7 !important;
+  color: #14532d !important;
   font-weight: 700 !important;
 }
-.nav-item.active::before { background: #86efac !important; }
-.sidebar-footer { border-top: 1px solid rgba(255,255,255,0.15) !important; }
-.sidebar-avatar { background: #86efac !important; color: #134a1f !important; font-weight: 900 !important; }
-.sidebar-user-name { color: #ffffff !important; font-weight: 700 !important; }
-.sidebar-user-role { color: #a7f3d0 !important; font-weight: 600 !important; }
+.nav-item.active::before { background: #1e6b2e !important; }
+.sidebar-footer { border-top: 2px solid #bbf7d0 !important; }
+.sidebar-avatar { background: #1e6b2e !important; color: #ffffff !important; font-weight: 900 !important; }
+.sidebar-user-name { color: #0a0a0a !important; font-weight: 700 !important; }
+.sidebar-user-role { color: #1e6b2e !important; font-weight: 600 !important; }
 
 /* ─── PAGE & FOOTER ─── */
-.page-content  { background: #f1f5f9 !important; }
+.page-content  { background: #f4f7f4 !important; }
 .institutional-footer {
   background: #ffffff !important;
   border-top: 1px solid #e2e8f0 !important;
