@@ -1318,8 +1318,8 @@ tr:hover td { background: var(--surface-2); }
 /* ─── TOPBAR ─── */
 .vims-topbar {
   background: #ffffff;
-  border-bottom: 1.5px solid #e2e8f0;
-  padding: 0 24px;
+  border-bottom: 2px solid #bbf7d0;
+  padding: 0 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1327,45 +1327,46 @@ tr:hover td { background: var(--surface-2); }
   position: sticky;
   top: 0;
   z-index: 90;
-  height: 68px;
-  box-shadow: 0 1px 8px rgba(30,107,46,0.07);
+  height: 86px;
+  box-shadow: 0 2px 12px rgba(30,107,46,0.1);
 }
 
 .vims-topbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   flex-shrink: 0;
 }
 .vims-topbar-logo-wrap {
   position: relative;
-  width: 52px;
-  height: 52px;
+  width: 60px;
+  height: 60px;
   flex-shrink: 0;
 }
 .vims-topbar-logo {
   position: absolute;
   inset: 0;
-  width: 52px;
-  height: 52px;
+  width: 60px;
+  height: 60px;
   object-fit: contain;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: opacity 0.8s ease-in-out;
 }
-.vims-topbar-text { display: flex; flex-direction: column; }
+.vims-topbar-text { display: flex; flex-direction: column; gap: 3px; }
 .vims-topbar-inst {
   font-family: 'Syne', sans-serif;
-  font-size: 0.78rem;
+  font-size: 1.2rem;
   font-weight: 800;
-  color: #1e6b2e;
+  color: #0a0a0a;
   line-height: 1.2;
-  transition: all 0.5s ease;
+  letter-spacing: -0.02em;
 }
 .vims-topbar-sub {
-  font-size: 0.62rem;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e6b2e;
+  letter-spacing: 0.01em;
   margin-top: 1px;
 }
 .vims-topbar-center { display: none; }
