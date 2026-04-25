@@ -102,11 +102,18 @@ async function seedSettings(tenantId: mongoose.Types.ObjectId) {
  */
 async function ensureAdminUserRecordExists(tenantId: mongoose.Types.ObjectId) {
   const User = mongoose.model('User');
-  const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   
   if (!adminEmail) return;
 
-  const existing = await User.findOne({ email: adminEmail });
+  // Check if a record already exists with this email OR the 'admin' username
+  const existing = await User.findOne({ 
+    $or: [
+      { email: adminEmail },
+      { username: 'admin' }
+    ]
+  });
+
   if (!existing) {
     logger.info('👤 Creating Safety Admin record for %s', adminEmail);
     await User.create({
@@ -117,7 +124,12 @@ async function ensureAdminUserRecordExists(tenantId: mongoose.Types.ObjectId) {
       lastName: 'Administrator',
       tenant: tenantId,
       isActive: true,
-      password: 'managed-by-env' // Placeholder, password checked against process.env
+      password: 'managed-by-env'
     });
+  } else if (existing.email !== adminEmail) {
+    // If 'admin' username is taken by another email, update it to match the environment
+    logger.info('👤 Updating existing admin username record to match ENV email: %s', adminEmail);
+    existing.email = adminEmail;
+    await existing.save();
   }
 }

@@ -44,10 +44,10 @@ export async function login(req: Request, res: Response): Promise<void> {
     const cleanIdentifier = identifier.trim().toLowerCase();
     
     // --- NO CONFLICT DESIGN: Environment-First Admin Validation ---
-    const envAdminEmail = process.env.ADMIN_EMAIL;
-    const envAdminPass = process.env.ADMIN_PASSWORD;
+    const envAdminEmail = process.env.ADMIN_EMAIL?.trim();
+    const envAdminPass = process.env.ADMIN_PASSWORD?.trim();
 
-    if (cleanIdentifier === envAdminEmail?.toLowerCase()) {
+    if (envAdminEmail && cleanIdentifier === envAdminEmail.toLowerCase()) {
       if (password === envAdminPass) {
         // Authenticated via Environment - fetch DB record for metadata only
         const adminUser = await User.findOne({ email: envAdminEmail.toLowerCase() });
