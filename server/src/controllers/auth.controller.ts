@@ -63,7 +63,7 @@ export async function login(req: Request, res: Response): Promise<void> {
           role: 'admin', 
           email: adminUser.email,
           tenant: adminUser.tenant.toString()
-        }, req.ip, req.get('user-agent'));
+        }, req.ip || 'unknown', req.get('user-agent') || 'unknown-agent');
 
         res.cookie('token', access, COOKIE_OPTIONS);
         res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
@@ -157,7 +157,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       email: user.email,
       tenant: user.tenant.toString(),
       programme: user.programme?.toString()
-    }, req.ip, req.get('user-agent'));
+    }, req.ip || 'unknown', req.get('user-agent') || 'unknown-agent');
 
     res.cookie('token', access, COOKIE_OPTIONS);
     res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
@@ -303,7 +303,7 @@ export async function register(req: Request, res: Response): Promise<void> {
       role: user.role, 
       email: user.email,
       tenant: user.tenant.toString()
-    }, req.ip, req.get('user-agent'));
+    }, req.ip || 'unknown', req.get('user-agent') || 'unknown-agent');
 
     res.cookie('token', access, COOKIE_OPTIONS);
     res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
@@ -364,7 +364,7 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
       email: user.email,
       tenant: user.tenant.toString(),
       programme: user.programme?.toString()
-    }, req.ip, req.get('user-agent'));
+    }, req.ip || 'unknown', req.get('user-agent') || 'unknown-agent');
 
     refreshTokenRecord.replacedByToken = refresh;
     await refreshTokenRecord.save();

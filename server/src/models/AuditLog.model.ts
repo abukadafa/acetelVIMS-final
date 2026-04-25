@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IAuditLog extends Document {
-  tenant: mongoose.Types.ObjectId;
+  tenant?: mongoose.Types.ObjectId;
   user?: mongoose.Types.ObjectId;
   action: string;
   module: string;
