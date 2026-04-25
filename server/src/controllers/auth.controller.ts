@@ -1,5 +1,4 @@
 import { Request, Response, CookieOptions } from 'express';
-import jwt from 'jsonwebtoken';
 import User from '../models/User.model';
 import Student from '../models/Student.model';
 import Programme from '../models/Programme.model';
