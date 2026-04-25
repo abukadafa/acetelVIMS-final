@@ -959,18 +959,20 @@ tr:hover td { background: var(--surface-2); }
 .vims-logo-text { display: flex; flex-direction: column; }
 .vims-logo-name {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 800;
   color: #ffffff;
   line-height: 1.15;
   letter-spacing: -0.01em;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.3);
 }
 .vims-logo-sub {
-  font-size: 0.67rem;
-  color: rgba(255,255,255,0.42);
+  font-size: 0.7rem;
+  color: #a7f3d0;   /* bright mint — fully visible on green */
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-top: 2px;
+  font-weight: 600;
 }
 
 /* Status pills */
@@ -985,66 +987,71 @@ tr:hover td { background: var(--surface-2); }
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.35);
   border-radius: 100px;
-  padding: 5px 13px;
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: rgba(255,255,255,0.62);
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ffffff;          /* solid white */
   letter-spacing: 0.02em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 .vims-status-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 7px rgba(34,197,94,0.9);
+  background: #86efac;
+  box-shadow: 0 0 8px rgba(134,239,172,1);
   flex-shrink: 0;
   animation: vims-blink 2s infinite;
 }
 @keyframes vims-blink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.45; }
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(134,239,172,1); }
+  50%       { opacity: 0.6; box-shadow: 0 0 4px rgba(134,239,172,0.5); }
 }
 
 /* Hero text */
 .vims-hero { flex: 1; display: flex; flex-direction: column; justify-content: center; }
 .vims-hero-title {
   font-family: 'Outfit', sans-serif;
-  font-size: 2.55rem;
-  font-weight: 800;
-  color: #ffffff;
-  line-height: 1.12;
+  font-size: 2.6rem;
+  font-weight: 900;
+  color: #ffffff;           /* solid white, fully sharp */
+  line-height: 1.1;
   letter-spacing: -0.025em;
   margin-bottom: 20px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
 .vims-hero-desc {
-  font-size: 0.93rem;
-  color: rgba(255,255,255,0.5);
+  font-size: 0.95rem;
+  color: #d1fae5;           /* light green-white, sharp on dark green */
   line-height: 1.75;
-  max-width: 400px;
+  max-width: 420px;
   margin-bottom: 32px;
+  font-weight: 500;
 }
 .vims-tags { display: flex; flex-wrap: wrap; gap: 9px; }
 .vims-tag {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.58);
-  font-size: 0.77rem;
-  font-weight: 500;
-  padding: 6px 13px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #ffffff;           /* solid white */
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 7px 14px;
   border-radius: 6px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .vims-left-footer {
-  font-size: 0.66rem;
-  color: rgba(255,255,255,0.2);
+  font-size: 0.68rem;
+  color: #a7f3d0;           /* bright mint — visible on green bg */
   text-transform: uppercase;
   letter-spacing: 0.1em;
   padding-top: 22px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255,255,255,0.2);
   margin-top: 40px;
+  font-weight: 600;
 }
 
 /* ── RIGHT WHITE PANEL ── */
@@ -1394,15 +1401,16 @@ tr:hover td { background: var(--surface-2); }
   border-color: rgba(255,255,255,0.15) !important;
 }
 .sidebar-toggle:hover { background: #16a34a !important; }
-.logo-text  { color: #fff !important; }
-.logo-sub   { color: rgba(255,255,255,0.38) !important; }
-.logo-badge { background: #22c55e !important; color: #fff !important; }
-.nav-group-label { color: rgba(255,255,255,0.25) !important; }
+.logo-text  { color: #ffffff !important; font-weight: 800 !important; }
+.logo-sub   { color: #a7f3d0 !important; font-weight: 600 !important; }
+.logo-badge { background: #86efac !important; color: #134a1f !important; font-weight: 800 !important; }
+.nav-group-label { color: #a7f3d0 !important; font-weight: 700 !important; font-size: 0.65rem !important; letter-spacing: 0.12em !important; }
 .nav-item {
-  color: rgba(255,255,255,0.6) !important;
+  color: #d1fae5 !important;   /* bright mint-white, sharp on dark green */
   border-radius: 7px !important;
   margin: 2px 8px !important;
   padding: 9px 12px !important;
+  font-weight: 600 !important;
 }
 .nav-item.collapsed {
   margin: 2px 0 !important;
@@ -1410,18 +1418,19 @@ tr:hover td { background: var(--surface-2); }
   padding: 11px 0 !important;
 }
 .nav-item:hover {
-  background: rgba(255,255,255,0.08) !important;
+  background: rgba(255,255,255,0.15) !important;
   color: #ffffff !important;
 }
 .nav-item.active {
-  background: rgba(34,197,94,0.18) !important;
+  background: rgba(134,239,172,0.2) !important;
   color: #ffffff !important;
+  font-weight: 700 !important;
 }
-.nav-item.active::before { background: #22c55e !important; }
-.sidebar-footer { border-top: 1px solid rgba(255,255,255,0.07) !important; }
-.sidebar-avatar { background: #22c55e !important; color: #fff !important; font-weight: 800 !important; }
-.sidebar-user-name { color: #fff !important; }
-.sidebar-user-role { color: rgba(255,255,255,0.45) !important; }
+.nav-item.active::before { background: #86efac !important; }
+.sidebar-footer { border-top: 1px solid rgba(255,255,255,0.15) !important; }
+.sidebar-avatar { background: #86efac !important; color: #134a1f !important; font-weight: 900 !important; }
+.sidebar-user-name { color: #ffffff !important; font-weight: 700 !important; }
+.sidebar-user-role { color: #a7f3d0 !important; font-weight: 600 !important; }
 
 /* ─── PAGE & FOOTER ─── */
 .page-content  { background: #f1f5f9 !important; }
