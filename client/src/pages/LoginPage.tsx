@@ -11,7 +11,6 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  // Crossfade logos every 2.5 seconds
   useEffect(() => {
     const interval = setInterval(() => setShowNoun(prev => !prev), 2500);
     return () => clearInterval(interval);
@@ -25,8 +24,7 @@ export default function LoginPage() {
       toast.success('Welcome to ACETEL VIMS');
       navigate('/', { replace: true });
     } catch (err: any) {
-      const msg = err.response?.data?.error || 'Login failed. Check your credentials.';
-      toast.error(msg);
+      toast.error(err.response?.data?.error || 'Login failed. Check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -35,29 +33,23 @@ export default function LoginPage() {
   return (
     <div className="vims-shell">
 
-      {/* ══ LEFT DARK PANEL ══ */}
+      {/* ══ LEFT PANEL ══ */}
       <div className="vims-left">
         <div className="vims-left-inner">
 
-          {/* Top — crossfading logo */}
+          {/* Crossfading logo + bigger institution name */}
           <div className="vims-logo-wrap">
             <div className="vims-logo-crossfade">
-              <img
-                src="/assets/noun-logo.png"
-                alt="NOUN"
-                className="vims-logo-img"
-                style={{ opacity: showNoun ? 1 : 0 }}
-              />
-              <img
-                src="/assets/acetel-logo.png"
-                alt="ACETEL"
-                className="vims-logo-img"
-                style={{ opacity: showNoun ? 0 : 1 }}
-              />
+              <img src="/assets/noun-logo.png" alt="NOUN" className="vims-logo-img" style={{ opacity: showNoun ? 1 : 0 }} />
+              <img src="/assets/acetel-logo.png" alt="ACETEL" className="vims-logo-img" style={{ opacity: showNoun ? 0 : 1 }} />
             </div>
             <div className="vims-logo-text">
-              <div className="vims-logo-name">ACETEL VIMS</div>
-              <div className="vims-logo-sub">Virtual Internship Management</div>
+              <div className="vims-logo-name">
+                {showNoun ? 'National Open University of Nigeria' : 'Africa Centre of Excellence for TEL'}
+              </div>
+              <div className="vims-logo-sub">
+                {showNoun ? 'NOUN — Abuja, Nigeria' : 'ACETEL — Virtual Internship Management'}
+              </div>
             </div>
           </div>
 
@@ -76,17 +68,12 @@ export default function LoginPage() {
           {/* Hero */}
           <div className="vims-hero">
             <h1 className="vims-hero-title">
-              Elevate Your Internship<br />Management Experience.
+              Empower Virtual<br />Career Transitions.
             </h1>
             <p className="vims-hero-desc">
-              The professional platform for tracking virtual internship milestones and
-              orchestrating collaboration between students, supervisors, and coordinators.
+              The professional platform for bridging academic theory with industry practice and
+              orchestrating seamless collaboration between interns, supervisors and organizations.
             </p>
-            <div className="vims-tags">
-              <span className="vims-tag">Milestone Intelligence</span>
-              <span className="vims-tag">Faculty Collaboration</span>
-              <span className="vims-tag">Real-time Synchronization</span>
-            </div>
           </div>
 
           <div className="vims-left-footer">
@@ -99,21 +86,11 @@ export default function LoginPage() {
       <div className="vims-right">
         <div className="vims-form-card">
 
-          {/* Right panel logo — crossfades too */}
+          {/* Right panel crossfading logo */}
           <div className="vims-right-brand">
             <div className="vims-right-logo-wrap">
-              <img
-                src="/assets/noun-logo.png"
-                alt="NOUN"
-                className="vims-right-logo-img"
-                style={{ opacity: showNoun ? 1 : 0 }}
-              />
-              <img
-                src="/assets/acetel-logo.png"
-                alt="ACETEL"
-                className="vims-right-logo-img"
-                style={{ opacity: showNoun ? 0 : 1 }}
-              />
+              <img src="/assets/noun-logo.png" alt="NOUN" className="vims-right-logo-img" style={{ opacity: showNoun ? 1 : 0 }} />
+              <img src="/assets/acetel-logo.png" alt="ACETEL" className="vims-right-logo-img" style={{ opacity: showNoun ? 0 : 1 }} />
             </div>
             <div>
               <div className="vims-right-brand-name">ACETEL VIMS</div>
@@ -130,12 +107,9 @@ export default function LoginPage() {
             <div className="vims-field">
               <label className="vims-label">Email Address</label>
               <input
-                type="text"
-                className="vims-input"
+                type="text" className="vims-input"
                 placeholder="your@email.com or username"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
+                value={email} onChange={e => setEmail(e.target.value)} required
               />
             </div>
 
@@ -145,12 +119,9 @@ export default function LoginPage() {
                 <Link to="/reset" className="vims-forgot">Forgot password?</Link>
               </div>
               <input
-                type="password"
-                className="vims-input"
+                type="password" className="vims-input"
                 placeholder="••••••••"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
+                value={password} onChange={e => setPassword(e.target.value)} required
               />
             </div>
 

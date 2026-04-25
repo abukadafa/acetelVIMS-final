@@ -999,18 +999,18 @@ tr:hover td { background: var(--surface-2); }
 .vims-logo-text { display: flex; flex-direction: column; }
 .vims-logo-name {
   font-family: 'Syne', sans-serif;
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   font-weight: 800;
   color: #0a0a0a;
-  line-height: 1.15;
-  letter-spacing: -0.01em;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 .vims-logo-sub {
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   color: #1e6b2e;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-top: 2px;
+  letter-spacing: 0.06em;
+  margin-top: 3px;
   font-weight: 700;
 }
 
@@ -1061,8 +1061,8 @@ tr:hover td { background: var(--surface-2); }
   margin-bottom: 20px;
 }
 .vims-hero-desc {
-  font-size: 0.95rem;
-  color: #374151;
+  font-size: 1rem;
+  color: #111827;
   line-height: 1.75;
   max-width: 420px;
   margin-bottom: 32px;
@@ -1167,9 +1167,9 @@ tr:hover td { background: var(--surface-2); }
 .vims-form { display: flex; flex-direction: column; gap: 16px; }
 .vims-field { display: flex; flex-direction: column; }
 .vims-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #374151;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0a0a0a;
   margin-bottom: 6px;
   display: block;
 }
@@ -1368,15 +1368,7 @@ tr:hover td { background: var(--surface-2); }
   letter-spacing: 0.05em;
   margin-top: 1px;
 }
-.vims-topbar-center {
-  flex: 1;
-  text-align: center;
-  font-family: 'Syne', sans-serif;
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: #1e6b2e;
-  letter-spacing: -0.01em;
-}
+.vims-topbar-center { display: none; }
 .vims-topbar-right {
   display: flex;
   align-items: center;
