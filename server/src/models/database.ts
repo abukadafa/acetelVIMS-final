@@ -49,8 +49,8 @@ export async function initDatabase(): Promise<void> {
  * If missing, creates one using environment variables.
  */
 async function ensureAdminExists(tenantId: mongoose.Types.ObjectId) {
-  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@acetel.ng').toLowerCase();
-  const adminPassword = process.env.ADMIN_PASSWORD || 'Acetel@2024';
+  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@acetel.com').toLowerCase();
+  const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
 
   let admin = await User.findOne({ email: adminEmail });
 
