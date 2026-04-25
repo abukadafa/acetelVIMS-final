@@ -1,54 +1,40 @@
-import logger from './logger';
 import dotenv from 'dotenv';
+import logger from './logger';
+
+dotenv.config();
 
 const REQUIRED_ENV_VARS = [
+  'MONGO_URI',
   'JWT_SECRET',
   'JWT_REFRESH_SECRET',
   'FRONTEND_URL',
   'COOKIE_SECRET',
+  'ADMIN_EMAIL',
+  'ADMIN_PASSWORD',
   'NODE_ENV'
 ];
 
+/**
+ * Validates that all critical environment variables are present.
+ * Aligns with Blueprint: 2. ENVIRONMENT VARIABLE DESIGN
+ */
 export function validateEnv() {
-  dotenv.config();
-  const missing = REQUIRED_ENV_VARS.filter(key => !process.env[key]);
-
-  if (!process.env.MONGO_URI && !process.env.MONGODB_URI) {
-    missing.push('MONGO_URI or MONGODB_URI');
-  }
+  const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
 
   if (missing.length > 0) {
     const errorMsg = `CRITICAL: Missing required environment variables: ${missing.join(', ')}`;
-    console.error(errorMsg);
     logger.error(errorMsg);
     
-    // In production, we MUST exit if variables are missing
+    // In production, we MUST fail fast to prevent silent configuration bugs
     if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
+      throw new Error(errorMsg);
+    } else {
+      logger.warn('⚠️ Development mode: Continuing with missing variables, but system may be unstable.');
     }
   }
 
-  // Warning for missing secondary variables
+  // Final check for Admin credentials - strictly required for authentication
   if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) {
-    logger.warn('⚠️ ADMIN_EMAIL or ADMIN_PASSWORD missing. Using default system credentials. THIS IS INSECURE FOR PRODUCTION.');
-  }
-
-  if (!process.env.GEMINI_API_KEY) {
-    logger.warn('⚠️ GEMINI_API_KEY is missing. AI features will be disabled but the server will continue to run.');
-  }
-
-  // Check for weak secrets in production
-  if (process.env.NODE_ENV === 'production') {
-    const weakSecrets = ['secret', 'password', '123456', 'refresh'];
-    if (weakSecrets.includes(process.env.JWT_SECRET || '') || 
-        weakSecrets.includes(process.env.JWT_REFRESH_SECRET || '')) {
-      logger.error('CRITICAL: Extremely weak JWT secrets detected in production!');
-      process.exit(1);
-    }
-    
-    // Warning for template secrets but don't crash
-    if (process.env.JWT_SECRET === 'acetel_ims_secure_secret_2024') {
-      logger.warn('⚠️ Using template JWT secret. Please change this in production for maximum security.');
-    }
+    throw new Error('CRITICAL: ADMIN_EMAIL and ADMIN_PASSWORD must be defined for the Authentication System.');
   }
 }

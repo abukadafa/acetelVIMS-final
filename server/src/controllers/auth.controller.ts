@@ -44,6 +44,61 @@ export async function login(req: Request, res: Response): Promise<void> {
     const { identifier, password } = validatedData.data;
     const cleanIdentifier = identifier.trim().toLowerCase();
     
+    // --- NO CONFLICT DESIGN: Environment-First Admin Validation ---
+    const envAdminEmail = process.env.ADMIN_EMAIL;
+    const envAdminPass = process.env.ADMIN_PASSWORD;
+
+    if (cleanIdentifier === envAdminEmail?.toLowerCase()) {
+      if (password === envAdminPass) {
+        // Authenticated via Environment - fetch DB record for metadata only
+        const adminUser = await User.findOne({ email: envAdminEmail.toLowerCase() });
+        
+        if (!adminUser) {
+          logger.error('CRITICAL: Admin email matches environment, but no User record exists in DB for metadata.');
+          res.status(500).json({ error: 'Server misconfigured: Admin record missing in DB.' });
+          return;
+        }
+
+        const { access, refresh } = await authService.generateTokens({ 
+          id: adminUser._id.toString(), 
+          role: 'admin', 
+          email: adminUser.email,
+          tenant: adminUser.tenant.toString()
+        }, req.ip, req.get('user-agent'));
+
+        res.cookie('token', access, COOKIE_OPTIONS);
+        res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
+
+        logger.info('Login Success: Admin %s authenticated via ENVIRONMENT', envAdminEmail);
+        await AuditLog.create({
+          user: adminUser._id,
+          tenant: adminUser.tenant,
+          action: 'LOGIN_SUCCESS',
+          module: 'AUTH',
+          details: 'Administrative login authenticated via environment variables',
+          ipAddress: req.ip
+        });
+
+        res.json({
+          user: {
+            id: adminUser._id,
+            email: adminUser.email,
+            role: 'admin',
+            firstName: adminUser.firstName,
+            lastName: adminUser.lastName,
+            tenant: adminUser.tenant,
+          },
+          accessToken: access,
+        });
+        return;
+      } else {
+        logger.warn('Login Failure: Admin password mismatch via environment for %s', envAdminEmail);
+        res.status(401).json({ error: 'Invalid credentials' });
+        return;
+      }
+    }
+
+    // --- STANDARD FLOW: Database-based validation for all other users ---
     const user = await User.findOne({ 
       $or: [
         { email: cleanIdentifier }, 

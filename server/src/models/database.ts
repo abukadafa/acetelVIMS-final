@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import User from './User.model';
 import Tenant from './Tenant.model';
 import Programme from './Programme.model';
 import Setting from './Setting.model';
@@ -10,6 +9,10 @@ dotenv.config();
 
 const MONGODB_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/acetel_ims';
 
+/**
+ * Initializes the database connection and ensures base structure exists.
+ * Aligns with Blueprint: 4. DATABASE RULES (No startup side-effects)
+ */
 export async function initDatabase(): Promise<void> {
   const options: mongoose.ConnectOptions = {
     maxPoolSize: 10,
@@ -23,8 +26,8 @@ export async function initDatabase(): Promise<void> {
     await mongoose.connect(MONGODB_URI, options);
     logger.info('✅ Connected to MongoDB successfully');
     
-    // Ensure default ACETEL tenant exists
-    let tenant = await Tenant.findOneAndUpdate(
+    // Ensure default ACETEL tenant exists - minimal structural integrity
+    const tenant = await Tenant.findOneAndUpdate(
       { slug: 'acetel' },
       { $setOnInsert: { name: 'ACETEL', slug: 'acetel', institutionType: 'University' } },
       { upsert: true, new: true }
@@ -34,58 +37,17 @@ export async function initDatabase(): Promise<void> {
       throw new Error('Failed to ensure tenant existence');
     }
 
-    // Seed default data for this tenant
+    // Seed static structural data only
     await seedProgrammes(tenant._id as mongoose.Types.ObjectId);
     await seedSettings(tenant._id as mongoose.Types.ObjectId);
-    await ensureAdminExists(tenant._id as mongoose.Types.ObjectId);
+    
+    // NOTE: ensureAdminExists REMOVED to follow the "No Conflict Design".
+    // Admin identity is now strictly controlled by Environment Variables.
+    logger.info('🚀 Database synchronized (Identity sync skipped for No-Conflict Design)');
+    
   } catch (error) {
     logger.error('❌ MongoDB connection error: %s', (error as Error).message);
     process.exit(1);
-  }
-}
-
-/**
- * Ensures at least one admin exists in the database.
- * If missing, creates one using environment variables.
- */
-async function ensureAdminExists(tenantId: mongoose.Types.ObjectId) {
-  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@acetel.com').toLowerCase();
-  const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
-
-  let admin = await User.findOne({ email: adminEmail });
-
-  if (!admin) {
-    logger.warn('⚠️ No admin user found. Creating default admin from environment variables...');
-    await User.create({
-      email: adminEmail,
-      username: 'admin',
-      password: adminPassword,
-      role: 'admin',
-      firstName: 'System',
-      lastName: 'Administrator',
-      tenant: tenantId,
-      isActive: true
-    });
-    logger.info('✅ Default admin created: %s', adminEmail);
-  } else if (process.env.RESET_ADMIN === 'true') {
-    logger.warn('🔄 Force-resetting admin password (RESET_ADMIN=true)...');
-    admin.password = adminPassword;
-    admin.isActive = true;
-    await admin.save();
-    logger.info('✅ Admin password reset successful: %s', adminEmail);
-  } else {
-    // Verify the stored password matches env — auto-fix if admin was created with wrong password
-    const bcrypt = require('bcryptjs');
-    const matches = await bcrypt.compare(adminPassword, admin.password);
-    if (!matches) {
-      logger.warn('🔄 Admin password in DB does not match ADMIN_PASSWORD env var — updating...');
-      admin.password = adminPassword;
-      admin.isActive = true;
-      await admin.save();
-      logger.info('✅ Admin password synced to env var for: %s', adminEmail);
-    } else {
-      logger.info('✅ Admin user exists and password matches: %s', admin.email);
-    }
   }
 }
 
