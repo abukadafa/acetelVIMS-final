@@ -58,7 +58,7 @@ export const logbookReviewSchema = z.object({
     status: z.enum(['approved', 'rejected', 'revision_requested']).optional(),
   }),
   params: z.object({
-    id: z.string().regex(/^[0-9a-fA-D]{24}$/i, 'Invalid ID format')
+    id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ID format')
   })
 });
 
@@ -73,7 +73,7 @@ export const checkInSchema = z.object({
 
 export const manualAttendanceSchema = z.object({
   body: z.object({
-    studentId: z.string().regex(/^[0-9a-fA-D]{24}$/i, 'Invalid Student ID'),
+    studentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Student ID'),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
     notes: z.string().optional(),
   })

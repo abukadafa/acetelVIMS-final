@@ -42,76 +42,83 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     const { identifier, password } = validatedData.data;
     const cleanIdentifier = identifier.trim().toLowerCase();
-    
-    // --- NO CONFLICT DESIGN: Environment-First Admin Validation ---
+
+    // --- PRIORITY 1: Environment-based admin authentication ---
+    // This path bypasses DB password check and uses the ENV password directly.
     const envAdminEmail = process.env.ADMIN_EMAIL?.trim();
     const envAdminPass = process.env.ADMIN_PASSWORD?.trim();
 
-    if (envAdminEmail && (cleanIdentifier === envAdminEmail.toLowerCase() || cleanIdentifier === 'admin')) {
-      if (password === envAdminPass) {
-        // ... (existing success logic)
-        const adminUser = await User.findOne({ email: envAdminEmail.toLowerCase() });
-        
-        if (!adminUser) {
-          logger.error('CRITICAL: Admin email matches environment, but no User record exists in DB for metadata.');
-          res.status(401).json({ error: 'Server misconfigured: Admin profile missing. Please wait for seeding.' });
-          return;
-        }
-
-        const { access, refresh } = await authService.generateTokens({ 
-          id: adminUser._id.toString(), 
-          role: 'admin', 
-          email: adminUser.email,
-          tenant: adminUser.tenant?.toString() || 'default'
-        }, req.ip || 'unknown', req.get('user-agent') || 'unknown-agent');
-
-        res.cookie('token', access, COOKIE_OPTIONS);
-        res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
-
-        res.json({
-          user: {
-            id: adminUser._id,
-            email: adminUser.email,
-            role: 'admin',
-            firstName: adminUser.firstName,
-            lastName: adminUser.lastName,
-            tenant: adminUser.tenant,
-          },
-          accessToken: access,
-        });
-        return;
-      } else {
-        logger.warn('Login Failure: Admin password mismatch via environment for %s', envAdminEmail);
-        res.status(401).json({ error: 'Invalid admin password. Check your Render ENV.' });
+    if (
+      envAdminEmail &&
+      (cleanIdentifier === envAdminEmail.toLowerCase() || cleanIdentifier === 'admin')
+    ) {
+      // Admin identifier matched — validate password against ENV
+      if (password !== envAdminPass) {
+        logger.warn('Login Failure: Admin password mismatch for %s from IP %s', envAdminEmail, req.ip);
+        res.status(401).json({ error: 'Invalid credentials' });
         return;
       }
+
+      // Password matched — fetch DB record for metadata (tokens, names, etc.)
+      const adminUser = await User.findOne({ email: envAdminEmail.toLowerCase() });
+      if (!adminUser) {
+        logger.error(
+          'CRITICAL: Admin ENV email %s matched but no DB User record found. Run seed script.',
+          envAdminEmail
+        );
+        res.status(500).json({
+          error: 'Admin account not initialised on this server. Contact your administrator.',
+        });
+        return;
+      }
+
+      const { access, refresh } = await authService.generateTokens(
+        {
+          id: adminUser._id.toString(),
+          role: 'admin',
+          email: adminUser.email,
+          tenant: adminUser.tenant?.toString() || 'default',
+        },
+        req.ip || 'unknown',
+        req.get('user-agent') || 'unknown-agent'
+      );
+
+      res.cookie('token', access, COOKIE_OPTIONS);
+      res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
+
+      logger.info('Login Success (ENV admin): %s from IP %s', adminUser.email, req.ip);
+
+      res.json({
+        user: {
+          id: adminUser._id,
+          email: adminUser.email,
+          role: 'admin',
+          firstName: adminUser.firstName,
+          lastName: adminUser.lastName,
+          tenant: adminUser.tenant,
+        },
+        accessToken: access,
+      });
+      return;
     }
 
-    logger.warn('Login Failure: Credentials mismatch for %s from IP %s. (AdminSet=%s)', cleanIdentifier, req.ip, !!envAdminEmail);
-    res.status(401).json({ error: 'Invalid credentials. If you are admin, use your full email.' });
-
-    // --- STANDARD FLOW: Database-based validation for all other users ---
-    const user = await User.findOne({ 
-      $or: [
-        { email: cleanIdentifier }, 
-        { username: cleanIdentifier }
-      ], 
-      isActive: true 
+    // --- PRIORITY 2: Standard database-based authentication for all other users ---
+    const user = await User.findOne({
+      $or: [{ email: cleanIdentifier }, { username: cleanIdentifier }],
+      isActive: true,
     });
 
     if (!user) {
-      logger.warn('Login Failure: User not found or inactive for identifier: %s', cleanIdentifier);
-      
-      // Resolve default tenant for logging if user not found
+      logger.warn('Login Failure: User not found or inactive for identifier: %s from IP %s', cleanIdentifier, req.ip);
+
       const defaultTenant = await Tenant.findOne({ slug: 'acetel' });
-      
       try {
         await AuditLog.create({
           tenant: defaultTenant?._id,
           action: 'LOGIN_FAILED',
           module: 'AUTH',
           details: `Failed login attempt for identifier: ${identifier}`,
-          ipAddress: req.ip
+          ipAddress: req.ip,
         });
       } catch (logErr: any) {
         logger.error('AuditLog Error: %s', logErr.message);
@@ -123,7 +130,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      logger.warn('Login Failure: Password mismatch for user: %s', user.email);
+      logger.warn('Login Failure: Password mismatch for user: %s from IP %s', user.email, req.ip);
       try {
         await AuditLog.create({
           user: user._id,
@@ -131,7 +138,7 @@ export async function login(req: Request, res: Response): Promise<void> {
           action: 'LOGIN_FAILED',
           module: 'AUTH',
           details: `Incorrect password attempt for user: ${user.email}`,
-          ipAddress: req.ip
+          ipAddress: req.ip,
         });
       } catch (logErr: any) {
         logger.error('AuditLog Error: %s', logErr.message);
@@ -144,13 +151,17 @@ export async function login(req: Request, res: Response): Promise<void> {
     user.lastLogin = new Date();
     await user.save();
 
-    const { access, refresh } = await authService.generateTokens({ 
-      id: user._id.toString(), 
-      role: user.role, 
-      email: user.email,
-      tenant: user.tenant.toString(),
-      programme: user.programme?.toString()
-    }, req.ip || 'unknown', req.get('user-agent') || 'unknown-agent');
+    const { access, refresh } = await authService.generateTokens(
+      {
+        id: user._id.toString(),
+        role: user.role,
+        email: user.email,
+        tenant: user.tenant.toString(),
+        programme: user.programme?.toString(),
+      },
+      req.ip || 'unknown',
+      req.get('user-agent') || 'unknown-agent'
+    );
 
     res.cookie('token', access, COOKIE_OPTIONS);
     res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
@@ -164,14 +175,18 @@ export async function login(req: Request, res: Response): Promise<void> {
     }
 
     logger.info('Login Success: User %s logged in from IP %s', user.email, req.ip);
-    await AuditLog.create({
-      user: user._id,
-      tenant: user.tenant,
-      action: 'LOGIN_SUCCESS',
-      module: 'AUTH',
-      details: `Successful login for user: ${user.email} (${user.role})`,
-      ipAddress: req.ip
-    });
+    try {
+      await AuditLog.create({
+        user: user._id,
+        tenant: user.tenant,
+        action: 'LOGIN_SUCCESS',
+        module: 'AUTH',
+        details: `Successful login for user: ${user.email} (${user.role})`,
+        ipAddress: req.ip,
+      });
+    } catch (logErr: any) {
+      logger.error('AuditLog Error: %s', logErr.message);
+    }
 
     res.json({
       user: {
