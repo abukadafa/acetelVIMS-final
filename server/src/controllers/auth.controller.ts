@@ -488,3 +488,14 @@ export async function logout(req: AuthRequest, res: Response): Promise<void> {
     res.status(500).json({ error: 'Server error' });
   }
 }
+
+/** GET /api/auth/comms-status — returns active communication channel status */
+export async function getCommsStatus(req: Request, res: Response): Promise<void> {
+  const emailActive = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+  const whatsappActive = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
+  res.json({
+    email: { active: emailActive, provider: emailActive ? process.env.SMTP_HOST || 'smtp.gmail.com' : null },
+    whatsapp: { active: whatsappActive, provider: whatsappActive ? 'Twilio WhatsApp Business' : null },
+    chat: { active: true, provider: 'ACETEL IMS Real-Time Chat' },
+  });
+}

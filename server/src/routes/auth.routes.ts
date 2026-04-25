@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { login, register, refreshToken, getProfile, changePassword, logout } from '../controllers/auth.controller';
+import { login, register, refreshToken, getProfile, changePassword, logout, getCommsStatus } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { upload } from '../middleware/upload.middleware';
 
