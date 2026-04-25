@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   LogOut, LayoutDashboard, Calendar, Map, Users, Settings,
   BookOpen, UserCheck, Activity, ChevronLeft, ChevronRight,
-  UserCog, MessageSquare, History, Trash2, MessageCircle,
+  UserCog, MessageSquare, History, Trash2, MessageCircle, Mail,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import api from '../lib/api';
@@ -149,6 +149,7 @@ export default function Sidebar() {
           <div className="divider" style={{ margin: '8px 0', opacity: 0.1 }} />
           {!collapsed && <div className="nav-group-label">Communication</div>}
           <NavLink to="/chat" icon={MessageCircle} label="Team Chat" badge={unreadChats} />
+          <NavLink to="/email" icon={Mail} label="Email Centre" />
           <NavLink to="/feedback" icon={MessageSquare} label="Feedback Portal" />
         </div>
 

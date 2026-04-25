@@ -12,6 +12,7 @@ import CompanyManagement from './components/CompanyManagement';
 import UserManagementPage from './pages/UserManagementPage';
 import FeedbackPage from './pages/FeedbackPage';
 import ChatPage from './pages/ChatPage';
+import EmailPage from './pages/EmailPage';
 import AuditTrailPage from './pages/AuditTrailPage';
 import RecycleBinPage from './pages/RecycleBinPage';
 import LogbookPage from './pages/LogbookPage';
@@ -90,6 +91,7 @@ export default function App() {
               <Route path="/bin" element={<ProtectedRoute roles={['admin']}><RecycleBinPage /></ProtectedRoute>} />
               <Route path="/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+              <Route path="/email" element={<ProtectedRoute><EmailPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             </Route>
 
