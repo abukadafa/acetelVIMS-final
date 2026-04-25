@@ -6,6 +6,7 @@ interface User {
   firstName: string; lastName: string;
   phone?: string; avatar?: string;
   tenant?: string;
+  programme?: { _id: string; name: string };
 }
 
 interface StudentProfile {
