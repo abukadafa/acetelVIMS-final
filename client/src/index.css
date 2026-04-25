@@ -132,14 +132,14 @@ p  { line-height: 1.72; color: #374151; }
 /* ════════════ SIDEBAR ════════════ */
 .sidebar {
   width: var(--sidebar-w);
-  background: linear-gradient(180deg, #1e6b2e 0%, #3ba051 60%, #1e6b2e 100%);
+  background: linear-gradient(180deg, #14532d 0%, #166534 50%, #14532d 100%);
   position: fixed; top: 0; left: 0;
   height: 100vh;
   display: flex; flex-direction: column;
   z-index: 100;
   transition: width .3s cubic-bezier(.4,0,.2,1);
-  overflow: visible; /* allow toggle btn to poke out */
-  box-shadow: 4px 0 24px rgba(0,0,0,.18);
+  overflow: visible;
+  box-shadow: 4px 0 24px rgba(0,0,0,.25);
 }
 
 /* Collapsed state */
@@ -152,17 +152,17 @@ p  { line-height: 1.72; color: #374151; }
   right: -14px;
   width: 28px; height: 28px;
   border-radius: 50%;
-  background: var(--accent);
+  background: #16a34a;
   color: #fff;
-  border: 2px solid rgba(255,255,255,.25);
+  border: 2px solid rgba(255,255,255,.3);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
   z-index: 110;
-  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
   transition: var(--transition);
   padding: 0;
 }
-.sidebar-toggle:hover { background: var(--accent-dark); transform: scale(1.12); }
+.sidebar-toggle:hover { background: #15803d; transform: scale(1.12); }
 
 /* ── Logo ── */
 .sidebar-logo {
@@ -176,11 +176,11 @@ p  { line-height: 1.72; color: #374151; }
 .logo-text {
   font-family: 'Syne', sans-serif;
   font-size: 1rem; font-weight: 900;
-  color: #fff; line-height: 1.2;
+  color: #ffffff; line-height: 1.2;
   white-space: nowrap;
 }
 .logo-sub {
-  font-size: .65rem; color: rgba(255,255,255,.55);
+  font-size: .68rem; color: #bbf7d0; font-weight: 600;
   text-transform: uppercase; letter-spacing: .05em;
   margin-top: 1px; white-space: nowrap;
 }
@@ -198,8 +198,8 @@ p  { line-height: 1.72; color: #374151; }
 .sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 0; }
 .nav-group { margin-bottom: 4px; }
 .nav-group-label {
-  font-size: .6rem; font-weight: 700;
-  color: rgba(255,255,255,.3);
+  font-size: .65rem; font-weight: 800;
+  color: #86efac;
   text-transform: uppercase; letter-spacing: .12em;
   padding: 10px 20px 4px;
   white-space: nowrap; overflow: hidden;
@@ -209,28 +209,29 @@ p  { line-height: 1.72; color: #374151; }
 .nav-item {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 16px;
-  color: rgba(255,255,255,.7);
-  font-size: .875rem; font-weight: 500;
+  color: #dcfce7;
+  font-size: .9rem; font-weight: 600;
   transition: var(--transition);
   position: relative;
   border-radius: 0;
   cursor: pointer;
   border: none; background: none; width: 100%; text-align: left;
   white-space: nowrap; overflow: hidden;
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 .nav-item .nav-icon { flex-shrink: 0; }
 .nav-item .nav-label { overflow: hidden; text-overflow: ellipsis; transition: opacity .2s; }
-.nav-item:hover { background: #f0fdf4; color: #1e6b2e; }
+.nav-item:hover { background: rgba(255,255,255,0.12); color: #ffffff; }
 .nav-item.active {
-  background: rgba(255,255,255,.14);
-  color: #fff;
-  font-weight: 600;
+  background: rgba(255,255,255,0.18);
+  color: #ffffff;
+  font-weight: 700;
 }
 .nav-item.active::before {
   content: ''; position: absolute; left: 0; top: 50%;
   transform: translateY(-50%);
   width: 3px; height: 60%; border-radius: 0 3px 3px 0;
-  background: var(--accent);
+  background: #86efac;
 }
 /* Collapsed nav item — centre the icon */
 .nav-item.collapsed {
@@ -267,7 +268,7 @@ p  { line-height: 1.72; color: #374151; }
 }
 .sidebar-user-info { flex: 1; overflow: hidden; }
 .sidebar-user-name { font-size: 0.85rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Plus Jakarta Sans', sans-serif; }
-.sidebar-user-role { font-size: .7rem; color: rgba(255,255,255,.5); text-transform: capitalize; }
+.sidebar-user-role { font-size: .72rem; color: #bbf7d0; text-transform: capitalize; font-weight: 600; }
 
 /* ── Main Content ── */
 .main-content {
