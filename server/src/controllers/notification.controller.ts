@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import Notification from '../models/notification.model';
 import { z } from 'zod';
+import logger from '../utils/logger';
 
 const idParamSchema = z.object({
   id: z.string().or(z.literal('all')).refine(val => {
@@ -16,16 +17,10 @@ export async function getNotifications(req: AuthRequest, res: Response): Promise
     const notifications = await Notification.find({ user: req.user!.id, tenant: tenantId })
       .sort({ createdAt: -1 })
       .limit(50);
-    
-    const unreadCount = await Notification.countDocuments({ 
-      user: req.user!.id, 
-      tenant: tenantId,
-      isRead: false 
-    });
-    
+    const unreadCount = await Notification.countDocuments({ user: req.user!.id, tenant: tenantId, isRead: false });
     res.json({ notifications, unreadCount });
   } catch (err) {
-    console.error(err);
+    logger.error('getNotifications error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -34,12 +29,8 @@ export async function markAsRead(req: AuthRequest, res: Response): Promise<void>
   try {
     const { id } = idParamSchema.parse(req.params);
     const tenantId = req.user!.tenant;
-
     if (id === 'all') {
-      await Notification.updateMany(
-        { user: req.user!.id, tenant: tenantId }, 
-        { $set: { isRead: true } }
-      );
+      await Notification.updateMany({ user: req.user!.id, tenant: tenantId }, { $set: { isRead: true } });
     } else {
       await Notification.findOneAndUpdate(
         { _id: id, user: req.user!.id, tenant: tenantId },
@@ -48,11 +39,8 @@ export async function markAsRead(req: AuthRequest, res: Response): Promise<void>
     }
     res.json({ message: 'Marked as read' });
   } catch (err) {
-    if (err instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: err.errors });
-      return;
-    }
-    console.error(err);
+    if (err instanceof z.ZodError) { res.status(400).json({ error: 'Validation failed', details: err.errors }); return; }
+    logger.error('markAsRead error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -61,19 +49,11 @@ export async function deleteNotification(req: AuthRequest, res: Response): Promi
   try {
     const { id } = idParamSchema.parse(req.params);
     const tenantId = req.user!.tenant;
-
-    await Notification.findOneAndDelete({ 
-      _id: id, 
-      user: req.user!.id,
-      tenant: tenantId
-    });
+    await Notification.findOneAndDelete({ _id: id, user: req.user!.id, tenant: tenantId });
     res.json({ message: 'Deleted' });
   } catch (err) {
-    if (err instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: err.errors });
-      return;
-    }
-    console.error(err);
+    if (err instanceof z.ZodError) { res.status(400).json({ error: 'Validation failed', details: err.errors }); return; }
+    logger.error('deleteNotification error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }

@@ -40,6 +40,12 @@ services:
         sync: false
       - key: SMTP_PASS
         sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_WHATSAPP_FROM
+        sync: false
 
   # ── Frontend (Static Site) ────────────────────────────────────────────────
   - type: static

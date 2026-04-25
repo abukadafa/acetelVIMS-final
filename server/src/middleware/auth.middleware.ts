@@ -29,11 +29,13 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
     return;
   }
 
-  const secret = process.env.JWT_SECRET || 'acetel_vims_default_secure_secret_2024';
-  const refreshSecret = process.env.JWT_REFRESH_SECRET || 'acetel_vims_default_refresh_secret_2024';
+  const secret = process.env.JWT_SECRET;
+  const refreshSecret = process.env.JWT_REFRESH_SECRET;
 
-  if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
-    logger.error('CRITICAL: JWT_SECRET environment variable is not defined in production!');
+  if (!secret || !refreshSecret) {
+    logger.error('CRITICAL: JWT_SECRET or JWT_REFRESH_SECRET is not set. Rejecting all tokens.');
+    res.status(500).json({ error: 'Server misconfigured — contact administrator' });
+    return;
   }
 
   try {
