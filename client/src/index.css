@@ -6,39 +6,39 @@
 ══════════════════════════════════════════════ */
 
 :root {
-  /* Brand Colors */
-  --primary:       #0a5c36;
-  --primary-light: #0d7a47;
-  --primary-dark:  #073d24;
-  --accent:        #f5a623;
-  --accent-dark:   #d4891a;
+  /* Brand Colors — matching reference TMS site exactly */
+  --primary:       #0f2d52;
+  --primary-light: #1a3c5e;
+  --primary-dark:  #091e38;
+  --accent:        #22c55e;
+  --accent-dark:   #16a34a;
 
   /* Semantic */
-  --success: #16a34a;
-  --warning: #d97706;
-  --danger:  #dc2626;
-  --info:    #2563eb;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger:  #ef4444;
+  --info:    #3b82f6;
 
   /* Neutrals */
-  --bg:        #f0f4f0;
+  --bg:        #f1f5f9;
   --surface:   #ffffff;
-  --surface-2: #f8faf8;
-  --border:    #dee8de;
-  --text:      #0f2318;
-  --text-2:    #4a6355;
-  --text-3:    #7a9688;
+  --surface-2: #f8fafc;
+  --border:    #e2e8f0;
+  --text:      #0f172a;
+  --text-2:    #475569;
+  --text-3:    #94a3b8;
 
   /* Gradients */
-  --grad-primary: linear-gradient(135deg, #0a5c36 0%, #0d7a47 50%, #16a34a 100%);
-  --grad-accent:  linear-gradient(135deg, #f5a623 0%, #f97316 100%);
-  --grad-dark:    linear-gradient(135deg, #073d24 0%, #0a5c36 100%);
-  --grad-hero:    linear-gradient(135deg, #073d24 0%, #0a5c36 40%, #0d7a47 100%);
+  --grad-primary: linear-gradient(135deg, #0f2d52 0%, #1a3c5e 50%, #1e4976 100%);
+  --grad-accent:  linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  --grad-dark:    linear-gradient(135deg, #091e38 0%, #0f2d52 100%);
+  --grad-hero:    linear-gradient(135deg, #091e38 0%, #0f2d52 40%, #1a3c5e 100%);
 
   /* Shadows */
-  --shadow-sm:  0 1px 3px rgba(10,92,54,.08), 0 1px 2px rgba(10,92,54,.06);
-  --shadow-md:  0 4px 16px rgba(10,92,54,.12), 0 2px 6px rgba(10,92,54,.08);
-  --shadow-lg:  0 10px 40px rgba(10,92,54,.18), 0 4px 12px rgba(10,92,54,.1);
-  --shadow-xl:  0 20px 60px rgba(10,92,54,.22);
+  --shadow-sm:  0 1px 3px rgba(15,45,82,.08), 0 1px 2px rgba(15,45,82,.05);
+  --shadow-md:  0 4px 16px rgba(15,45,82,.12), 0 2px 6px rgba(15,45,82,.08);
+  --shadow-lg:  0 10px 40px rgba(15,45,82,.16), 0 4px 12px rgba(15,45,82,.1);
+  --shadow-xl:  0 20px 60px rgba(15,45,82,.2);
 
   /* Radius */
   --radius-sm: 8px;
@@ -61,8 +61,8 @@
 html { scroll-behavior: smooth; }
 body {
   font-family: 'Inter', system-ui, sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  background: #f1f5f9;
+  color: #0f172a;
   min-height: 100vh;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -90,7 +90,7 @@ h3 { font-size: 1.25rem; }
 /* ════════════ SIDEBAR ════════════ */
 .sidebar {
   width: var(--sidebar-w);
-  background: var(--grad-dark);
+  background: linear-gradient(180deg, #0f2d52 0%, #1a3c5e 60%, #0f2d52 100%);
   position: fixed; top: 0; left: 0;
   height: 100vh;
   display: flex; flex-direction: column;
@@ -885,174 +885,170 @@ tr:hover td { background: var(--surface-2); }
   color: var(--primary);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   VIMS DESIGN SYSTEM — Matches reference TMS site exactly
-   Colors: Deep navy #1a3c5e · White #ffffff · Accent green #22c55e
-   Font: Inter (already loaded)
-═══════════════════════════════════════════════════════════════ */
 
-/* ── AUTH SHELL (Login / Register / Reset) ── */
-.vims-auth-shell {
+/* ═══════════════════════════════════════════════════════
+   VIMS DESIGN SYSTEM v3
+   Exact match to reference TMS site:
+   - Left panel: deep navy #0f2d52
+   - Right panel: pure white
+   - Logo: crossfades between NOUN and ACETEL
+   - Font: Inter / Outfit
+   - Accent: #22c55e green
+═══════════════════════════════════════════════════════ */
+
+/* ─── AUTH PAGES SHELL (Login / Register / Reset) ─── */
+.vims-shell {
   min-height: 100vh;
   display: flex;
   font-family: 'Inter', sans-serif;
+  background: #fff;
 }
 
-/* ══ LEFT DARK NAVY PANEL ══ */
-.vims-auth-left {
+/* ── LEFT DARK PANEL ── */
+.vims-left {
   flex: 1;
-  background: #1a3c5e;
+  background: #0f2d52;
   background-image:
-    radial-gradient(ellipse at 15% 60%, rgba(34,197,94,0.12) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 20%, rgba(255,255,255,0.04) 0%, transparent 50%);
+    radial-gradient(ellipse at 10% 70%, rgba(34,197,94,0.1) 0%, transparent 55%),
+    radial-gradient(ellipse at 90% 15%, rgba(255,255,255,0.04) 0%, transparent 50%);
   display: flex;
   position: relative;
   overflow: hidden;
 }
-
-/* subtle grid lines matching reference */
-.vims-auth-left::before {
+.vims-left::before {
   content: '';
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
-  background-size: 48px 48px;
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 44px 44px;
   pointer-events: none;
 }
-
-.vims-auth-left-inner {
+.vims-left-inner {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
   padding: 48px 52px;
   width: 100%;
-  gap: 0;
 }
 
-/* Both logos + brand text in one row */
-.vims-auth-brand {
+/* Crossfading logo block */
+.vims-logo-wrap {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   margin-bottom: auto;
 }
-.vims-auth-brand-logo {
-  height: 46px;
-  width: auto;
-  border-radius: 6px;
+.vims-logo-crossfade {
+  position: relative;
+  width: 52px;
+  height: 52px;
   flex-shrink: 0;
 }
-.vims-auth-brand-text {
-  display: flex;
-  flex-direction: column;
-  margin-left: 4px;
+.vims-logo-img {
+  position: absolute;
+  inset: 0;
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  border-radius: 8px;
+  transition: opacity 0.8s ease-in-out;
 }
-.vims-auth-brand-name {
+.vims-logo-text { display: flex; flex-direction: column; }
+.vims-logo-name {
   font-family: 'Outfit', sans-serif;
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 800;
   color: #ffffff;
   line-height: 1.15;
   letter-spacing: -0.01em;
 }
-.vims-auth-brand-sub {
-  font-size: 0.68rem;
-  color: rgba(255,255,255,0.45);
+.vims-logo-sub {
+  font-size: 0.67rem;
+  color: rgba(255,255,255,0.42);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   margin-top: 2px;
 }
 
-/* Status badges row */
-.vims-auth-badges {
+/* Status pills */
+.vims-status-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 56px;
-  margin-bottom: 32px;
+  margin-top: 60px;
+  margin-bottom: 36px;
 }
-.vims-auth-badge {
+.vims-status-pill {
   display: inline-flex;
   align-items: center;
   gap: 7px;
   background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.13);
+  border: 1px solid rgba(255,255,255,0.12);
   border-radius: 100px;
   padding: 5px 13px;
-  font-size: 0.73rem;
+  font-size: 0.72rem;
   font-weight: 500;
-  color: rgba(255,255,255,0.65);
+  color: rgba(255,255,255,0.62);
   letter-spacing: 0.02em;
 }
-.vims-auth-badge-dot {
+.vims-status-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: #22c55e;
-  box-shadow: 0 0 6px rgba(34,197,94,0.9);
+  box-shadow: 0 0 7px rgba(34,197,94,0.9);
   flex-shrink: 0;
-  animation: vims-pulse 2s infinite;
+  animation: vims-blink 2s infinite;
 }
-@keyframes vims-pulse {
+@keyframes vims-blink {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.5; }
+  50%       { opacity: 0.45; }
 }
 
-/* Hero section */
-.vims-auth-hero {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.vims-auth-title {
+/* Hero text */
+.vims-hero { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.vims-hero-title {
   font-family: 'Outfit', sans-serif;
-  font-size: 2.6rem;
+  font-size: 2.55rem;
   font-weight: 800;
   color: #ffffff;
   line-height: 1.12;
   letter-spacing: -0.025em;
   margin-bottom: 20px;
 }
-.vims-auth-desc {
-  font-size: 0.95rem;
-  color: rgba(255,255,255,0.52);
+.vims-hero-desc {
+  font-size: 0.93rem;
+  color: rgba(255,255,255,0.5);
   line-height: 1.75;
   max-width: 400px;
-  margin-bottom: 36px;
+  margin-bottom: 32px;
 }
-.vims-auth-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.vims-auth-tag {
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.11);
-  color: rgba(255,255,255,0.6);
-  font-size: 0.78rem;
+.vims-tags { display: flex; flex-wrap: wrap; gap: 9px; }
+.vims-tag {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.58);
+  font-size: 0.77rem;
   font-weight: 500;
-  padding: 7px 14px;
+  padding: 6px 13px;
   border-radius: 6px;
-  letter-spacing: 0.01em;
 }
 
-/* Left panel footer */
-.vims-auth-left-footer {
-  font-size: 0.68rem;
+.vims-left-footer {
+  font-size: 0.66rem;
   color: rgba(255,255,255,0.2);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  padding-top: 24px;
-  border-top: 1px solid rgba(255,255,255,0.07);
+  padding-top: 22px;
+  border-top: 1px solid rgba(255,255,255,0.06);
   margin-top: 40px;
 }
 
-/* ══ RIGHT WHITE PANEL ══ */
-.vims-auth-right {
+/* ── RIGHT WHITE PANEL ── */
+.vims-right {
   width: 460px;
   flex-shrink: 0;
   background: #ffffff;
@@ -1060,156 +1056,152 @@ tr:hover td { background: var(--surface-2); }
   align-items: center;
   justify-content: center;
   padding: 48px 40px;
-  box-shadow: -2px 0 32px rgba(0,0,0,0.1);
+  box-shadow: -2px 0 28px rgba(0,0,0,0.09);
 }
-
-.vims-auth-form-wrap {
+.vims-form-card {
   width: 100%;
   max-width: 360px;
 }
 
-/* Both logos + name on right panel */
-.vims-auth-right-brand {
+/* Right panel — crossfading logo */
+.vims-right-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 36px;
-  padding-bottom: 28px;
+  gap: 12px;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
   border-bottom: 1px solid #f0f0f0;
 }
-.vims-auth-right-logo {
-  height: 38px;
-  width: auto;
+.vims-right-logo-wrap {
+  position: relative;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
-  border-radius: 4px;
 }
-.vims-auth-right-name {
+.vims-right-logo-img {
+  position: absolute;
+  inset: 0;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 6px;
+  transition: opacity 0.8s ease-in-out;
+}
+.vims-right-brand-name {
   font-family: 'Outfit', sans-serif;
   font-size: 0.9rem;
   font-weight: 800;
-  color: #1a3c5e;
+  color: #0f2d52;
   line-height: 1.1;
 }
-.vims-auth-right-sub {
-  font-size: 0.65rem;
-  color: #999;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+.vims-right-brand-sub {
+  font-size: 0.63rem;
+  color: #94a3b8;
   margin-top: 2px;
+  line-height: 1.3;
+  max-width: 200px;
+  transition: all 0.5s ease;
 }
 
 /* Form header */
-.vims-auth-form-header {
-  margin-bottom: 26px;
-}
-.vims-auth-form-title {
+.vims-form-title {
   font-family: 'Outfit', sans-serif;
   font-size: 1.7rem;
   font-weight: 800;
-  color: #1a3c5e;
+  color: #0f2d52;
   margin-bottom: 6px;
   line-height: 1.2;
   letter-spacing: -0.02em;
 }
-.vims-auth-form-subtitle {
+.vims-form-subtitle {
   font-size: 0.875rem;
-  color: #888;
+  color: #94a3b8;
+  margin-bottom: 24px;
   line-height: 1.5;
 }
 
 /* Form */
-.vims-auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.vims-auth-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.vims-auth-label-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.vims-auth-label {
+.vims-form { display: flex; flex-direction: column; gap: 16px; }
+.vims-field { display: flex; flex-direction: column; }
+.vims-label {
   font-size: 0.82rem;
   font-weight: 600;
   color: #374151;
+  margin-bottom: 6px;
+  display: block;
 }
-.vims-auth-forgot {
+.vims-forgot {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #1a3c5e;
+  color: #0f2d52;
 }
-.vims-auth-forgot:hover { text-decoration: underline; }
+.vims-forgot:hover { text-decoration: underline; }
 
-.vims-auth-input {
+.vims-input {
   width: 100%;
   padding: 11px 14px;
-  border: 1.5px solid #e5e7eb;
+  border: 1.5px solid #e2e8f0;
   border-radius: 8px;
-  font-size: 0.9rem;
-  color: #111827;
-  background: #fafafa;
+  font-size: 0.88rem;
+  color: #0f172a;
+  background: #f8fafc;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
   font-family: 'Inter', sans-serif;
 }
-.vims-auth-input:focus {
-  border-color: #1a3c5e;
+.vims-input:focus {
+  border-color: #0f2d52;
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(26,60,94,0.08);
+  box-shadow: 0 0 0 3px rgba(15,45,82,0.08);
 }
-.vims-auth-input::placeholder { color: #c0c0c0; }
+.vims-input::placeholder { color: #cbd5e1; }
 
-/* Remember me */
-.vims-auth-check-row {
+/* Checkbox row */
+.vims-check-row {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 0.85rem;
-  color: #555;
+  font-size: 0.84rem;
+  color: #475569;
   cursor: pointer;
-  margin-top: -2px;
+  margin: 2px 0;
 }
-.vims-auth-checkbox {
+.vims-checkbox {
   width: 15px;
   height: 15px;
-  accent-color: #1a3c5e;
+  accent-color: #0f2d52;
   cursor: pointer;
   flex-shrink: 0;
 }
 
-/* Sign In button — dark navy, exactly like reference */
-.vims-auth-submit {
+/* Primary button — dark navy */
+.vims-btn-primary {
   width: 100%;
   padding: 13px;
-  background: #1a3c5e;
+  background: #0f2d52;
   color: #ffffff;
   border: none;
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: 0.93rem;
   font-weight: 700;
   font-family: 'Outfit', sans-serif;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 48px;
 }
-.vims-auth-submit:hover:not(:disabled) {
-  background: #15304e;
+.vims-btn-primary:hover:not(:disabled) {
+  background: #091e38;
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(26,60,94,0.3);
+  box-shadow: 0 4px 16px rgba(15,45,82,0.3);
 }
-.vims-auth-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+.vims-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* Spinner */
-.vims-auth-spinner {
+/* Spinner inside button */
+.vims-spinner {
   width: 20px;
   height: 20px;
   border: 2px solid rgba(255,255,255,0.3);
@@ -1220,71 +1212,70 @@ tr:hover td { background: var(--surface-2); }
 }
 
 /* OR divider */
-.vims-auth-divider {
+.vims-or {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.vims-auth-divider span:first-child,
-.vims-auth-divider span:last-child {
+.vims-or span:first-child,
+.vims-or span:last-child {
   flex: 1;
   height: 1px;
-  background: #e5e7eb;
+  background: #e2e8f0;
   display: block;
 }
-.vims-auth-or {
-  font-size: 0.78rem;
-  color: #aaa;
+.vims-or-text {
+  font-size: 0.77rem;
+  color: #94a3b8;
   font-weight: 500;
   flex: none !important;
   height: auto !important;
   background: none !important;
 }
 
-/* Alt button (Register / Browse) */
-.vims-auth-alt-btn {
+/* Outline button (Register etc.) */
+.vims-btn-outline {
   width: 100%;
   padding: 12px;
-  border: 1.5px solid #e5e7eb;
+  border: 1.5px solid #e2e8f0;
   border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 600;
   color: #374151;
   text-align: center;
   display: block;
-  transition: border-color 0.2s, color 0.2s;
+  transition: border-color 0.18s, color 0.18s, background 0.18s;
   font-family: 'Inter', sans-serif;
 }
-.vims-auth-alt-btn:hover {
-  border-color: #1a3c5e;
-  color: #1a3c5e;
+.vims-btn-outline:hover {
+  border-color: #0f2d52;
+  color: #0f2d52;
+  background: rgba(15,45,82,0.03);
 }
 
-/* Back link */
-.vims-auth-back {
-  margin-top: 24px;
+/* Form footer (back link) */
+.vims-form-footer {
+  margin-top: 22px;
   text-align: center;
   font-size: 0.82rem;
-  color: #999;
+  color: #94a3b8;
 }
-.vims-auth-back a {
-  color: #1a3c5e;
+.vims-form-footer a {
+  color: #0f2d52;
   font-weight: 600;
 }
-.vims-auth-back a:hover { text-decoration: underline; }
+.vims-form-footer a:hover { text-decoration: underline; }
 
-/* ── Responsive: hide left panel on small screens ── */
+/* Responsive */
 @media (max-width: 900px) {
-  .vims-auth-left { display: none; }
-  .vims-auth-right { width: 100%; padding: 40px 24px; box-shadow: none; }
+  .vims-left  { display: none; }
+  .vims-right { width: 100%; padding: 36px 20px; box-shadow: none; }
 }
 
-/* ══════════════════════════════════════════════
-   VIMS TOPBAR — Both logos grouped on the left
-══════════════════════════════════════════════ */
+/* ─── TOPBAR ─── */
 .vims-topbar {
   background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1.5px solid #e2e8f0;
   padding: 0 24px;
   display: flex;
   align-items: center;
@@ -1294,62 +1285,62 @@ tr:hover td { background: var(--surface-2); }
   top: 0;
   z-index: 90;
   height: 68px;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  box-shadow: 0 1px 8px rgba(15,45,82,0.07);
 }
 
-/* Left — both logos + institution name together */
-.vims-topbar-brand {
+.vims-topbar-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.vims-topbar-logo-wrap {
+  position: relative;
+  width: 42px;
+  height: 42px;
   flex-shrink: 0;
 }
 .vims-topbar-logo {
-  height: 40px;
-  width: auto;
-  flex-shrink: 0;
-  border-radius: 4px;
+  position: absolute;
+  inset: 0;
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  border-radius: 5px;
+  transition: opacity 0.8s ease-in-out;
 }
-.vims-topbar-text {
-  display: flex;
-  flex-direction: column;
-  margin-left: 4px;
-}
-.vims-topbar-title {
+.vims-topbar-text { display: flex; flex-direction: column; }
+.vims-topbar-inst {
   font-family: 'Outfit', sans-serif;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 800;
-  color: #1a3c5e;
+  color: #0f2d52;
   line-height: 1.2;
+  transition: all 0.5s ease;
 }
 .vims-topbar-sub {
-  font-size: 0.63rem;
-  color: #888;
+  font-size: 0.62rem;
+  color: #94a3b8;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-top: 1px;
 }
-
-/* Centre — system name in red like original */
 .vims-topbar-center {
   flex: 1;
   text-align: center;
   font-family: 'Outfit', sans-serif;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 800;
   color: #dc2626;
   letter-spacing: -0.01em;
-  line-height: 1.2;
 }
-
-/* Right — bell + avatar */
 .vims-topbar-right {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
 }
-.vims-topbar-notif {
+.vims-topbar-bell {
   position: relative;
   width: 38px;
   height: 38px;
@@ -1359,19 +1350,19 @@ tr:hover td { background: var(--surface-2); }
   border: none;
   background: transparent;
   border-radius: 8px;
-  color: #555;
+  color: #475569;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
-.vims-topbar-notif:hover { background: #f3f4f6; color: #1a3c5e; }
+.vims-topbar-bell:hover { background: #f1f5f9; color: #0f2d52; }
 .vims-topbar-badge {
   position: absolute;
   top: 4px; right: 4px;
   width: 16px; height: 16px;
-  background: #dc2626;
+  background: #ef4444;
   color: #fff;
   border-radius: 50%;
-  font-size: 0.58rem;
+  font-size: 0.57rem;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -1381,66 +1372,81 @@ tr:hover td { background: var(--surface-2); }
 .vims-topbar-avatar {
   width: 34px; height: 34px;
   border-radius: 50%;
-  background: #1a3c5e;
+  background: #0f2d52;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   flex-shrink: 0;
   cursor: default;
 }
 
-/* ══════════════════════════════════════════════
-   VIMS SIDEBAR — Navy blue matching reference
-══════════════════════════════════════════════ */
+/* ─── SIDEBAR OVERRIDES — clean navy blue ─── */
 .sidebar {
-  background: #1a3c5e !important;
+  background: linear-gradient(180deg, #0a1f38 0%, #0f2d52 50%, #0a1f38 100%) !important;
   background-image: none !important;
+  box-shadow: 3px 0 20px rgba(0,0,0,0.2) !important;
 }
-.sidebar .sidebar-toggle {
+.sidebar-toggle {
   background: #22c55e !important;
+  border-color: rgba(255,255,255,0.15) !important;
 }
-.sidebar .nav-item {
-  color: rgba(255,255,255,0.62) !important;
-  border-radius: 6px !important;
-  margin: 1px 8px !important;
+.sidebar-toggle:hover { background: #16a34a !important; }
+.logo-text  { color: #fff !important; }
+.logo-sub   { color: rgba(255,255,255,0.38) !important; }
+.logo-badge { background: #22c55e !important; color: #fff !important; }
+.nav-group-label { color: rgba(255,255,255,0.25) !important; }
+.nav-item {
+  color: rgba(255,255,255,0.6) !important;
+  border-radius: 7px !important;
+  margin: 2px 8px !important;
   padding: 9px 12px !important;
 }
-.sidebar .nav-item.collapsed {
-  margin: 1px 0 !important;
+.nav-item.collapsed {
+  margin: 2px 0 !important;
   border-radius: 0 !important;
   padding: 11px 0 !important;
 }
-.sidebar .nav-item:hover {
+.nav-item:hover {
   background: rgba(255,255,255,0.08) !important;
-  color: #fff !important;
+  color: #ffffff !important;
 }
-.sidebar .nav-item.active {
-  background: rgba(34,197,94,0.15) !important;
-  color: #fff !important;
+.nav-item.active {
+  background: rgba(34,197,94,0.18) !important;
+  color: #ffffff !important;
 }
-.sidebar .nav-item.active::before {
-  background: #22c55e !important;
-}
-.sidebar .nav-group-label {
-  color: rgba(255,255,255,0.28) !important;
-}
-.sidebar .logo-text  { color: #fff !important; }
-.sidebar .logo-sub   { color: rgba(255,255,255,0.38) !important; }
-.sidebar .logo-badge { background: #22c55e !important; }
-.sidebar .sidebar-footer { border-top: 1px solid rgba(255,255,255,0.07) !important; }
-.sidebar .sidebar-avatar { background: #22c55e !important; color: #fff !important; }
+.nav-item.active::before { background: #22c55e !important; }
+.sidebar-footer { border-top: 1px solid rgba(255,255,255,0.07) !important; }
+.sidebar-avatar { background: #22c55e !important; color: #fff !important; font-weight: 800 !important; }
+.sidebar-user-name { color: #fff !important; }
+.sidebar-user-role { color: rgba(255,255,255,0.45) !important; }
 
-/* Page background */
-.page-content { background: #f8f9fb; }
-
-/* Footer */
+/* ─── PAGE & FOOTER ─── */
+.page-content  { background: #f1f5f9 !important; }
 .institutional-footer {
-  background: #fff !important;
-  border-top: 1px solid #e5e7eb !important;
-  color: #aaa !important;
+  background: #ffffff !important;
+  border-top: 1px solid #e2e8f0 !important;
+  color: #94a3b8 !important;
   font-size: 0.78rem !important;
+}
+
+/* ─── CARD & COMPONENT OVERRIDES to match navy theme ─── */
+.btn-primary {
+  background: linear-gradient(135deg, #0f2d52 0%, #1a3c5e 100%) !important;
+  box-shadow: 0 2px 8px rgba(15,45,82,0.3) !important;
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 16px rgba(15,45,82,0.4) !important;
+}
+.form-control:focus {
+  border-color: #0f2d52 !important;
+  box-shadow: 0 0 0 3px rgba(15,45,82,0.08) !important;
+}
+.tab.active { color: #0f2d52 !important; }
+.tab-btn.tab-active {
+  color: #0f2d52 !important;
+  border-bottom-color: #0f2d52 !important;
 }
 

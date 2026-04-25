@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -7,8 +7,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showNoun, setShowNoun] = useState(true);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Crossfade logos every 2.5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => setShowNoun(prev => !prev), 2500);
+    return () => clearInterval(interval);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,83 +33,105 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="vims-auth-shell">
+    <div className="vims-shell">
 
       {/* ══ LEFT DARK PANEL ══ */}
-      <div className="vims-auth-left">
-        <div className="vims-auth-left-inner">
+      <div className="vims-left">
+        <div className="vims-left-inner">
 
-          {/* Top brand — both logos side by side */}
-          <div className="vims-auth-brand">
-            <img src="/assets/noun-logo.png"   alt="NOUN"   className="vims-auth-brand-logo" />
-            <img src="/assets/acetel-logo.png" alt="ACETEL" className="vims-auth-brand-logo" />
-            <div className="vims-auth-brand-text">
-              <div className="vims-auth-brand-name">ACETEL VIMS</div>
-              <div className="vims-auth-brand-sub">Virtual Internship Management</div>
+          {/* Top — crossfading logo */}
+          <div className="vims-logo-wrap">
+            <div className="vims-logo-crossfade">
+              <img
+                src="/assets/noun-logo.png"
+                alt="NOUN"
+                className="vims-logo-img"
+                style={{ opacity: showNoun ? 1 : 0 }}
+              />
+              <img
+                src="/assets/acetel-logo.png"
+                alt="ACETEL"
+                className="vims-logo-img"
+                style={{ opacity: showNoun ? 0 : 1 }}
+              />
+            </div>
+            <div className="vims-logo-text">
+              <div className="vims-logo-name">ACETEL VIMS</div>
+              <div className="vims-logo-sub">Virtual Internship Management</div>
             </div>
           </div>
 
-          {/* Status badges */}
-          <div className="vims-auth-badges">
-            <span className="vims-auth-badge">
-              <span className="vims-auth-badge-dot" />
+          {/* Status pills */}
+          <div className="vims-status-row">
+            <span className="vims-status-pill">
+              <span className="vims-status-dot" />
               Institutional Portal Active
             </span>
-            <span className="vims-auth-badge">
-              <span className="vims-auth-badge-dot" />
+            <span className="vims-status-pill">
+              <span className="vims-status-dot" />
               Digital Internship Ecosystem Active
             </span>
           </div>
 
-          {/* Hero headline */}
-          <div className="vims-auth-hero">
-            <h1 className="vims-auth-title">
+          {/* Hero */}
+          <div className="vims-hero">
+            <h1 className="vims-hero-title">
               Elevate Your Internship<br />Management Experience.
             </h1>
-            <p className="vims-auth-desc">
+            <p className="vims-hero-desc">
               The professional platform for tracking virtual internship milestones and
               orchestrating collaboration between students, supervisors, and coordinators.
             </p>
-            <div className="vims-auth-tags">
-              <span className="vims-auth-tag">Milestone Intelligence</span>
-              <span className="vims-auth-tag">Faculty Collaboration</span>
-              <span className="vims-auth-tag">Real-time Synchronization</span>
+            <div className="vims-tags">
+              <span className="vims-tag">Milestone Intelligence</span>
+              <span className="vims-tag">Faculty Collaboration</span>
+              <span className="vims-tag">Real-time Synchronization</span>
             </div>
           </div>
 
-          <div className="vims-auth-left-footer">
+          <div className="vims-left-footer">
             © 2026 ACETEL VIRTUAL INTERNSHIP MANAGEMENT SYSTEM
           </div>
         </div>
       </div>
 
       {/* ══ RIGHT WHITE PANEL ══ */}
-      <div className="vims-auth-right">
-        <div className="vims-auth-form-wrap">
+      <div className="vims-right">
+        <div className="vims-form-card">
 
-          {/* Logo on right panel — both logos + name */}
-          <div className="vims-auth-right-brand">
-            <img src="/assets/noun-logo.png"   alt="NOUN"   className="vims-auth-right-logo" />
-            <img src="/assets/acetel-logo.png" alt="ACETEL" className="vims-auth-right-logo" />
+          {/* Right panel logo — crossfades too */}
+          <div className="vims-right-brand">
+            <div className="vims-right-logo-wrap">
+              <img
+                src="/assets/noun-logo.png"
+                alt="NOUN"
+                className="vims-right-logo-img"
+                style={{ opacity: showNoun ? 1 : 0 }}
+              />
+              <img
+                src="/assets/acetel-logo.png"
+                alt="ACETEL"
+                className="vims-right-logo-img"
+                style={{ opacity: showNoun ? 0 : 1 }}
+              />
+            </div>
             <div>
-              <div className="vims-auth-right-name">ACETEL VIMS</div>
-              <div className="vims-auth-right-sub">Virtual Internship Management</div>
+              <div className="vims-right-brand-name">ACETEL VIMS</div>
+              <div className="vims-right-brand-sub">
+                {showNoun ? 'National Open University of Nigeria' : 'Africa Centre of Excellence for Technology Enhanced Learning'}
+              </div>
             </div>
           </div>
 
-          <div className="vims-auth-form-header">
-            <h2 className="vims-auth-form-title">Sign in</h2>
-            <p className="vims-auth-form-subtitle">
-              Enter your credentials to access your dashboard.
-            </p>
-          </div>
+          <h2 className="vims-form-title">Sign in</h2>
+          <p className="vims-form-subtitle">Enter your credentials to access your dashboard.</p>
 
-          <form onSubmit={handleSubmit} className="vims-auth-form">
-            <div className="vims-auth-field">
-              <label className="vims-auth-label">Email Address</label>
+          <form onSubmit={handleSubmit} className="vims-form">
+            <div className="vims-field">
+              <label className="vims-label">Email Address</label>
               <input
                 type="text"
-                className="vims-auth-input"
+                className="vims-input"
                 placeholder="your@email.com or username"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
@@ -110,14 +139,14 @@ export default function LoginPage() {
               />
             </div>
 
-            <div className="vims-auth-field">
-              <div className="vims-auth-label-row">
-                <label className="vims-auth-label">Password</label>
-                <Link to="/reset" className="vims-auth-forgot">Forgot password?</Link>
+            <div className="vims-field">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="vims-label" style={{ margin: 0 }}>Password</label>
+                <Link to="/reset" className="vims-forgot">Forgot password?</Link>
               </div>
               <input
                 type="password"
-                className="vims-auth-input"
+                className="vims-input"
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -125,25 +154,25 @@ export default function LoginPage() {
               />
             </div>
 
-            <label className="vims-auth-check-row">
-              <input type="checkbox" className="vims-auth-checkbox" />
+            <label className="vims-check-row">
+              <input type="checkbox" className="vims-checkbox" />
               Keep me signed in
             </label>
 
-            <button type="submit" className="vims-auth-submit" disabled={loading}>
-              {loading ? <span className="vims-auth-spinner" /> : 'Sign In'}
+            <button type="submit" className="vims-btn-primary" disabled={loading}>
+              {loading ? <span className="vims-spinner" /> : 'Sign In'}
             </button>
 
-            <div className="vims-auth-divider">
-              <span /><span className="vims-auth-or">or</span><span />
+            <div className="vims-or">
+              <span /><span className="vims-or-text">or</span><span />
             </div>
 
-            <Link to="/register" className="vims-auth-alt-btn">
+            <Link to="/register" className="vims-btn-outline">
               Register Student Account
             </Link>
           </form>
 
-          <div className="vims-auth-back">
+          <div className="vims-form-footer">
             <Link to="/">← Back to home</Link>
           </div>
         </div>
