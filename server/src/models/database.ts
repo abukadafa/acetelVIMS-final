@@ -41,8 +41,9 @@ export async function initDatabase(): Promise<void> {
     await seedProgrammes(tenant._id as mongoose.Types.ObjectId);
     await seedSettings(tenant._id as mongoose.Types.ObjectId);
     
-    // NOTE: ensureAdminExists REMOVED to follow the "No Conflict Design".
-    // Admin identity is now strictly controlled by Environment Variables.
+    // Safety Seed: Ensure a User record exists for the Environment-based Admin
+    await ensureAdminUserRecordExists(tenant._id as mongoose.Types.ObjectId);
+
     logger.info('🚀 Database synchronized (Identity sync skipped for No-Conflict Design)');
     
   } catch (error) {
@@ -93,4 +94,30 @@ async function seedSettings(tenantId: mongoose.Types.ObjectId) {
     );
   }
   logger.info('🌱 Settings synchronized');
+}
+
+/**
+ * Ensures a User record exists for the Admin email in the environment.
+ * Does NOT set or sync passwords - just ensures a profile exists for metadata/audit logs.
+ */
+async function ensureAdminUserRecordExists(tenantId: mongoose.Types.ObjectId) {
+  const User = mongoose.model('User');
+  const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
+  
+  if (!adminEmail) return;
+
+  const existing = await User.findOne({ email: adminEmail });
+  if (!existing) {
+    logger.info('👤 Creating Safety Admin record for %s', adminEmail);
+    await User.create({
+      email: adminEmail,
+      username: 'admin',
+      role: 'admin',
+      firstName: 'System',
+      lastName: 'Administrator',
+      tenant: tenantId,
+      isActive: true,
+      password: 'managed-by-env' // Placeholder, password checked against process.env
+    });
+  }
 }
