@@ -23,6 +23,7 @@ import settingsRoutes from './routes/settings.routes';
 import adminRoutes from './routes/admin.routes';
 import feedbackRoutes from './routes/feedback.routes';
 import aiRoutes from './routes/ai.routes';
+import chatRoutes from './routes/chat.routes';
 import morgan from 'morgan';
 import { errorHandler } from './middleware/error.middleware';
 import { startMonitoringSchedule } from './jobs/monitoring.job';
@@ -155,6 +156,7 @@ apiRouter.use('/settings', settingsRoutes);
 apiRouter.use('/admin', adminRoutes);
 apiRouter.use('/feedback', feedbackRoutes);
 apiRouter.use('/ai', aiRoutes);
+apiRouter.use('/chat', chatRoutes);
 
 // Mount API routes under /api prefix
 app.use('/api', apiRouter);
