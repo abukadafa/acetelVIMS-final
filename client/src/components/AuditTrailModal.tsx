@@ -110,7 +110,7 @@ export default function AuditTrailModal({ targetId, title = 'System Audit Trail'
                       <th>Performer</th>
                       <th>Action</th>
                       <th>Device / IP</th>
-                      <th>Context / Justification</th>
+                      <th>Notes / Reason</th>
                     </tr>
                   </thead>
                   <tbody>

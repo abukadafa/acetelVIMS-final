@@ -11,8 +11,6 @@ import StudentList from './components/StudentList';
 import CompanyManagement from './components/CompanyManagement';
 import UserManagementPage from './pages/UserManagementPage';
 import FeedbackPage from './pages/FeedbackPage';
-import ChatPage from './pages/ChatPage';
-import EmailPage from './pages/EmailPage';
 import AuditTrailPage from './pages/AuditTrailPage';
 import RecycleBinPage from './pages/RecycleBinPage';
 import LogbookPage from './pages/LogbookPage';
@@ -27,33 +25,32 @@ function SyncWrapper({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (user) {
+      // Connected to real-time notification service
       connectSocket(user.id);
-
+      
       socket.on('notification', (data) => {
-        toast.success(data.message, { icon: '🔔', duration: 5000 });
-      });
-
-      socket.on('chat:new_message', (data) => {
-        toast(`New message in chat`, { icon: '💬', duration: 4000 });
+        toast.success(data.message, { icon: '🔔' });
       });
 
       return () => {
         disconnectSocket();
         socket.off('notification');
-        socket.off('chat:new_message');
       };
     }
   }, [user]);
 
   useEffect(() => {
     if (user && user.role === 'student') {
+      // Offline sync initialized
       setupOfflineAutoSync(async (entry) => {
         const formData = new FormData();
         Object.entries(entry).forEach(([key, value]) => {
           if (value !== undefined) formData.append(key, String(value));
         });
-        await api.post('/logbook', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-        toast.success(`Synced logbook: ${entry.entryDate}`, { id: `sync-${entry.id}` });
+        await api.post('/logbook', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        toast.success(`Logbook entry synced: ${entry.entryDate}`, { id: `sync-${entry.id}` });
       });
     }
   }, [user]);
@@ -61,11 +58,13 @@ function SyncWrapper({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
+function ProtectedRoute({ children, roles }: { children: React.ReactNode, roles?: string[] }) {
   const { user, loading, isRole } = useAuth();
+  
   if (loading) return <div className="page-loader"><div className="spinner spinner-lg"></div></div>;
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !isRole(...roles)) return <Navigate to="/" replace />;
+  
   return <>{children}</>;
 }
 
@@ -78,9 +77,11 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/reset" element={<ResetPasswordPage />} />
-
+            
             <Route element={<Layout />}>
               <Route index element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              
+              {/* Institutional Supervision & Research */}
               <Route path="/logbook" element={<ProtectedRoute><LogbookPage /></ProtectedRoute>} />
               <Route path="/attendance" element={<ProtectedRoute roles={['student']}><Dashboard /></ProtectedRoute>} />
               <Route path="/map" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator']}><Dashboard /></ProtectedRoute>} />
@@ -89,20 +90,17 @@ export default function App() {
               <Route path="/users" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><UserManagementPage /></ProtectedRoute>} />
               <Route path="/audit-trail" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><AuditTrailPage /></ProtectedRoute>} />
               <Route path="/bin" element={<ProtectedRoute roles={['admin']}><RecycleBinPage /></ProtectedRoute>} />
+              
+              {/* Common Routes */}
               <Route path="/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
-              <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
-              <Route path="/email" element={<ProtectedRoute><EmailPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             </Route>
-
+  
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-
+          
           <OfflineIndicator />
-          <Toaster
-            position="top-right"
-            toastOptions={{ duration: 4000, style: { background: '#1a1a2e', color: '#fff', borderRadius: '12px', fontSize: '14px' } }}
-          />
+          <Toaster position="top-right" toastOptions={{ duration: 4000, style: { background: '#333', color: '#fff', borderRadius: '12px' } }} />
         </BrowserRouter>
       </SyncWrapper>
     </AuthProvider>

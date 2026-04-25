@@ -53,18 +53,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Status pills */}
-          <div className="vims-status-row">
-            <span className="vims-status-pill">
-              <span className="vims-status-dot" />
-              Institutional Portal Active
-            </span>
-            <span className="vims-status-pill">
-              <span className="vims-status-dot" />
-              Digital Internship Ecosystem Active
-            </span>
-          </div>
-
           {/* Hero */}
           <div className="vims-hero">
             <h1 className="vims-hero-title">

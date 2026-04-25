@@ -179,7 +179,7 @@ export default function AnalyticsDashboard({ visibleRoles: _visibleRoles = [] }:
             <thead>
               <tr>
                 <th>Student Profile</th>
-                <th>Matrix No.</th>
+                <th>Matric No.</th>
                 <th>Academic Track</th>
                 <th>Last Verified Logbook</th>
                 <th>Status</th>

@@ -7,26 +7,26 @@
 
 :root {
   /* ── ACETEL Brand Colors (extracted from logo) ── */
-  --primary:       #1e6b2e;   /* deep ACETEL green */
-  --primary-light: #3ba051;   /* mid ACETEL green  */
-  --primary-dark:  #134a1f;   /* dark forest green */
-  --accent:        #3ba051;   /* exact logo green  */
-  --accent-dark:   #2d7d3d;
+  --primary:       #166534;   /* deep ACETEL green */
+  --primary-light: #16a34a;   /* vivid green       */
+  --primary-dark:  #14532d;   /* darkest green     */
+  --accent:        #16a34a;
+  --accent-dark:   #15803d;
 
   /* Semantic */
-  --success: #3ba051;
-  --warning: #f59e0b;
-  --danger:  #ef4444;
-  --info:    #3b82f6;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger:  #dc2626;
+  --info:    #2563eb;
 
-  /* Neutrals */
-  --bg:        #f4f7f4;   /* very light green-tinted white */
+  /* Neutrals — warm white, not greenish */
+  --bg:        #f9fafb;
   --surface:   #ffffff;
-  --surface-2: #f9fbf9;
-  --border:    #dce8dc;
-  --text:      #0a0a0a;   /* near-black for body text */
-  --text-2:    #2d4a2d;   /* dark green for secondary text */
-  --text-3:    #6b8f6b;   /* muted green */
+  --surface-2: #f3f4f6;
+  --border:    #e5e7eb;
+  --text:      #111827;   /* near-black */
+  --text-2:    #374151;   /* dark grey  */
+  --text-3:    #6b7280;   /* muted grey */
 
   /* Gradients */
   --grad-primary: linear-gradient(135deg, #134a1f 0%, #1e6b2e 50%, #3ba051 100%);
@@ -61,8 +61,8 @@
 html { scroll-behavior: smooth; }
 body {
   font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
-  background: #f4f7f4;
-  color: #0a0a0a;
+  background: #f9fafb;
+  color: #111827;
   min-height: 100vh;
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
@@ -946,11 +946,10 @@ tr:hover td { background: var(--surface-2); }
   background: #fff;
 }
 
-/* ── LEFT PANEL — white background, black text, green accents ── */
+/* ── LEFT PANEL — rich deep green, premium feel ── */
 .vims-left {
   flex: 1;
-  background: #ffffff;
-  border-right: 1px solid #e5e7eb;
+  background: linear-gradient(145deg, #14532d 0%, #166534 45%, #15803d 100%);
   display: flex;
   position: relative;
   overflow: hidden;
@@ -960,9 +959,8 @@ tr:hover td { background: var(--surface-2); }
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(30,107,46,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(30,107,46,0.04) 1px, transparent 1px);
-  background-size: 44px 44px;
+    radial-gradient(ellipse at 20% 80%, rgba(255,255,255,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 10%, rgba(255,255,255,0.04) 0%, transparent 40%);
   pointer-events: none;
 }
 .vims-left-inner {
@@ -1001,15 +999,16 @@ tr:hover td { background: var(--surface-2); }
   font-family: 'Syne', sans-serif;
   font-size: 1.5rem;
   font-weight: 800;
-  color: #0a0a0a;
+  color: #ffffff;
   line-height: 1.2;
   letter-spacing: -0.025em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 .vims-logo-sub {
-  font-size: 0.92rem;
-  color: #1e6b2e;
+  font-size: 0.9rem;
+  color: #bbf7d0;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   margin-top: 4px;
   font-weight: 700;
 }
@@ -1055,15 +1054,16 @@ tr:hover td { background: var(--surface-2); }
   font-family: 'Syne', sans-serif;
   font-size: 2.75rem;
   font-weight: 800;
-  color: #0a0a0a;
+  color: #ffffff;
   line-height: 1.1;
   letter-spacing: -0.025em;
   margin-bottom: 20px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 .vims-hero-desc {
   font-size: 1rem;
-  color: #111827;
-  line-height: 1.75;
+  color: #dcfce7;
+  line-height: 1.8;
   max-width: 420px;
   margin-bottom: 32px;
   font-weight: 500;
@@ -1081,25 +1081,25 @@ tr:hover td { background: var(--surface-2); }
 
 .vims-left-footer {
   font-size: 0.68rem;
-  color: #1e6b2e;
+  color: rgba(255,255,255,0.55);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   padding-top: 22px;
-  border-top: 1.5px solid #bbf7d0;
+  border-top: 1px solid rgba(255,255,255,0.2);
   margin-top: 40px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* ── RIGHT WHITE PANEL ── */
 .vims-right {
-  width: 460px;
+  width: 480px;
   flex-shrink: 0;
   background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48px 40px;
-  box-shadow: -2px 0 28px rgba(0,0,0,0.09);
+  padding: 52px 44px;
+  box-shadow: -4px 0 40px rgba(0,0,0,0.12);
 }
 .vims-form-card {
   width: 100%;
@@ -1149,12 +1149,12 @@ tr:hover td { background: var(--surface-2); }
 /* Form header */
 .vims-form-title {
   font-family: 'Syne', sans-serif;
-  font-size: 1.9rem;
+  font-size: 2rem;
   font-weight: 800;
-  color: #0a0a0a;
+  color: #111827;
   margin-bottom: 6px;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
 }
 .vims-form-subtitle {
   font-size: 0.875rem;
@@ -1318,7 +1318,7 @@ tr:hover td { background: var(--surface-2); }
 /* ─── TOPBAR ─── */
 .vims-topbar {
   background: #ffffff;
-  border-bottom: 2px solid #bbf7d0;
+  border-bottom: 1.5px solid #e5e7eb;
   padding: 0 28px;
   display: flex;
   align-items: center;
@@ -1421,32 +1421,33 @@ tr:hover td { background: var(--surface-2); }
 
 /* ─── SIDEBAR — white background, black & green text ─── */
 .sidebar {
-  background: #ffffff !important;
+  background: linear-gradient(180deg, #14532d 0%, #166534 50%, #14532d 100%) !important;
   background-image: none !important;
-  border-right: 2px solid #bbf7d0 !important;
-  box-shadow: 3px 0 16px rgba(30,107,46,0.1) !important;
+  border-right: none !important;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.15) !important;
 }
 .sidebar-toggle {
-  background: #1e6b2e !important;
-  border-color: #134a1f !important;
+  background: #16a34a !important;
+  border-color: rgba(255,255,255,0.2) !important;
 }
-.sidebar-toggle:hover { background: #134a1f !important; }
-.logo-text  { color: #0a0a0a !important; font-weight: 800 !important; }
-.logo-sub   { color: #1e6b2e !important; font-weight: 700 !important; }
-.logo-badge { background: #1e6b2e !important; color: #ffffff !important; font-weight: 800 !important; }
+.sidebar-toggle:hover { background: #15803d !important; }
+.logo-text  { color: #ffffff !important; font-weight: 800 !important; }
+.logo-sub   { color: #bbf7d0 !important; font-weight: 600 !important; }
+.logo-badge { background: #16a34a !important; color: #ffffff !important; font-weight: 800 !important; }
 .nav-group-label {
-  color: #1e6b2e !important;
+  color: #86efac !important;
   font-weight: 800 !important;
   font-size: 0.65rem !important;
   letter-spacing: 0.12em !important;
   text-transform: uppercase !important;
 }
 .nav-item {
-  color: #0a0a0a !important;
-  border-radius: 7px !important;
+  color: #dcfce7 !important;
+  border-radius: 8px !important;
   margin: 2px 8px !important;
-  padding: 9px 12px !important;
+  padding: 10px 12px !important;
   font-weight: 600 !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
 }
 .nav-item.collapsed {
   margin: 2px 0 !important;
@@ -1454,22 +1455,22 @@ tr:hover td { background: var(--surface-2); }
   padding: 11px 0 !important;
 }
 .nav-item:hover {
-  background: #f0fdf4 !important;
-  color: #1e6b2e !important;
+  background: rgba(255,255,255,0.12) !important;
+  color: #ffffff !important;
 }
 .nav-item.active {
-  background: #dcfce7 !important;
-  color: #14532d !important;
+  background: rgba(255,255,255,0.18) !important;
+  color: #ffffff !important;
   font-weight: 700 !important;
 }
-.nav-item.active::before { background: #1e6b2e !important; }
-.sidebar-footer { border-top: 2px solid #bbf7d0 !important; }
-.sidebar-avatar { background: #1e6b2e !important; color: #ffffff !important; font-weight: 900 !important; }
-.sidebar-user-name { color: #0a0a0a !important; font-weight: 700 !important; }
-.sidebar-user-role { color: #1e6b2e !important; font-weight: 600 !important; }
+.nav-item.active::before { background: #86efac !important; }
+.sidebar-footer { border-top: 1px solid rgba(255,255,255,0.15) !important; }
+.sidebar-avatar { background: #16a34a !important; color: #ffffff !important; font-weight: 900 !important; }
+.sidebar-user-name { color: #ffffff !important; font-weight: 700 !important; font-family: 'Plus Jakarta Sans', sans-serif !important; }
+.sidebar-user-role { color: #bbf7d0 !important; font-weight: 600 !important; }
 
 /* ─── PAGE & FOOTER ─── */
-.page-content  { background: #f4f7f4 !important; }
+.page-content  { background: #f9fafb !important; }
 .institutional-footer {
   background: #ffffff !important;
   border-top: 1px solid #e2e8f0 !important;

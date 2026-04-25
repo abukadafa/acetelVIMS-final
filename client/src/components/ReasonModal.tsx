@@ -38,7 +38,7 @@ export default function ReasonModal({
             <p style={{ fontSize: '0.9rem', color: 'var(--text-2)', marginBottom: '16px' }}>{message}</p>
             
             <div className="form-group">
-              <label className="form-label">Justification / Reason <span style={{ color: 'red' }}>*</span></label>
+              <label className="form-label">Reason for Action <span style={{ color: 'red' }}>*</span></label>
               <textarea
                 className="form-control"
                 placeholder="e.g. Staff reassignment, Disciplinary action, Error correction..."
