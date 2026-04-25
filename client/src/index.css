@@ -6,39 +6,39 @@
 ══════════════════════════════════════════════ */
 
 :root {
-  /* Brand Colors — matching reference TMS site exactly */
-  --primary:       #0f2d52;
-  --primary-light: #1a3c5e;
-  --primary-dark:  #091e38;
-  --accent:        #22c55e;
-  --accent-dark:   #16a34a;
+  /* ── ACETEL Brand Colors (extracted from logo) ── */
+  --primary:       #1e6b2e;   /* deep ACETEL green */
+  --primary-light: #3ba051;   /* mid ACETEL green  */
+  --primary-dark:  #134a1f;   /* dark forest green */
+  --accent:        #3ba051;   /* exact logo green  */
+  --accent-dark:   #2d7d3d;
 
   /* Semantic */
-  --success: #22c55e;
+  --success: #3ba051;
   --warning: #f59e0b;
   --danger:  #ef4444;
   --info:    #3b82f6;
 
   /* Neutrals */
-  --bg:        #f1f5f9;
+  --bg:        #f4f7f4;   /* very light green-tinted white */
   --surface:   #ffffff;
-  --surface-2: #f8fafc;
-  --border:    #e2e8f0;
-  --text:      #0f172a;
-  --text-2:    #475569;
-  --text-3:    #94a3b8;
+  --surface-2: #f9fbf9;
+  --border:    #dce8dc;
+  --text:      #0a0a0a;   /* near-black for body text */
+  --text-2:    #2d4a2d;   /* dark green for secondary text */
+  --text-3:    #6b8f6b;   /* muted green */
 
   /* Gradients */
-  --grad-primary: linear-gradient(135deg, #0f2d52 0%, #1a3c5e 50%, #1e4976 100%);
-  --grad-accent:  linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  --grad-dark:    linear-gradient(135deg, #091e38 0%, #0f2d52 100%);
-  --grad-hero:    linear-gradient(135deg, #091e38 0%, #0f2d52 40%, #1a3c5e 100%);
+  --grad-primary: linear-gradient(135deg, #134a1f 0%, #1e6b2e 50%, #3ba051 100%);
+  --grad-accent:  linear-gradient(135deg, #3ba051 0%, #2d7d3d 100%);
+  --grad-dark:    linear-gradient(135deg, #0a1f0d 0%, #134a1f 100%);
+  --grad-hero:    linear-gradient(135deg, #0a1f0d 0%, #134a1f 40%, #1e6b2e 100%);
 
   /* Shadows */
-  --shadow-sm:  0 1px 3px rgba(15,45,82,.08), 0 1px 2px rgba(15,45,82,.05);
-  --shadow-md:  0 4px 16px rgba(15,45,82,.12), 0 2px 6px rgba(15,45,82,.08);
-  --shadow-lg:  0 10px 40px rgba(15,45,82,.16), 0 4px 12px rgba(15,45,82,.1);
-  --shadow-xl:  0 20px 60px rgba(15,45,82,.2);
+  --shadow-sm:  0 1px 3px rgba(30,107,46,.08), 0 1px 2px rgba(30,107,46,.05);
+  --shadow-md:  0 4px 16px rgba(30,107,46,.12), 0 2px 6px rgba(30,107,46,.08);
+  --shadow-lg:  0 10px 40px rgba(30,107,46,.16), 0 4px 12px rgba(30,107,46,.1);
+  --shadow-xl:  0 20px 60px rgba(30,107,46,.2);
 
   /* Radius */
   --radius-sm: 8px;
@@ -90,7 +90,7 @@ h3 { font-size: 1.25rem; }
 /* ════════════ SIDEBAR ════════════ */
 .sidebar {
   width: var(--sidebar-w);
-  background: linear-gradient(180deg, #0f2d52 0%, #1a3c5e 60%, #0f2d52 100%);
+  background: linear-gradient(180deg, #1e6b2e 0%, #3ba051 60%, #1e6b2e 100%);
   position: fixed; top: 0; left: 0;
   height: 100vh;
   display: flex; flex-direction: column;
@@ -889,7 +889,7 @@ tr:hover td { background: var(--surface-2); }
 /* ═══════════════════════════════════════════════════════
    VIMS DESIGN SYSTEM v3
    Exact match to reference TMS site:
-   - Left panel: deep navy #0f2d52
+   - Left panel: deep navy #1e6b2e
    - Right panel: pure white
    - Logo: crossfades between NOUN and ACETEL
    - Font: Inter / Outfit
@@ -907,7 +907,7 @@ tr:hover td { background: var(--surface-2); }
 /* ── LEFT DARK PANEL ── */
 .vims-left {
   flex: 1;
-  background: #0f2d52;
+  background: linear-gradient(160deg, #0a1f0d 0%, #134a1f 45%, #1e6b2e 100%);
   background-image:
     radial-gradient(ellipse at 10% 70%, rgba(34,197,94,0.1) 0%, transparent 55%),
     radial-gradient(ellipse at 90% 15%, rgba(255,255,255,0.04) 0%, transparent 50%);
@@ -1091,7 +1091,7 @@ tr:hover td { background: var(--surface-2); }
   font-family: 'Outfit', sans-serif;
   font-size: 0.9rem;
   font-weight: 800;
-  color: #0f2d52;
+  color: #1e6b2e;
   line-height: 1.1;
 }
 .vims-right-brand-sub {
@@ -1108,7 +1108,7 @@ tr:hover td { background: var(--surface-2); }
   font-family: 'Outfit', sans-serif;
   font-size: 1.7rem;
   font-weight: 800;
-  color: #0f2d52;
+  color: #1e6b2e;
   margin-bottom: 6px;
   line-height: 1.2;
   letter-spacing: -0.02em;
@@ -1133,7 +1133,7 @@ tr:hover td { background: var(--surface-2); }
 .vims-forgot {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #0f2d52;
+  color: #1e6b2e;
 }
 .vims-forgot:hover { text-decoration: underline; }
 
@@ -1150,9 +1150,9 @@ tr:hover td { background: var(--surface-2); }
   font-family: 'Inter', sans-serif;
 }
 .vims-input:focus {
-  border-color: #0f2d52;
+  border-color: #1e6b2e;
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(15,45,82,0.08);
+  box-shadow: 0 0 0 3px rgba(30,107,46,0.08);
 }
 .vims-input::placeholder { color: #cbd5e1; }
 
@@ -1169,7 +1169,7 @@ tr:hover td { background: var(--surface-2); }
 .vims-checkbox {
   width: 15px;
   height: 15px;
-  accent-color: #0f2d52;
+  accent-color: #1e6b2e;
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -1178,7 +1178,7 @@ tr:hover td { background: var(--surface-2); }
 .vims-btn-primary {
   width: 100%;
   padding: 13px;
-  background: #0f2d52;
+  background: linear-gradient(160deg, #0a1f0d 0%, #134a1f 45%, #1e6b2e 100%);
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -1194,9 +1194,9 @@ tr:hover td { background: var(--surface-2); }
   min-height: 48px;
 }
 .vims-btn-primary:hover:not(:disabled) {
-  background: #091e38;
+  background: #134a1f;
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(15,45,82,0.3);
+  box-shadow: 0 4px 16px rgba(30,107,46,0.3);
 }
 .vims-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
@@ -1248,9 +1248,9 @@ tr:hover td { background: var(--surface-2); }
   font-family: 'Inter', sans-serif;
 }
 .vims-btn-outline:hover {
-  border-color: #0f2d52;
-  color: #0f2d52;
-  background: rgba(15,45,82,0.03);
+  border-color: #1e6b2e;
+  color: #1e6b2e;
+  background: rgba(30,107,46,0.03);
 }
 
 /* Form footer (back link) */
@@ -1261,7 +1261,7 @@ tr:hover td { background: var(--surface-2); }
   color: #94a3b8;
 }
 .vims-form-footer a {
-  color: #0f2d52;
+  color: #1e6b2e;
   font-weight: 600;
 }
 .vims-form-footer a:hover { text-decoration: underline; }
@@ -1285,7 +1285,7 @@ tr:hover td { background: var(--surface-2); }
   top: 0;
   z-index: 90;
   height: 68px;
-  box-shadow: 0 1px 8px rgba(15,45,82,0.07);
+  box-shadow: 0 1px 8px rgba(30,107,46,0.07);
 }
 
 .vims-topbar-left {
@@ -1314,7 +1314,7 @@ tr:hover td { background: var(--surface-2); }
   font-family: 'Outfit', sans-serif;
   font-size: 0.78rem;
   font-weight: 800;
-  color: #0f2d52;
+  color: #1e6b2e;
   line-height: 1.2;
   transition: all 0.5s ease;
 }
@@ -1331,7 +1331,7 @@ tr:hover td { background: var(--surface-2); }
   font-family: 'Outfit', sans-serif;
   font-size: 0.9rem;
   font-weight: 800;
-  color: #dc2626;
+  color: #1e6b2e;
   letter-spacing: -0.01em;
 }
 .vims-topbar-right {
@@ -1354,7 +1354,7 @@ tr:hover td { background: var(--surface-2); }
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
-.vims-topbar-bell:hover { background: #f1f5f9; color: #0f2d52; }
+.vims-topbar-bell:hover { background: #f1f5f9; color: #1e6b2e; }
 .vims-topbar-badge {
   position: absolute;
   top: 4px; right: 4px;
@@ -1372,7 +1372,7 @@ tr:hover td { background: var(--surface-2); }
 .vims-topbar-avatar {
   width: 34px; height: 34px;
   border-radius: 50%;
-  background: #0f2d52;
+  background: linear-gradient(160deg, #0a1f0d 0%, #134a1f 45%, #1e6b2e 100%);
   color: #fff;
   display: flex;
   align-items: center;
@@ -1385,7 +1385,7 @@ tr:hover td { background: var(--surface-2); }
 
 /* ─── SIDEBAR OVERRIDES — clean navy blue ─── */
 .sidebar {
-  background: linear-gradient(180deg, #0a1f38 0%, #0f2d52 50%, #0a1f38 100%) !important;
+  background: linear-gradient(180deg, #0a1f0d 0%, #1e6b2e 50%, #0a1f0d 100%) !important;
   background-image: none !important;
   box-shadow: 3px 0 20px rgba(0,0,0,0.2) !important;
 }
@@ -1434,19 +1434,19 @@ tr:hover td { background: var(--surface-2); }
 
 /* ─── CARD & COMPONENT OVERRIDES to match navy theme ─── */
 .btn-primary {
-  background: linear-gradient(135deg, #0f2d52 0%, #1a3c5e 100%) !important;
-  box-shadow: 0 2px 8px rgba(15,45,82,0.3) !important;
+  background: linear-gradient(135deg, #1e6b2e 0%, #3ba051 100%) !important;
+  box-shadow: 0 2px 8px rgba(30,107,46,0.3) !important;
 }
 .btn-primary:hover:not(:disabled) {
-  box-shadow: 0 4px 16px rgba(15,45,82,0.4) !important;
+  box-shadow: 0 4px 16px rgba(30,107,46,0.4) !important;
 }
 .form-control:focus {
-  border-color: #0f2d52 !important;
-  box-shadow: 0 0 0 3px rgba(15,45,82,0.08) !important;
+  border-color: #1e6b2e !important;
+  box-shadow: 0 0 0 3px rgba(30,107,46,0.08) !important;
 }
-.tab.active { color: #0f2d52 !important; }
+.tab.active { color: #1e6b2e !important; }
 .tab-btn.tab-active {
-  color: #0f2d52 !important;
-  border-bottom-color: #0f2d52 !important;
+  color: #1e6b2e !important;
+  border-bottom-color: #1e6b2e !important;
 }
 
