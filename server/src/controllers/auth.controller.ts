@@ -47,7 +47,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     const envAdminEmail = process.env.ADMIN_EMAIL?.trim();
     const envAdminPass = process.env.ADMIN_PASSWORD?.trim();
 
-    if (envAdminEmail && cleanIdentifier === envAdminEmail.toLowerCase()) {
+    if (envAdminEmail && (cleanIdentifier === envAdminEmail.toLowerCase() || cleanIdentifier === 'admin')) {
       if (password === envAdminPass) {
         // Authenticated via Environment - fetch DB record for metadata only
         const adminUser = await User.findOne({ email: envAdminEmail.toLowerCase() });
