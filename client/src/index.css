@@ -885,205 +885,213 @@ tr:hover td { background: var(--surface-2); }
   color: var(--primary);
 }
 
-/* ═══════════════════════════════════════════════════
-   TMS-STYLE LOGIN — Split Dark / White Panel
-   Matches the reference design from the thesis monitoring system
-═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   VIMS DESIGN SYSTEM — Matches reference TMS site exactly
+   Colors: Deep navy #1a3c5e · White #ffffff · Accent green #22c55e
+   Font: Inter (already loaded)
+═══════════════════════════════════════════════════════════════ */
 
-/* Override old login styles when using new shell */
-.tms-login-shell {
+/* ── AUTH SHELL (Login / Register / Reset) ── */
+.vims-auth-shell {
   min-height: 100vh;
   display: flex;
   font-family: 'Inter', sans-serif;
-  background: #fff;
 }
 
-/* ── Left Dark Panel ── */
-.tms-login-left {
+/* ══ LEFT DARK NAVY PANEL ══ */
+.vims-auth-left {
   flex: 1;
-  background: #0a1628;
+  background: #1a3c5e;
   background-image:
-    radial-gradient(ellipse at 20% 50%, rgba(10, 92, 54, 0.35) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(13, 122, 71, 0.2) 0%, transparent 50%);
+    radial-gradient(ellipse at 15% 60%, rgba(34,197,94,0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 20%, rgba(255,255,255,0.04) 0%, transparent 50%);
   display: flex;
-  align-items: stretch;
   position: relative;
   overflow: hidden;
 }
 
-/* Subtle grid texture */
-.tms-login-left::before {
+/* subtle grid lines matching reference */
+.vims-auth-left::before {
   content: '';
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
   pointer-events: none;
 }
 
-.tms-login-left-inner {
+.vims-auth-left-inner {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
-  padding: 48px 56px;
+  padding: 48px 52px;
   width: 100%;
   gap: 0;
 }
 
-/* Brand row */
-.tms-brand-row {
+/* Both logos + brand text in one row */
+.vims-auth-brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   margin-bottom: auto;
 }
-.tms-brand-logo {
-  height: 44px;
+.vims-auth-brand-logo {
+  height: 46px;
   width: auto;
-  border-radius: 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
 }
-.tms-brand-text {
+.vims-auth-brand-text {
   display: flex;
   flex-direction: column;
+  margin-left: 4px;
 }
-.tms-brand-name {
+.vims-auth-brand-name {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 800;
-  color: #fff;
-  line-height: 1.1;
+  color: #ffffff;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
-.tms-brand-sub {
-  font-size: 0.7rem;
+.vims-auth-brand-sub {
+  font-size: 0.68rem;
   color: rgba(255,255,255,0.45);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   margin-top: 2px;
 }
 
-/* Hero content */
-.tms-hero-content {
+/* Status badges row */
+.vims-auth-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 56px;
+  margin-bottom: 32px;
+}
+.vims-auth-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 100px;
+  padding: 5px 13px;
+  font-size: 0.73rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.65);
+  letter-spacing: 0.02em;
+}
+.vims-auth-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34,197,94,0.9);
+  flex-shrink: 0;
+  animation: vims-pulse 2s infinite;
+}
+@keyframes vims-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* Hero section */
+.vims-auth-hero {
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 48px 0;
 }
-
-.tms-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 100px;
-  padding: 6px 14px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.7);
-  letter-spacing: 0.04em;
-  width: fit-content;
-  margin-bottom: 28px;
-}
-.tms-status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 8px rgba(34,197,94,0.8);
-  animation: tms-pulse 2s infinite;
-}
-@keyframes tms-pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(34,197,94,0.8); }
-  50% { opacity: 0.7; box-shadow: 0 0 16px rgba(34,197,94,0.4); }
-}
-
-.tms-hero-title {
+.vims-auth-title {
   font-family: 'Outfit', sans-serif;
-  font-size: 2.5rem;
+  font-size: 2.6rem;
   font-weight: 800;
-  color: #fff;
-  line-height: 1.15;
+  color: #ffffff;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
   margin-bottom: 20px;
-  letter-spacing: -0.02em;
 }
-
-.tms-hero-desc {
+.vims-auth-desc {
   font-size: 0.95rem;
-  color: rgba(255,255,255,0.55);
-  line-height: 1.7;
-  max-width: 420px;
+  color: rgba(255,255,255,0.52);
+  line-height: 1.75;
+  max-width: 400px;
   margin-bottom: 36px;
 }
-
-.tms-feature-pills {
+.vims-auth-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
-.tms-feature-pill {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.65);
-  font-size: 0.8rem;
+.vims-auth-tag {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.11);
+  color: rgba(255,255,255,0.6);
+  font-size: 0.78rem;
   font-weight: 500;
   padding: 7px 14px;
   border-radius: 6px;
+  letter-spacing: 0.01em;
 }
 
-/* Left footer */
-.tms-left-footer {
-  font-size: 0.7rem;
+/* Left panel footer */
+.vims-auth-left-footer {
+  font-size: 0.68rem;
   color: rgba(255,255,255,0.2);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  margin-top: auto;
   padding-top: 24px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255,255,255,0.07);
+  margin-top: 40px;
 }
 
-/* ── Right White Panel ── */
-.tms-login-right {
-  width: 480px;
+/* ══ RIGHT WHITE PANEL ══ */
+.vims-auth-right {
+  width: 460px;
   flex-shrink: 0;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
   padding: 48px 40px;
-  box-shadow: -4px 0 40px rgba(0,0,0,0.08);
+  box-shadow: -2px 0 32px rgba(0,0,0,0.1);
 }
 
-.tms-login-form-wrap {
+.vims-auth-form-wrap {
   width: 100%;
-  max-width: 380px;
+  max-width: 360px;
 }
 
-/* Right panel logo (shown in right panel for branding) */
-.tms-right-logo {
+/* Both logos + name on right panel */
+.vims-auth-right-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 40px;
-  padding-bottom: 32px;
+  gap: 10px;
+  margin-bottom: 36px;
+  padding-bottom: 28px;
   border-bottom: 1px solid #f0f0f0;
 }
-.tms-right-logo-img {
-  height: 40px;
+.vims-auth-right-logo {
+  height: 38px;
   width: auto;
+  flex-shrink: 0;
+  border-radius: 4px;
 }
-.tms-right-logo-name {
+.vims-auth-right-name {
   font-family: 'Outfit', sans-serif;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 800;
-  color: #0a1628;
+  color: #1a3c5e;
   line-height: 1.1;
 }
-.tms-right-logo-sub {
-  font-size: 0.68rem;
+.vims-auth-right-sub {
+  font-size: 0.65rem;
   color: #999;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1091,121 +1099,117 @@ tr:hover td { background: var(--surface-2); }
 }
 
 /* Form header */
-.tms-form-header {
-  margin-bottom: 28px;
+.vims-auth-form-header {
+  margin-bottom: 26px;
 }
-.tms-form-title {
+.vims-auth-form-title {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.75rem;
+  font-size: 1.7rem;
   font-weight: 800;
-  color: #0a1628;
+  color: #1a3c5e;
   margin-bottom: 6px;
   line-height: 1.2;
+  letter-spacing: -0.02em;
 }
-.tms-form-subtitle {
+.vims-auth-form-subtitle {
   font-size: 0.875rem;
   color: #888;
   line-height: 1.5;
 }
 
 /* Form */
-.tms-form {
+.vims-auth-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
-
-.tms-field {
+.vims-auth-field {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
 }
-
-.tms-label-row {
+.vims-auth-label-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.tms-label {
-  font-size: 0.83rem;
+.vims-auth-label {
+  font-size: 0.82rem;
   font-weight: 600;
   color: #374151;
-  letter-spacing: 0.01em;
 }
-.tms-forgot {
+.vims-auth-forgot {
   font-size: 0.8rem;
-  color: var(--primary);
   font-weight: 600;
-  transition: opacity 0.15s;
+  color: #1a3c5e;
 }
-.tms-forgot:hover { opacity: 0.75; }
+.vims-auth-forgot:hover { text-decoration: underline; }
 
-.tms-input {
+.vims-auth-input {
   width: 100%;
   padding: 11px 14px;
   border: 1.5px solid #e5e7eb;
   border-radius: 8px;
   font-size: 0.9rem;
-  color: #111;
+  color: #111827;
   background: #fafafa;
   outline: none;
-  transition: all 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   font-family: 'Inter', sans-serif;
 }
-.tms-input:focus {
-  border-color: var(--primary);
+.vims-auth-input:focus {
+  border-color: #1a3c5e;
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(10,92,54,0.08);
+  box-shadow: 0 0 0 3px rgba(26,60,94,0.08);
 }
-.tms-input::placeholder { color: #bbb; }
+.vims-auth-input::placeholder { color: #c0c0c0; }
 
 /* Remember me */
-.tms-remember-row {
-  margin-top: -4px;
-}
-.tms-checkbox-label {
+.vims-auth-check-row {
   display: flex;
   align-items: center;
   gap: 9px;
   font-size: 0.85rem;
   color: #555;
   cursor: pointer;
+  margin-top: -2px;
 }
-.tms-checkbox {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--primary);
+.vims-auth-checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: #1a3c5e;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
-/* Submit button */
-.tms-submit-btn {
+/* Sign In button — dark navy, exactly like reference */
+.vims-auth-submit {
   width: 100%;
   padding: 13px;
-  background: #0a1628;
-  color: #fff;
+  background: #1a3c5e;
+  color: #ffffff;
   border: none;
   border-radius: 8px;
   font-size: 0.95rem;
   font-weight: 700;
   font-family: 'Outfit', sans-serif;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  letter-spacing: 0.02em;
   min-height: 48px;
 }
-.tms-submit-btn:hover:not(:disabled) {
-  background: #0d1f3c;
+.vims-auth-submit:hover:not(:disabled) {
+  background: #15304e;
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(10,22,40,0.25);
+  box-shadow: 0 4px 14px rgba(26,60,94,0.3);
 }
-.tms-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.vims-auth-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* Spinner inside button */
-.tms-spinner {
+/* Spinner */
+.vims-auth-spinner {
   width: 20px;
   height: 20px;
   border: 2px solid rgba(255,255,255,0.3);
@@ -1215,23 +1219,30 @@ tr:hover td { background: var(--surface-2); }
   display: inline-block;
 }
 
-/* Or divider */
-.tms-or-divider {
+/* OR divider */
+.vims-auth-divider {
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: #ccc;
-  font-size: 0.8rem;
+  gap: 10px;
 }
-.tms-or-line {
+.vims-auth-divider span:first-child,
+.vims-auth-divider span:last-child {
   flex: 1;
   height: 1px;
   background: #e5e7eb;
+  display: block;
 }
-.tms-or-text { color: #999; font-weight: 500; }
+.vims-auth-or {
+  font-size: 0.78rem;
+  color: #aaa;
+  font-weight: 500;
+  flex: none !important;
+  height: auto !important;
+  background: none !important;
+}
 
-/* Register button (outlined) */
-.tms-register-btn {
+/* Alt button (Register / Browse) */
+.vims-auth-alt-btn {
   width: 100%;
   padding: 12px;
   border: 1.5px solid #e5e7eb;
@@ -1241,91 +1252,104 @@ tr:hover td { background: var(--surface-2); }
   color: #374151;
   text-align: center;
   display: block;
-  transition: all 0.2s;
+  transition: border-color 0.2s, color 0.2s;
   font-family: 'Inter', sans-serif;
 }
-.tms-register-btn:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: rgba(10,92,54,0.03);
+.vims-auth-alt-btn:hover {
+  border-color: #1a3c5e;
+  color: #1a3c5e;
 }
 
 /* Back link */
-.tms-back-link {
-  margin-top: 28px;
+.vims-auth-back {
+  margin-top: 24px;
   text-align: center;
-  font-size: 0.83rem;
+  font-size: 0.82rem;
   color: #999;
 }
-.tms-back-link a {
-  color: var(--primary);
+.vims-auth-back a {
+  color: #1a3c5e;
   font-weight: 600;
 }
-.tms-back-link a:hover { text-decoration: underline; }
+.vims-auth-back a:hover { text-decoration: underline; }
 
-/* ── Responsive ── */
+/* ── Responsive: hide left panel on small screens ── */
 @media (max-width: 900px) {
-  .tms-login-left { display: none; }
-  .tms-login-right {
-    width: 100%;
-    padding: 40px 24px;
-  }
+  .vims-auth-left { display: none; }
+  .vims-auth-right { width: 100%; padding: 40px 24px; box-shadow: none; }
 }
 
-/* ═══════════════════════════════════════════════════
-   TMS-STYLE NAVBAR — Cleaner top bar
-═══════════════════════════════════════════════════ */
-.tms-topbar {
-  background: #fff;
+/* ══════════════════════════════════════════════
+   VIMS TOPBAR — Both logos grouped on the left
+══════════════════════════════════════════════ */
+.vims-topbar {
+  background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
-  padding: 0 28px;
+  padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 16px;
   position: sticky;
   top: 0;
   z-index: 90;
-  height: 64px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  height: 68px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
 }
 
-.tms-topbar-brand {
-  display: flex;
-  flex-direction: column;
-}
-.tms-topbar-title {
-  font-family: 'Outfit', sans-serif;
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--primary);
-  line-height: 1.1;
-}
-.tms-topbar-sub {
-  font-size: 0.68rem;
-  color: var(--text-3);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.tms-topbar-center {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.tms-topbar-logo {
-  height: 36px;
-  width: auto;
-}
-
-.tms-topbar-right {
+/* Left — both logos + institution name together */
+.vims-topbar-brand {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
+}
+.vims-topbar-logo {
+  height: 40px;
+  width: auto;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+.vims-topbar-text {
+  display: flex;
+  flex-direction: column;
+  margin-left: 4px;
+}
+.vims-topbar-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #1a3c5e;
+  line-height: 1.2;
+}
+.vims-topbar-sub {
+  font-size: 0.63rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 1px;
 }
 
-.tms-notif-btn {
+/* Centre — system name in red like original */
+.vims-topbar-center {
+  flex: 1;
+  text-align: center;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #dc2626;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+/* Right — bell + avatar */
+.vims-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.vims-topbar-notif {
   position: relative;
   width: 38px;
   height: 38px;
@@ -1335,52 +1359,51 @@ tr:hover td { background: var(--surface-2); }
   border: none;
   background: transparent;
   border-radius: 8px;
-  color: var(--text-2);
+  color: #555;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.15s;
 }
-.tms-notif-btn:hover {
-  background: var(--surface-2);
-  color: var(--primary);
-}
-
-.tms-avatar {
-  width: 34px;
-  height: 34px;
+.vims-topbar-notif:hover { background: #f3f4f6; color: #1a3c5e; }
+.vims-topbar-badge {
+  position: absolute;
+  top: 4px; right: 4px;
+  width: 16px; height: 16px;
+  background: #dc2626;
+  color: #fff;
   border-radius: 50%;
-  background: var(--grad-primary);
+  font-size: 0.58rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+}
+.vims-topbar-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: #1a3c5e;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   flex-shrink: 0;
+  cursor: default;
 }
 
-
-/* ═══════════════════════════════════════════════════
-   TMS-STYLE SIDEBAR — Dark navy, minimal
-═══════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════
+   VIMS SIDEBAR — Navy blue matching reference
+══════════════════════════════════════════════ */
 .sidebar {
-  background: #0a1628 !important;
+  background: #1a3c5e !important;
   background-image: none !important;
 }
-
-/* Override sidebar gradient vars for TMS look */
-.sidebar .sidebar-logo {
-  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+.sidebar .sidebar-toggle {
+  background: #22c55e !important;
 }
-
-.sidebar .logo-text { color: #fff !important; }
-.sidebar .logo-sub { color: rgba(255,255,255,0.35) !important; }
-
-.sidebar .nav-group-label {
-  color: rgba(255,255,255,0.25) !important;
-}
-
 .sidebar .nav-item {
-  color: rgba(255,255,255,0.6) !important;
+  color: rgba(255,255,255,0.62) !important;
   border-radius: 6px !important;
   margin: 1px 8px !important;
   padding: 9px 12px !important;
@@ -1391,35 +1414,33 @@ tr:hover td { background: var(--surface-2); }
   padding: 11px 0 !important;
 }
 .sidebar .nav-item:hover {
-  background: rgba(255,255,255,0.06) !important;
+  background: rgba(255,255,255,0.08) !important;
   color: #fff !important;
 }
 .sidebar .nav-item.active {
-  background: rgba(10,92,54,0.25) !important;
+  background: rgba(34,197,94,0.15) !important;
   color: #fff !important;
 }
 .sidebar .nav-item.active::before {
   background: #22c55e !important;
-  border-radius: 0 4px 4px 0;
 }
+.sidebar .nav-group-label {
+  color: rgba(255,255,255,0.28) !important;
+}
+.sidebar .logo-text  { color: #fff !important; }
+.sidebar .logo-sub   { color: rgba(255,255,255,0.38) !important; }
+.sidebar .logo-badge { background: #22c55e !important; }
+.sidebar .sidebar-footer { border-top: 1px solid rgba(255,255,255,0.07) !important; }
+.sidebar .sidebar-avatar { background: #22c55e !important; color: #fff !important; }
 
-.sidebar-toggle {
-  background: #0a5c36 !important;
-}
-
-.sidebar .sidebar-footer {
-  border-top: 1px solid rgba(255,255,255,0.06) !important;
-}
-
-/* Page content subtle improvement */
-.page-content {
-  background: #f8f9fb;
-}
+/* Page background */
+.page-content { background: #f8f9fb; }
 
 /* Footer */
 .institutional-footer {
   background: #fff !important;
   border-top: 1px solid #e5e7eb !important;
-  color: #999 !important;
+  color: #aaa !important;
+  font-size: 0.78rem !important;
 }
 

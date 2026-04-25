@@ -14,57 +14,35 @@ export default function Navbar() {
   }, [user]);
 
   return (
-    <nav className="tms-topbar">
-      {/* Left — dual logos */}
-      <div className="tms-topbar-center" style={{ gap: '20px' }}>
-        <img src="/assets/noun-logo.png" alt="NOUN" className="tms-topbar-logo" />
-        <div className="tms-topbar-brand">
-          <div className="tms-topbar-title">
+    <nav className="vims-topbar">
+      {/* Both logos + institution name together on the LEFT */}
+      <div className="vims-topbar-brand">
+        <img src="/assets/noun-logo.png"   alt="NOUN"   className="vims-topbar-logo" />
+        <img src="/assets/acetel-logo.png" alt="ACETEL" className="vims-topbar-logo" />
+        <div className="vims-topbar-text">
+          <div className="vims-topbar-title">
             National Open University of Nigeria (NOUN)
           </div>
-          <div className="tms-topbar-sub">
+          <div className="vims-topbar-sub">
             Africa Centre of Excellence for Technology Enhanced Learning — ACETEL
           </div>
         </div>
       </div>
 
-      {/* Center — system name */}
-      <div style={{ flex: 1, textAlign: 'center' }}>
-        <div style={{
-          fontFamily: "'Outfit', sans-serif",
-          fontSize: '0.95rem',
-          fontWeight: 800,
-          color: '#dc2626',
-          letterSpacing: '-0.01em'
-        }}>
-          ACETEL Virtual Internship Management System
-        </div>
+      {/* System name — centre */}
+      <div className="vims-topbar-center">
+        ACETEL Virtual Internship Management System
       </div>
 
-      {/* Right — logo + actions */}
-      <div className="tms-topbar-right">
-        <img src="/assets/acetel-logo.png" alt="ACETEL" className="tms-topbar-logo" />
-
-        <div style={{ width: '1px', background: '#e5e7eb', height: '28px', margin: '0 4px' }} />
-
-        <button className="tms-notif-btn" style={{ position: 'relative' }}>
+      {/* Actions — right */}
+      <div className="vims-topbar-right">
+        <button className="vims-topbar-notif">
           <Bell size={18} />
           {unreadCount > 0 && (
-            <span style={{
-              position: 'absolute', top: '4px', right: '4px',
-              width: '16px', height: '16px',
-              background: '#dc2626', color: '#fff',
-              borderRadius: '50%', fontSize: '0.6rem',
-              fontWeight: 700, display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-              border: '2px solid #fff'
-            }}>
-              {unreadCount}
-            </span>
+            <span className="vims-topbar-badge">{unreadCount}</span>
           )}
         </button>
-
-        <div className="tms-avatar">
+        <div className="vims-topbar-avatar">
           {user?.firstName[0]}{user?.lastName[0]}
         </div>
       </div>

@@ -26,65 +26,83 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="tms-login-shell">
-      {/* ── Left dark panel ── */}
-      <div className="tms-login-left">
-        <div className="tms-login-left-inner">
-          <div className="tms-brand-row">
-            <img src="/assets/acetel-logo.png" alt="ACETEL" className="tms-brand-logo" />
-            <div className="tms-brand-text">
-              <span className="tms-brand-name">ACETEL VIMS</span>
-              <span className="tms-brand-sub">Virtual Internship Management</span>
+    <div className="vims-auth-shell">
+
+      {/* ══ LEFT DARK PANEL ══ */}
+      <div className="vims-auth-left">
+        <div className="vims-auth-left-inner">
+
+          {/* Top brand — both logos side by side */}
+          <div className="vims-auth-brand">
+            <img src="/assets/noun-logo.png"   alt="NOUN"   className="vims-auth-brand-logo" />
+            <img src="/assets/acetel-logo.png" alt="ACETEL" className="vims-auth-brand-logo" />
+            <div className="vims-auth-brand-text">
+              <div className="vims-auth-brand-name">ACETEL VIMS</div>
+              <div className="vims-auth-brand-sub">Virtual Internship Management</div>
             </div>
           </div>
 
-          <div className="tms-hero-content">
-            <div className="tms-status-pill">
-              <span className="tms-status-dot" />
+          {/* Status badges */}
+          <div className="vims-auth-badges">
+            <span className="vims-auth-badge">
+              <span className="vims-auth-badge-dot" />
               Institutional Portal Active
-            </div>
-            <h1 className="tms-hero-title">
+            </span>
+            <span className="vims-auth-badge">
+              <span className="vims-auth-badge-dot" />
+              Digital Internship Ecosystem Active
+            </span>
+          </div>
+
+          {/* Hero headline */}
+          <div className="vims-auth-hero">
+            <h1 className="vims-auth-title">
               Elevate Your Internship<br />Management Experience.
             </h1>
-            <p className="tms-hero-desc">
-              The professional platform for tracking virtual internship milestones and orchestrating 
-              collaboration between students, supervisors, and coordinators.
+            <p className="vims-auth-desc">
+              The professional platform for tracking virtual internship milestones and
+              orchestrating collaboration between students, supervisors, and coordinators.
             </p>
-            <div className="tms-feature-pills">
-              <span className="tms-feature-pill">Milestone Intelligence</span>
-              <span className="tms-feature-pill">Real-time Sync</span>
-              <span className="tms-feature-pill">Biometric Attendance</span>
+            <div className="vims-auth-tags">
+              <span className="vims-auth-tag">Milestone Intelligence</span>
+              <span className="vims-auth-tag">Faculty Collaboration</span>
+              <span className="vims-auth-tag">Real-time Synchronization</span>
             </div>
           </div>
 
-          <div className="tms-left-footer">
+          <div className="vims-auth-left-footer">
             © 2026 ACETEL VIRTUAL INTERNSHIP MANAGEMENT SYSTEM
           </div>
         </div>
       </div>
 
-      {/* ── Right white panel ── */}
-      <div className="tms-login-right">
-        <div className="tms-login-form-wrap">
-          <div className="tms-right-logo">
-            <img src="/assets/noun-logo.png" alt="NOUN" className="tms-right-logo-img" />
+      {/* ══ RIGHT WHITE PANEL ══ */}
+      <div className="vims-auth-right">
+        <div className="vims-auth-form-wrap">
+
+          {/* Logo on right panel — both logos + name */}
+          <div className="vims-auth-right-brand">
+            <img src="/assets/noun-logo.png"   alt="NOUN"   className="vims-auth-right-logo" />
+            <img src="/assets/acetel-logo.png" alt="ACETEL" className="vims-auth-right-logo" />
             <div>
-              <div className="tms-right-logo-name">ACETEL VIMS</div>
-              <div className="tms-right-logo-sub">Virtual Internship Management</div>
+              <div className="vims-auth-right-name">ACETEL VIMS</div>
+              <div className="vims-auth-right-sub">Virtual Internship Management</div>
             </div>
           </div>
 
-          <div className="tms-form-header">
-            <h2 className="tms-form-title">Sign in</h2>
-            <p className="tms-form-subtitle">Enter your credentials to access your dashboard.</p>
+          <div className="vims-auth-form-header">
+            <h2 className="vims-auth-form-title">Sign in</h2>
+            <p className="vims-auth-form-subtitle">
+              Enter your credentials to access your dashboard.
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="tms-form">
-            <div className="tms-field">
-              <label className="tms-label">Email Address</label>
+          <form onSubmit={handleSubmit} className="vims-auth-form">
+            <div className="vims-auth-field">
+              <label className="vims-auth-label">Email Address</label>
               <input
                 type="text"
-                className="tms-input"
+                className="vims-auth-input"
                 placeholder="your@email.com or username"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
@@ -92,14 +110,14 @@ export default function LoginPage() {
               />
             </div>
 
-            <div className="tms-field">
-              <div className="tms-label-row">
-                <label className="tms-label">Password</label>
-                <Link to="/reset" className="tms-forgot">Forgot password?</Link>
+            <div className="vims-auth-field">
+              <div className="vims-auth-label-row">
+                <label className="vims-auth-label">Password</label>
+                <Link to="/reset" className="vims-auth-forgot">Forgot password?</Link>
               </div>
               <input
                 type="password"
-                className="tms-input"
+                className="vims-auth-input"
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -107,29 +125,25 @@ export default function LoginPage() {
               />
             </div>
 
-            <div className="tms-remember-row">
-              <label className="tms-checkbox-label">
-                <input type="checkbox" className="tms-checkbox" />
-                Keep me signed in
-              </label>
-            </div>
+            <label className="vims-auth-check-row">
+              <input type="checkbox" className="vims-auth-checkbox" />
+              Keep me signed in
+            </label>
 
-            <button type="submit" className="tms-submit-btn" disabled={loading}>
-              {loading ? <span className="tms-spinner" /> : 'Sign In'}
+            <button type="submit" className="vims-auth-submit" disabled={loading}>
+              {loading ? <span className="vims-auth-spinner" /> : 'Sign In'}
             </button>
 
-            <div className="tms-or-divider">
-              <span className="tms-or-line" />
-              <span className="tms-or-text">or</span>
-              <span className="tms-or-line" />
+            <div className="vims-auth-divider">
+              <span /><span className="vims-auth-or">or</span><span />
             </div>
 
-            <Link to="/register" className="tms-register-btn">
+            <Link to="/register" className="vims-auth-alt-btn">
               Register Student Account
             </Link>
           </form>
 
-          <div className="tms-back-link">
+          <div className="vims-auth-back">
             <Link to="/">← Back to home</Link>
           </div>
         </div>
