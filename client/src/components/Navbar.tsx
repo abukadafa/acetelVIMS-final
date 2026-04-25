@@ -14,30 +14,57 @@ export default function Navbar() {
   }, [user]);
 
   return (
-    <nav className="branded-topbar">
-      <img src="/assets/noun-logo.png" alt="NOUN" className="brand-logo" />
-      
-      <div className="brand-text-center">
-        <div className="brand-text-main">
-          National Open University of Nigeria (NOUN) <br />
-          Africa Center of Excellence on Technology Enhanced Learning (ACETEL)
+    <nav className="tms-topbar">
+      {/* Left — dual logos */}
+      <div className="tms-topbar-center" style={{ gap: '20px' }}>
+        <img src="/assets/noun-logo.png" alt="NOUN" className="tms-topbar-logo" />
+        <div className="tms-topbar-brand">
+          <div className="tms-topbar-title">
+            National Open University of Nigeria (NOUN)
+          </div>
+          <div className="tms-topbar-sub">
+            Africa Centre of Excellence for Technology Enhanced Learning — ACETEL
+          </div>
         </div>
-        <div className="brand-text-sub" style={{ color: '#dc2626', fontSize: '1rem', fontWeight: 700, fontFamily: '"Outfit", sans-serif' }}>
+      </div>
+
+      {/* Center — system name */}
+      <div style={{ flex: 1, textAlign: 'center' }}>
+        <div style={{
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: '0.95rem',
+          fontWeight: 800,
+          color: '#dc2626',
+          letterSpacing: '-0.01em'
+        }}>
           ACETEL Virtual Internship Management System
         </div>
       </div>
 
-      <div className="topbar-right">
-        <img src="/assets/acetel-logo.png" alt="ACETEL" className="brand-logo" />
-        
-        <div className="divider-v" style={{ width: '1px', background: '#dee8de', height: '32px', margin: '0 8px' }}></div>
+      {/* Right — logo + actions */}
+      <div className="tms-topbar-right">
+        <img src="/assets/acetel-logo.png" alt="ACETEL" className="tms-topbar-logo" />
 
-        <button className="btn-ghost notif-btn">
-          <Bell size={20} />
-          {unreadCount > 0 && <span className="notif-dot">{unreadCount}</span>}
+        <div style={{ width: '1px', background: '#e5e7eb', height: '28px', margin: '0 4px' }} />
+
+        <button className="tms-notif-btn" style={{ position: 'relative' }}>
+          <Bell size={18} />
+          {unreadCount > 0 && (
+            <span style={{
+              position: 'absolute', top: '4px', right: '4px',
+              width: '16px', height: '16px',
+              background: '#dc2626', color: '#fff',
+              borderRadius: '50%', fontSize: '0.6rem',
+              fontWeight: 700, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              border: '2px solid #fff'
+            }}>
+              {unreadCount}
+            </span>
+          )}
         </button>
 
-        <div className="sidebar-avatar avatar-sm">
+        <div className="tms-avatar">
           {user?.firstName[0]}{user?.lastName[0]}
         </div>
       </div>

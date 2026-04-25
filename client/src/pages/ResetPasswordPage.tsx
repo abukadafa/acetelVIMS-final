@@ -25,8 +25,8 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="login-page fade-in">
-      <div className="login-left" style={{ background: 'var(--primary-dark)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '60px' }}>
+    <div className="tms-login-shell">
+      <div className="tms-login-left" style={{ background: 'var(--primary-dark)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '60px' }}>
          <div style={{ maxWidth: '400px' }}>
             <ShieldQuestion size={48} style={{ color: 'var(--accent)', marginBottom: '24px' }} />
             <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '16px' }}>Account Recovery</h2>
@@ -36,7 +36,7 @@ export default function ResetPasswordPage() {
          </div>
       </div>
 
-      <div className="login-right">
+      <div className="tms-login-right">
         <div style={{ width: '100%', maxWidth: '380px' }}>
           {!success ? (
             <>

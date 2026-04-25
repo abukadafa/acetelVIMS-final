@@ -82,8 +82,8 @@ export default function RegisterPage() {
   const nextStep = (next: Step) => setStep(next);
 
   return (
-    <div className="login-page fade-in">
-      <div className="login-left" style={{ background: 'var(--primary-dark)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '60px' }}>
+    <div className="tms-login-shell">
+      <div className="tms-login-left">
          <div style={{ maxWidth: '400px' }}>
             <ShieldCheck size={48} style={{ color: 'var(--accent)', marginBottom: '24px' }} />
             <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '16px' }}>ACETEL Virtual Internship Management System</h2>
@@ -108,7 +108,7 @@ export default function RegisterPage() {
          </div>
       </div>
 
-      <div className="login-right">
+      <div className="tms-login-right">
         <div style={{ width: '100%', maxWidth: '420px' }}>
           {step !== 'success' && (
             <div style={{ marginBottom: '32px' }}>
