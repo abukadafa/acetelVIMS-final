@@ -10,7 +10,7 @@ import { fetchStudentDetails } from '../utils/sdms.service';
 import AuditLog from '../models/AuditLog.model';
 import logger from '../utils/logger';
 import { loginSchema, registerSchema } from '../utils/validation';
-import crypto from 'crypto';
+import * as authService from '../services/auth.service';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -31,41 +31,7 @@ const REFRESH_COOKIE_OPTIONS: CookieOptions = {
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
-async function generateTokens(user: { id: string; role: string; email: string; tenant: string; programme?: string }, req: Request) {
-  const secret = process.env.JWT_SECRET;
-  const refreshSecret = process.env.JWT_REFRESH_SECRET;
-
-  if (!secret || !refreshSecret) {
-    logger.error('CRITICAL: JWT secrets are missing in environment variables');
-    throw new Error('Internal configuration error');
-  }
-
-  const access = jwt.sign(
-    { id: user.id, role: user.role, email: user.email, tenant: user.tenant, programme: user.programme }, 
-    secret, 
-    { expiresIn: '8h' }
-  );
-
-  // Generate a cryptographically secure refresh token string
-  const refreshTokenString = crypto.randomBytes(40).toString('hex');
-  
-  // Save to DB for rotation/revocation tracking
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
-
-  const refreshToken = new RefreshToken({
-    user: user.id,
-    tenant: user.tenant,
-    token: refreshTokenString,
-    expiresAt,
-    ipAddress: req.ip,
-    userAgent: req.get('user-agent')
-  });
-
-  await refreshToken.save();
-
-  return { access, refresh: refreshTokenString };
-}
+// Local token generation removed - now handled by auth.service.ts
 
 export async function login(req: Request, res: Response): Promise<void> {
   try {
@@ -131,13 +97,13 @@ export async function login(req: Request, res: Response): Promise<void> {
     user.lastLogin = new Date();
     await user.save();
 
-    const { access, refresh } = await generateTokens({ 
+    const { access, refresh } = await authService.generateTokens({ 
       id: user._id.toString(), 
       role: user.role, 
       email: user.email,
       tenant: user.tenant.toString(),
       programme: user.programme?.toString()
-    }, req);
+    }, req.ip, req.get('user-agent'));
 
     res.cookie('token', access, COOKIE_OPTIONS);
     res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
@@ -278,12 +244,12 @@ export async function register(req: Request, res: Response): Promise<void> {
       await student.save();
     }
 
-    const { access, refresh } = await generateTokens({ 
+    const { access, refresh } = await authService.generateTokens({ 
       id: user._id.toString(), 
       role: user.role, 
       email: user.email,
       tenant: user.tenant.toString()
-    }, req);
+    }, req.ip, req.get('user-agent'));
 
     res.cookie('token', access, COOKIE_OPTIONS);
     res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
@@ -338,13 +304,13 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
     // REVOKE OLD TOKEN (Rotation)
     refreshTokenRecord.isRevoked = true;
     
-    const { access, refresh } = await generateTokens({ 
+    const { access, refresh } = await authService.generateTokens({ 
       id: user._id.toString(), 
       role: user.role, 
       email: user.email,
       tenant: user.tenant.toString(),
       programme: user.programme?.toString()
-    }, req);
+    }, req.ip, req.get('user-agent'));
 
     refreshTokenRecord.replacedByToken = refresh;
     await refreshTokenRecord.save();
