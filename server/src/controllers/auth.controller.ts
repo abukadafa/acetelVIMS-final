@@ -377,3 +377,42 @@ export async function logout(req: AuthRequest, res: Response): Promise<void> {
     res.status(500).json({ error: 'Server error' });
   }
 }
+
+// ─── COMMS STATUS ────────────────────────────────────────────────────────────
+export async function getCommsStatus(_req: Request, res: Response): Promise<void> {
+  res.json({
+    email: { active: !!process.env.SMTP_USER, provider: process.env.SMTP_HOST || 'smtp.gmail.com' },
+    whatsapp: { active: !!(process.env.TWILIO_ACCOUNT_SID || process.env.META_WA_TOKEN), provider: process.env.TWILIO_ACCOUNT_SID ? 'Twilio' : 'Meta' },
+    inApp: { active: true, provider: 'Internal' },
+  });
+}
+
+// ─── TEST WHATSAPP ───────────────────────────────────────────────────────────
+export async function testWhatsApp(req: Request, res: Response): Promise<void> {
+  try {
+    const { phone } = req.body;
+    if (!phone) { res.status(400).json({ error: 'Phone number required' }); return; }
+    await sendWhatsAppMessage(phone, '*ACETEL VIMS Test* ✅\n\nWhatsApp notifications are working correctly.');
+    res.json({ message: 'Test WhatsApp message sent' });
+  } catch (err) {
+    res.status(500).json({ error: 'WhatsApp test failed' });
+  }
+}
+
+// ─── WHATSAPP WEBHOOK ────────────────────────────────────────────────────────
+export async function whatsappWebhookVerify(req: Request, res: Response): Promise<void> {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  if (mode === 'subscribe' && token === process.env.META_WA_VERIFY_TOKEN) {
+    res.status(200).send(challenge);
+  } else {
+    res.status(403).json({ error: 'Forbidden' });
+  }
+}
+
+export async function whatsappWebhookReceive(req: Request, res: Response): Promise<void> {
+  // Handle incoming WhatsApp messages
+  logger.info('WhatsApp webhook received: %j', req.body);
+  res.status(200).json({ status: 'ok' });
+}

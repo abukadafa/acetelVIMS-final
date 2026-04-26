@@ -95,6 +95,30 @@ ${appUrl}
 
 _ACETEL VIMS_`,
 
+  chatNotification: (name: string, sender: string, message: string) =>
+`*ACETEL VIMS — New Message* 💬
+
+Hello ${name},
+
+New message from *${sender}*:
+"${message}"
+
+${appUrl}
+
+_ACETEL VIMS_`,
+
+  feedbackReply: (name: string, subject: string, reply: string) =>
+`*ACETEL VIMS — Feedback Update* 📋
+
+Hello ${name},
+
+Your feedback on "${subject}" has been updated:
+"${reply}"
+
+${appUrl}
+
+_ACETEL VIMS_`,
+
   securityAlert: (name: string, detail: string) =>
 `*ACETEL VIMS — Security Alert* 🛡️
 
@@ -107,3 +131,6 @@ If this was not you, contact ICT Support immediately.
 
 _ACETEL VIMS_`,
 };
+
+// Additional templates used by chat and feedback controllers
+export const emailTemplates = { ...whatsappTemplates }; // re-export alias if needed

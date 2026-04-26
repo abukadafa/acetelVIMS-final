@@ -48,7 +48,7 @@ export async function sendNotification(req: AuthRequest, res: Response): Promise
     if (!body?.trim()) { res.status(400).json({ error: 'Message body is required' }); return; }
 
     const tenantId = req.user!.tenant;
-    const senderName = `${req.user!.firstName || ''} ${req.user!.lastName || ''}`.trim() || req.user!.email;
+    const senderName = req.user!.email;
 
     // Determine recipients
     let recipients: any[] = [];

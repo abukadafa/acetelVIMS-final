@@ -152,4 +152,40 @@ export const emailTemplates = {
     <p>Your weekly logbook submission is overdue. This has been escalated to your Programme Coordinator.</p>
     <p>Please submit your entries immediately for supervisor review.</p>
   `),
+
+  feedbackResponse: (name: string, subject: string, response: string) => base(`
+    <h2>Response to Your Feedback</h2>
+    <p>Dear ${name},</p>
+    <p>Your feedback regarding <strong>${subject}</strong> has received a response:</p>
+    <div class="info-box"><p>${response}</p></div>
+    <p>Thank you for helping us improve ACETEL VIMS.</p>
+  `),
+
+  feedbackReply: (name: string, subject: string, reply: string, appUrl: string) => base(`
+    <h2>Feedback Update</h2>
+    <p>Dear ${name},</p>
+    <p>There is an update on your feedback: <strong>${subject}</strong></p>
+    <div class="info-box"><p>${reply}</p></div>
+    <a class="btn" href="${appUrl}">View Feedback</a>
+  `),
+
+  feedbackClosed: (name: string, subject: string) => base(`
+    <h2>Feedback Resolved</h2>
+    <p>Dear ${name},</p>
+    <p>Your feedback regarding <strong>${subject}</strong> has been marked as resolved.</p>
+    <p>Thank you for your contribution to improving ACETEL VIMS.</p>
+  `),
+
+  chatMessage: (name: string, senderName: string, message: string, appUrl: string) => base(`
+    <h2>New Message from ${senderName}</h2>
+    <p>Dear ${name},</p>
+    <div class="info-box"><p>${message}</p></div>
+    <a class="btn" href="${appUrl}">Reply in ACETEL VIMS</a>
+  `),
+
+  chatNotification: (name: string, roomName: string, appUrl: string) => base(`
+    <h2>New Activity in ${roomName}</h2>
+    <p>Dear ${name}, there is new activity in your chat room.</p>
+    <a class="btn" href="${appUrl}">Open Chat</a>
+  `),
 };
