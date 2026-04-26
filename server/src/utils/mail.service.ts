@@ -3,6 +3,16 @@ import dotenv from 'dotenv';
 import logger from './logger';
 dotenv.config();
 
+
+// SMTP INJECTION GUARD — strip CR/LF/TAB from addresses and subject lines
+// Prevents SMTP header injection attacks (CVE-2023 nodemailer variants)
+function sanitiseEmailAddress(addr: string): string {
+  return addr.replace(/\r|\n|\t/g, '').trim();
+}
+function sanitiseSubject(subject: string): string {
+  return subject.replace(/\r|\n/g, ' ').trim().substring(0, 998);
+}
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
@@ -51,10 +61,17 @@ function wrap(content: string): string {
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   try {
+    const safeTo      = sanitiseEmailAddress(to);
+    const safeSubject = sanitiseSubject(subject);
+    // Basic email format check before sending
+    if (!safeTo.includes('@') || !safeTo.includes('.') || safeTo.length < 5) {
+      logger.warn('sendEmail: invalid address skipped: %s', to);
+      return false;
+    }
     const info = await transporter.sendMail({
       from: `"ACETEL IMS" <${process.env.SMTP_USER}>`,
-      to,
-      subject,
+      to: safeTo,
+      subject: safeSubject,
       html,
     });
     logger.info('📧 Email sent to %s | id: %s', to, info.messageId);
