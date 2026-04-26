@@ -161,11 +161,11 @@ export const emailTemplates = {
     <p>Thank you for helping us improve ACETEL VIMS.</p>
   `),
 
-  feedbackReply: (name: string, subject: string, reply: string) => base(`
+  feedbackReply: (name: string, subject: string, reply?: string) => base(`
     <h2>Feedback Update</h2>
     <p>Dear ${name},</p>
     <p>There is an update on your feedback: <strong>${subject}</strong></p>
-    <div class="info-box"><p>${reply}</p></div>
+    ${reply ? `<div class="info-box"><p>${reply}</p></div>` : ''}
     <p>Log in to ACETEL VIMS to view your feedback thread.</p>
   `),
 
