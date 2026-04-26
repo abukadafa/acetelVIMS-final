@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { login, register, refreshToken, getProfile, changePassword, logout, getCommsStatus } from '../controllers/auth.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { login, register, refreshToken, getProfile, changePassword, logout, getCommsStatus, testWhatsApp, whatsappWebhookVerify, whatsappWebhookReceive } from '../controllers/auth.controller';
+import { authenticate, authorize } from '../middleware/auth.middleware';
 import { upload } from '../middleware/upload.middleware';
 
 // 5 login attempts per 15 min per IP
@@ -41,5 +41,10 @@ r.post('/logout',          authenticate, logout);
 r.get('/profile',          authenticate, getProfile);
 r.put('/change-password',  authenticate, passwordLimiter, changePassword);
 r.get('/comms-status',     authenticate, getCommsStatus);
+
+// WhatsApp test (admin) + Meta webhook
+r.post('/whatsapp-test',      authenticate, authorize('admin'), testWhatsApp);
+r.get('/whatsapp-webhook',    whatsappWebhookVerify);
+r.post('/whatsapp-webhook',   whatsappWebhookReceive);
 
 export default r;

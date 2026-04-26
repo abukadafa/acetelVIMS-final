@@ -113,7 +113,7 @@ export default function SettingsPage() {
       label: 'WhatsApp Notifications',
       color: '#25D366',
       description: 'Instant WhatsApp messages for placements, inactivity alerts, feedback replies and chat pings via Twilio',
-      howTo: comms?.whatsapp.active ? null : 'Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_FROM to your Render backend ENV to activate',
+      howTo: comms?.whatsapp.active ? null : 'Add WA_PHONE_NUMBER_ID and WA_ACCESS_TOKEN to your Render backend ENV to activate (see WhatsApp Setup page)',
     },
   ];
 

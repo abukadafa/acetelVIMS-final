@@ -493,10 +493,69 @@ export async function logout(req: AuthRequest, res: Response): Promise<void> {
 /** GET /api/auth/comms-status — returns active communication channel status */
 export async function getCommsStatus(req: Request, res: Response): Promise<void> {
   const emailActive = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
-  const whatsappActive = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
+  const whatsappActive = !!(process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN);
   res.json({
     email: { active: emailActive, provider: emailActive ? process.env.SMTP_HOST || 'smtp.gmail.com' : null },
-    whatsapp: { active: whatsappActive, provider: whatsappActive ? 'Twilio WhatsApp Business' : null },
+    whatsapp: { active: whatsappActive, provider: whatsappActive ? 'Meta WhatsApp Cloud API (Free)' : null },
     chat: { active: true, provider: 'ACETEL IMS Real-Time Chat' },
   });
+}
+
+/** POST /api/auth/whatsapp-test — admin sends a test WhatsApp to any phone */
+export async function testWhatsApp(req: Request, res: Response): Promise<void> {
+  try {
+    const { phone } = req.body;
+    if (!phone || typeof phone !== 'string') {
+      res.status(400).json({ error: 'Phone number is required' });
+      return;
+    }
+    const { sendTestWhatsApp } = await import('../utils/whatsapp.service');
+    const result = await sendTestWhatsApp(phone.trim());
+    res.json(result);
+  } catch (err) {
+    logger.error('testWhatsApp error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+/** GET /api/auth/whatsapp-webhook — Meta webhook verification */
+export function whatsappWebhookVerify(req: Request, res: Response): void {
+  const mode      = req.query['hub.mode'];
+  const token     = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  const expected  = process.env.WA_WEBHOOK_VERIFY_TOKEN || 'acetel_webhook_2025';
+
+  if (mode === 'subscribe' && token === expected) {
+    logger.info('✅ WhatsApp webhook verified');
+    res.status(200).send(challenge);
+  } else {
+    logger.warn('❌ WhatsApp webhook verification failed — token mismatch');
+    res.status(403).json({ error: 'Forbidden' });
+  }
+}
+
+/** POST /api/auth/whatsapp-webhook — receive incoming WhatsApp messages (optional) */
+export function whatsappWebhookReceive(req: Request, res: Response): void {
+  // Always respond 200 immediately — Meta requires this within 20s
+  res.sendStatus(200);
+
+  try {
+    const entry = req.body?.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const value = changes?.value;
+    const messages = value?.messages;
+
+    if (!messages?.length) return;
+
+    for (const msg of messages) {
+      if (msg.type === 'text') {
+        const from = msg.from;
+        const body = msg.text?.body;
+        logger.info('📱 Incoming WhatsApp from %s: %s', from, body?.substring(0, 100));
+        // Future: route to chat system or auto-reply
+      }
+    }
+  } catch (err) {
+    logger.error('WhatsApp webhook receive error: %s', (err as Error).message);
+  }
 }

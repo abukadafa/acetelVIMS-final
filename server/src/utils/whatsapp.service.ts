@@ -3,72 +3,117 @@ import logger from './logger';
 dotenv.config();
 
 /**
- * ACETEL VIMS - WhatsApp Service
- * Supports Twilio WhatsApp API (production) with console fallback (dev/missing creds).
- * To activate: add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM to Render ENV.
+ * ACETEL VIMS — WhatsApp Cloud API (Meta/Facebook) — 100% FREE
+ *
+ * Setup (one-time, ~15 minutes, no credit card):
+ *  1. Go to https://developers.facebook.com → My Apps → Create App → Business
+ *  2. Add "WhatsApp" product to your app
+ *  3. In WhatsApp → Getting Started:
+ *       - Copy "Phone number ID"  → WA_PHONE_NUMBER_ID
+ *       - Copy "Temporary access token" → WA_ACCESS_TOKEN (or generate permanent one)
+ *  4. Add both to Render ENV vars
+ *  5. To use your own number (not the Meta test number):
+ *       - Add a real phone number in WhatsApp → Phone Numbers
+ *       - Apply for permanent token via System Users
+ *
+ * Free limits: 1,000 conversations/month on free tier — more than enough for ACETEL.
  */
 
-const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_FROM = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886'; // Twilio sandbox default
+const WA_PHONE_NUMBER_ID = process.env.WA_PHONE_NUMBER_ID;
+const WA_ACCESS_TOKEN    = process.env.WA_ACCESS_TOKEN;
+const WA_API_VERSION     = 'v20.0';
+
+export function isWhatsAppConfigured(): boolean {
+  return !!(WA_PHONE_NUMBER_ID && WA_ACCESS_TOKEN);
+}
 
 function normalisedPhone(phone: string): string {
-  // Strip spaces/dashes, ensure + prefix
   const clean = phone.replace(/[\s\-()]/g, '');
+  // Remove leading 0 for Nigerian numbers and add country code
+  if (clean.startsWith('0') && !clean.startsWith('+')) {
+    return `+234${clean.substring(1)}`;
+  }
   return clean.startsWith('+') ? clean : `+${clean}`;
 }
 
 export async function sendWhatsAppMessage(phone: string, message: string): Promise<boolean> {
-  const to = `whatsapp:${normalisedPhone(phone)}`;
+  const cleanPhone = normalisedPhone(phone);
 
-  // Production path: Twilio WhatsApp API
-  if (TWILIO_SID && TWILIO_TOKEN) {
+  // ── Production: Meta WhatsApp Cloud API ──────────────────────────────────
+  if (isWhatsAppConfigured()) {
     try {
-      const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`;
-      const body = new URLSearchParams({
-        To: to,
-        From: TWILIO_FROM,
-        Body: message,
-      });
+      const url = `https://graph.facebook.com/${WA_API_VERSION}/${WA_PHONE_NUMBER_ID}/messages`;
+
+      const payload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: cleanPhone,
+        type: 'text',
+        text: { preview_url: false, body: message },
+      };
 
       const resp = await fetch(url, {
         method: 'POST',
         headers: {
-          'Authorization': `Basic ${Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Bearer ${WA_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
         },
-        body: body.toString(),
+        body: JSON.stringify(payload),
       });
 
-      if (resp.ok) {
-        const data = await resp.json() as any;
-        logger.info('📱 WhatsApp sent to %s | sid: %s', phone, data.sid);
+      const data = await resp.json() as any;
+
+      if (resp.ok && data.messages?.[0]?.id) {
+        logger.info('📱 WhatsApp sent to %s | msgId: %s', cleanPhone, data.messages[0].id);
         return true;
       } else {
-        const err = await resp.json() as any;
-        logger.error('❌ WhatsApp Twilio error: %s', err.message);
+        logger.error('❌ WhatsApp API error: %s | code: %s', data?.error?.message || 'Unknown', data?.error?.code);
         return false;
       }
     } catch (error) {
-      logger.error('❌ WhatsApp gateway error: %s', (error as Error).message);
+      logger.error('❌ WhatsApp network error: %s', (error as Error).message);
       return false;
     }
   }
 
-  // Dev / no-creds fallback: log to console
-  logger.info(`
-📱 [WHATSAPP SIMULATED - add Twilio creds to activate]
-To: ${phone}
-─────────────────────────────────────────
-${message}
-─────────────────────────────────────────
-  `);
+  // ── Dev fallback: log to console (shows exactly what would be sent) ───────
+  logger.info('📱 [WHATSAPP — NOT CONFIGURED]\nTo: %s\n%s\n%s\n%s',
+    cleanPhone,
+    '─'.repeat(50),
+    message,
+    '─'.repeat(50)
+  );
   return true;
 }
 
+// ── Test function called from admin UI ────────────────────────────────────────
+export async function sendTestWhatsApp(phone: string): Promise<{ success: boolean; message: string; configured: boolean }> {
+  const configured = isWhatsAppConfigured();
+
+  if (!configured) {
+    return {
+      success: false,
+      configured: false,
+      message: 'WhatsApp not configured. Add WA_PHONE_NUMBER_ID and WA_ACCESS_TOKEN to your Render ENV vars.',
+    };
+  }
+
+  const testMsg = `*ACETEL IMS — Test Message* ✅\n\nThis is a test notification from your ACETEL Virtual Internship Management System.\n\nIf you received this, WhatsApp notifications are working correctly!\n\n_Sent at ${new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })} (WAT)_`;
+
+  const ok = await sendWhatsAppMessage(phone, testMsg);
+  return {
+    success: ok,
+    configured: true,
+    message: ok
+      ? `Test message sent successfully to ${normalisedPhone(phone)}`
+      : 'Message failed to send. Check your WA_ACCESS_TOKEN and phone number.',
+  };
+}
+
+// ── Message templates ─────────────────────────────────────────────────────────
 export const whatsappTemplates = {
-  placementSuccessful: (studentName: string, companyName: string, address: string, supervisorName: string) => `
-*ACETEL IMS — Placement Confirmed* 🎓
+  placementSuccessful: (studentName: string, companyName: string, address: string, supervisorName: string) =>
+`*ACETEL IMS — Placement Confirmed* 🎓
 
 Hello ${studentName}!
 
@@ -81,11 +126,10 @@ Your internship placement has been confirmed:
 Log in daily to record your activities:
 ${process.env.FRONTEND_URL}
 
-_ACETEL Virtual Internship Management System_
-`.trim(),
+_ACETEL Virtual Internship Management System_`.trim(),
 
-  logbookReminder: (studentName: string) => `
-*ACETEL IMS — Daily Reminder* ✍️
+  logbookReminder: (studentName: string) =>
+`*ACETEL IMS — Daily Reminder* ✍️
 
 Hello ${studentName},
 
@@ -93,11 +137,10 @@ Your logbook entry for today is pending. Please update your daily activities to 
 
 👉 ${process.env.FRONTEND_URL}/logbook
 
-_This is an automated reminder._
-`.trim(),
+_This is an automated reminder._`.trim(),
 
-  inactivityAlert: (studentName: string, days: number) => `
-*ACETEL IMS — Inactivity Warning* ⚠️
+  inactivityAlert: (studentName: string, days: number) =>
+`*ACETEL IMS — Inactivity Warning* ⚠️
 
 Hello ${studentName},
 
@@ -106,11 +149,10 @@ You have *${days} days of missed entries* on your internship logbook.
 This may affect your academic record. Please log in immediately:
 ${process.env.FRONTEND_URL}/logbook
 
-_ACETEL Monitoring System_
-`.trim(),
+_ACETEL Monitoring System_`.trim(),
 
-  feedbackReply: (studentName: string, subject: string) => `
-*ACETEL IMS — Support Update* 💬
+  feedbackReply: (studentName: string, subject: string) =>
+`*ACETEL IMS — Support Update* 💬
 
 Hello ${studentName},
 
@@ -119,11 +161,10 @@ Your feedback ticket *"${subject}"* has received a new response.
 View the reply here:
 ${process.env.FRONTEND_URL}/feedback
 
-_ACETEL Support Team_
-`.trim(),
+_ACETEL Support Team_`.trim(),
 
-  securityAlert: (name: string, detail: string) => `
-*ACETEL IMS — Security Alert* 🛡️
+  securityAlert: (name: string, detail: string) =>
+`*ACETEL IMS — Security Alert* 🛡️
 
 Hello ${name},
 
@@ -132,11 +173,10 @@ An administrative action was performed on your account:
 
 If this was not you, contact ICT Support immediately.
 
-_ACETEL IMS Security_
-`.trim(),
+_ACETEL IMS Security_`.trim(),
 
-  chatNotification: (recipientName: string, senderName: string) => `
-*ACETEL IMS — New Message* 💬
+  chatNotification: (recipientName: string, senderName: string) =>
+`*ACETEL IMS — New Message* 💬
 
 Hello ${recipientName},
 
@@ -145,6 +185,5 @@ Hello ${recipientName},
 View & reply here:
 ${process.env.FRONTEND_URL}/chat
 
-_ACETEL IMS_
-`.trim(),
+_ACETEL IMS_`.trim(),
 };
