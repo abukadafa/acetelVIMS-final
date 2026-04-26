@@ -237,14 +237,7 @@ export async function register(req: Request, res: Response): Promise<void> {
           await sendEmail(cleanEmail, 'Welcome to ACETEL VIMS — Your Login Details',
             emailTemplates.welcomeStudent(studentName, cleanEmail, tempPassword, appUrl, companyName));
 
-          // 4. Personal email (if different)
-          const personalEmail = (req.body as any).personalEmail;
-          if (personalEmail && personalEmail !== cleanEmail) {
-            await sendEmail(personalEmail, 'Welcome to ACETEL VIMS',
-              emailTemplates.welcomeStudent(studentName, cleanEmail, tempPassword, appUrl, companyName));
-          }
-
-          // 5. WhatsApp notification
+          // 4. WhatsApp notification
           if (user.phone) {
             await sendWhatsAppMessage(user.phone,
               whatsappTemplates.welcomeStudent(studentName, cleanEmail, tempPassword, appUrl, companyName));

@@ -10,10 +10,10 @@ import Company from '../models/Company.model';
 import { z } from 'zod';
 import logger from '../utils/logger';
 
-const STAFF_ROLES = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor'];
+const STAFF_ROLES = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor'];
 
 const userListQuerySchema = z.object({
-  role: z.enum(['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor']).optional(),
+  role: z.enum(['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor']).optional(),
   programme: z.string().optional(),
   search: z.string().optional(),
   page: z.preprocess((val) => Number(val) || 1, z.number().min(1).default(1)),
@@ -24,7 +24,7 @@ const createUserSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
   email: z.string().email(),
-  role: z.enum(['prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor']),
+  role: z.enum(['prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor']),
   programme: z.string().optional(),
   phone: z.string().optional(),
   password: z.string().min(8).optional(),
@@ -50,7 +50,7 @@ const updateUserSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   phone: z.string().optional(),
-  role: z.enum(['prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor']).optional(),
+  role: z.enum(['prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor']).optional(),
   programme: z.string().optional(),
   isActive: z.boolean().optional(),
   resetPassword: z.boolean().optional(),
@@ -179,10 +179,30 @@ export async function createUser(req: AuthRequest, res: Response): Promise<void>
       .select('-password')
       .populate('programme', 'code name level');
 
+    // Send welcome notifications in background
+    setImmediate(async () => {
+      try {
+        const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
+        const { sendEmail, emailTemplates } = await import('../utils/mail.service');
+        const { sendWhatsAppMessage, whatsappTemplates } = await import('../utils/whatsapp.service');
+        await sendEmail(
+          email.toLowerCase(),
+          'Welcome to ACETEL VIMS — Your Staff Account',
+          emailTemplates.welcomeStaff(`${firstName} ${lastName}`, email.toLowerCase(), tempPassword, role, appUrl)
+        );
+        if (phone) {
+          await sendWhatsAppMessage(phone,
+            whatsappTemplates.welcomeStaff(`${firstName} ${lastName}`, email.toLowerCase(), tempPassword, role, appUrl));
+        }
+      } catch (notifErr: any) {
+        logger.warn('Staff welcome notification failed: %s', notifErr.message);
+      }
+    });
+
     res.status(201).json({
       user: saved,
       tempPassword,
-      message: 'Staff user created successfully',
+      message: 'Staff user created successfully. Welcome email and WhatsApp sent.',
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
