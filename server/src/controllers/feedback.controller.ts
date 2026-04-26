@@ -194,7 +194,7 @@ export async function addResponse(req: AuthRequest, res: Response): Promise<void
 
       // WhatsApp notification
       if (ticketOwner.phone) {
-        await sendWhatsAppMessage(ticketOwner.phone, whatsappTemplates.feedbackReply(ticketOwner.firstName, feedback.subject));
+        await sendWhatsAppMessage(ticketOwner.phone, whatsappTemplates.feedbackReply(ticketOwner.firstName, feedback.subject, ""));
       }
     }
 
