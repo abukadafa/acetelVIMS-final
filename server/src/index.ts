@@ -34,6 +34,9 @@ import { startMonitoringSchedule } from './jobs/monitoring.job';
 import logger from './utils/logger';
 import { validateEnv } from './utils/env';
 import { securityHeaders, sanitiseInput } from './middleware/security.middleware';
+import { firewallMiddleware } from './middleware/firewall.middleware';
+import firewallRoutes from './routes/firewall.routes';
+import { startIPBlockerSchedule } from './jobs/ip-blocker.job';
 
 dotenv.config();
 console.log('🚀 Starting ACETEL VIMS Server...');
@@ -42,6 +45,11 @@ validateEnv();
 const app = express();
 app.set('trust proxy', 1);
 const httpServer = createServer(app);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 0. FIREWALL — IP blocking check (first middleware — blocks before any processing)
+// ─────────────────────────────────────────────────────────────────────────────
+app.use(firewallMiddleware);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. HELMET — HTTP security headers
@@ -250,6 +258,7 @@ apiRouter.use('/feedback',      feedbackRoutes);
 apiRouter.use('/ai',            aiRoutes);
 apiRouter.use('/chat',          chatRoutes);
 apiRouter.use('/email',         emailRoutes);
+apiRouter.use('/firewall',      firewallRoutes);
 
 app.use('/api', apiRouter);
 
@@ -284,6 +293,7 @@ const PORT = process.env.PORT || 5000;
 
 initDatabase().then(() => {
   startMonitoringSchedule();
+  startIPBlockerSchedule();
   httpServer.listen(PORT, () => {
     logger.info('🚀 ACETEL Virtual Internship Management Server running on port %s', PORT);
     logger.info('📡 Socket.IO ready');

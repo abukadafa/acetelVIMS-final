@@ -7,6 +7,7 @@ import RefreshToken from '../models/RefreshToken.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { fetchStudentDetails } from '../utils/sdms.service';
 import AuditLog from '../models/AuditLog.model';
+import IPTracker from '../models/IPTracker.model';
 import logger from '../utils/logger';
 import { loginSchema, registerSchema } from '../utils/validation';
 import * as authService from '../services/auth.service';
