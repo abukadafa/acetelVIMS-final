@@ -153,7 +153,7 @@ export const emailTemplates = {
     <p>Please submit your entries immediately for supervisor review.</p>
   `),
 
-  feedbackResponse: (name: string, subject: string, response: string) => base(`
+  feedbackResponse: (name: string, subject: string, response: string, appUrl?: string) => base(`
     <h2>Response to Your Feedback</h2>
     <p>Dear ${name},</p>
     <p>Your feedback regarding <strong>${subject}</strong> has received a response:</p>
@@ -161,12 +161,12 @@ export const emailTemplates = {
     <p>Thank you for helping us improve ACETEL VIMS.</p>
   `),
 
-  feedbackReply: (name: string, subject: string, reply: string, appUrl: string) => base(`
+  feedbackReply: (name: string, subject: string, reply: string) => base(`
     <h2>Feedback Update</h2>
     <p>Dear ${name},</p>
     <p>There is an update on your feedback: <strong>${subject}</strong></p>
     <div class="info-box"><p>${reply}</p></div>
-    <a class="btn" href="${appUrl}">View Feedback</a>
+    <p>Log in to ACETEL VIMS to view your feedback thread.</p>
   `),
 
   feedbackClosed: (name: string, subject: string) => base(`

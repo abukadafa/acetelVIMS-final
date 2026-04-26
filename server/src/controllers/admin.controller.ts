@@ -334,7 +334,7 @@ export async function updateUser(req: AuthRequest, res: Response): Promise<void>
     if (firstName)  user.firstName = firstName;
     if (lastName)   user.lastName  = lastName;
     if (phone)      user.phone     = phone;
-    if (role)       user.role      = role;
+    if (role)       user.role      = role as any;
     if (programme !== undefined) user.programme = (programme as any) || undefined;
     if (isActive   !== undefined) user.isActive = isActive;
 
