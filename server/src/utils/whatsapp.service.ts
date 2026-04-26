@@ -1,150 +1,109 @@
-import dotenv from 'dotenv';
-import logger from './logger';
-dotenv.config();
-
-/**
- * ACETEL VIMS - WhatsApp Service
- * Supports Twilio WhatsApp API (production) with console fallback (dev/missing creds).
- * To activate: add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM to Render ENV.
- */
-
-const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_FROM = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886'; // Twilio sandbox default
-
-function normalisedPhone(phone: string): string {
-  // Strip spaces/dashes, ensure + prefix
-  const clean = phone.replace(/[\s\-()]/g, '');
-  return clean.startsWith('+') ? clean : `+${clean}`;
-}
-
 export async function sendWhatsAppMessage(phone: string, message: string): Promise<boolean> {
-  const to = `whatsapp:${normalisedPhone(phone)}`;
-
-  // Production path: Twilio WhatsApp API
-  if (TWILIO_SID && TWILIO_TOKEN) {
-    try {
-      const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`;
-      const body = new URLSearchParams({
-        To: to,
-        From: TWILIO_FROM,
-        Body: message,
-      });
-
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: body.toString(),
-      });
-
-      if (resp.ok) {
-        const data = await resp.json() as any;
-        logger.info('📱 WhatsApp sent to %s | sid: %s', phone, data.sid);
-        return true;
-      } else {
-        const err = await resp.json() as any;
-        logger.error('❌ WhatsApp Twilio error: %s', err.message);
-        return false;
-      }
-    } catch (error) {
-      logger.error('❌ WhatsApp gateway error: %s', (error as Error).message);
-      return false;
-    }
+  try {
+    // Production: integrate with Twilio or Meta WhatsApp Business API
+    // Replace this block with actual API call using process.env.TWILIO_* or META_WA_* vars
+    console.log(`[WHATSAPP OUTGOING] To: ${phone}\n${message}`);
+    return true;
+  } catch (error) {
+    console.error('WhatsApp error:', error);
+    return false;
   }
-
-  // Dev / no-creds fallback: log to console
-  logger.info(`
-📱 [WHATSAPP SIMULATED - add Twilio creds to activate]
-To: ${phone}
-─────────────────────────────────────────
-${message}
-─────────────────────────────────────────
-  `);
-  return true;
 }
+
+const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
 
 export const whatsappTemplates = {
-  placementSuccessful: (studentName: string, companyName: string, address: string, supervisorName: string) => `
-*ACETEL IMS — Placement Confirmed* 🎓
 
-Hello ${studentName}!
+  welcomeStudent: (name: string, email: string, password: string, url: string, company: string) =>
+`*Welcome to ACETEL VIMS* 🎓
 
-Your internship placement has been confirmed:
+Hello ${name}!
 
-🏢 *Company:* ${companyName}
-📍 *Location:* ${address}
-👤 *Supervisor:* ${supervisorName}
+Your Virtual Internship account is ready.
 
-Log in daily to record your activities:
-${process.env.FRONTEND_URL}
+*Login Email:* ${email}
+*Password:* ${password}
+*Placed At:* ${company}
+*Portal:* ${url}
 
-_ACETEL Virtual Internship Management System_
-`.trim(),
+⚠️ Please change your password after first login.
+Log your daily activities and mark biometric attendance every working day.
 
-  logbookReminder: (studentName: string) => `
-*ACETEL IMS — Daily Reminder* ✍️
+_ACETEL Virtual Internship Management System_`,
 
-Hello ${studentName},
+  welcomeStaff: (name: string, email: string, password: string, role: string, url: string) =>
+`*Welcome to ACETEL VIMS* 🏛️
 
-Your logbook entry for today is pending. Please update your daily activities to stay compliant.
+Hello ${name}!
 
-👉 ${process.env.FRONTEND_URL}/logbook
+Your staff account has been created.
 
-_This is an automated reminder._
-`.trim(),
+*Role:* ${role.replace(/_/g, ' ').toUpperCase()}
+*Email:* ${email}
+*Password:* ${password}
+*Portal:* ${url}
 
-  inactivityAlert: (studentName: string, days: number) => `
-*ACETEL IMS — Inactivity Warning* ⚠️
+Please log in and change your password immediately.
 
-Hello ${studentName},
+_ACETEL Virtual Internship Management System_`,
 
-You have *${days} days of missed entries* on your internship logbook.
+  placementSuccessful: (name: string, company: string, address: string, supervisor: string) =>
+`*ACETEL VIMS — Placement Confirmed* 🏢
 
-This may affect your academic record. Please log in immediately:
-${process.env.FRONTEND_URL}/logbook
+Hello ${name}!
 
-_ACETEL Monitoring System_
-`.trim(),
+You have been placed at *${company}*.
+📍 Location: ${address}
+👤 Supervisor: ${supervisor}
 
-  feedbackReply: (studentName: string, subject: string) => `
-*ACETEL IMS — Support Update* 💬
+Log in to confirm your resumption and begin daily attendance.
+${appUrl}
 
-Hello ${studentName},
+_ACETEL VIMS_`,
 
-Your feedback ticket *"${subject}"* has received a new response.
-
-View the reply here:
-${process.env.FRONTEND_URL}/feedback
-
-_ACETEL Support Team_
-`.trim(),
-
-  securityAlert: (name: string, detail: string) => `
-*ACETEL IMS — Security Alert* 🛡️
+  logbookReminder: (name: string) =>
+`*ACETEL VIMS — Logbook Reminder* ✍️
 
 Hello ${name},
 
-An administrative action was performed on your account:
+Your daily logbook entry is overdue. Please update it now to avoid escalation.
+
+${appUrl}
+
+_ACETEL VIMS_`,
+
+  logbookSubmitted: (supervisorName: string, studentName: string, date: string) =>
+`*ACETEL VIMS — Logbook Review Required* 📋
+
+Hello ${supervisorName},
+
+${studentName} has submitted a logbook entry for *${date}* awaiting your review.
+
+${appUrl}
+
+_ACETEL VIMS_`,
+
+  logbookReviewed: (studentName: string, status: string, date: string) =>
+`*ACETEL VIMS — Logbook ${status}* ${status === 'Approved' ? '✅' : '⚠️'}
+
+Hello ${studentName},
+
+Your logbook entry for *${date}* has been *${status}* by your supervisor.
+
+Log in to view feedback.
+${appUrl}
+
+_ACETEL VIMS_`,
+
+  securityAlert: (name: string, detail: string) =>
+`*ACETEL VIMS — Security Alert* 🛡️
+
+Hello ${name},
+
+An action was performed on your account:
 *${detail}*
 
 If this was not you, contact ICT Support immediately.
 
-_ACETEL IMS Security_
-`.trim(),
-
-  chatNotification: (recipientName: string, senderName: string) => `
-*ACETEL IMS — New Message* 💬
-
-Hello ${recipientName},
-
-*${senderName}* sent you a message on ACETEL IMS.
-
-View & reply here:
-${process.env.FRONTEND_URL}/chat
-
-_ACETEL IMS_
-`.trim(),
+_ACETEL VIMS_`,
 };

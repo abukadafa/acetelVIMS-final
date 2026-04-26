@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   LogOut, LayoutDashboard, Calendar, Map, Users, Settings,
   BookOpen, UserCheck, Activity, ChevronLeft, ChevronRight,
-  UserCog, MessageSquare, History, Trash2
+  UserCog, MessageSquare, History, Trash2, Radio, ClipboardCheck
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -183,6 +183,13 @@ export default function Sidebar() {
           </>
         )}
 
+        {isRole('industry_supervisor') && (
+          <>
+            <NavLink to="/industry-reviews" icon={ClipboardCheck} label="Logbook Reviews" />
+            <NavLink to="/students"         icon={Users}          label="My Interns" />
+          </>
+        )}
+
         {isRole('prog_coordinator') && (
           <>
             <NavLink to="/analytics"    icon={Activity} label="Programme Analytics" />
@@ -226,6 +233,8 @@ export default function Sidebar() {
         )}
 
         <div style={S.divider()} />
+        {!collapsed && <div style={S.groupLabel()}>Communication</div>}
+        <NavLink to="/communication" icon={Radio} label="Communication Centre" />
         <NavLink to="/feedback" icon={MessageSquare} label="Feedback Portal" />
 
         {/* Account */}

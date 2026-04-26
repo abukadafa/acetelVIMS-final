@@ -1,9 +1,12 @@
 import { Router } from 'express';
-import { getNotifications, markAsRead, deleteNotification } from '../controllers/notification.controller';
-import { authenticate } from '../middleware/auth.middleware';
-const r = Router();
-r.use(authenticate);
-r.get('/', getNotifications);
-r.put('/:id/read', markAsRead);
-r.delete('/:id', deleteNotification);
-export default r;
+import { authenticate, authorize } from '../middleware/auth.middleware';
+import * as ctrl from '../controllers/notification.controller';
+
+const router = Router();
+
+router.get('/',           authenticate, ctrl.getNotifications);
+router.put('/:id/read',   authenticate, ctrl.markRead);
+router.put('/read-all',   authenticate, ctrl.markAllRead);
+router.post('/send',      authenticate, authorize('admin', 'prog_coordinator', 'internship_coordinator', 'supervisor', 'industry_supervisor'), ctrl.sendNotification);
+
+export default router;

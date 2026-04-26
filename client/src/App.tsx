@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import CommunicationPage from './pages/CommunicationPage';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
@@ -93,6 +94,7 @@ export default function App() {
               
               {/* Common Routes */}
               <Route path="/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
+              <Route path="/communication" element={<ProtectedRoute><CommunicationPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             </Route>
   

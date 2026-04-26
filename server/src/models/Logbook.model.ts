@@ -11,41 +11,60 @@ export interface ILogbookEntry extends Document {
   challenges?: string;
   solutions?: string;
   attachments?: string[];
+  // Academic Supervisor (school-side)
   supervisorComment?: string;
   supervisorRating?: number;
   isSupervisorSigned: boolean;
   supervisorSignedAt?: Date;
-  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'revision_requested';
+  // Industry-Based Supervisor (company-side)
+  industrySupervisor?: mongoose.Types.ObjectId;
+  industryComment?: string;
+  industryRating?: number;
+  isIndustrySigned: boolean;
+  industrySignedAt?: Date;
+  // Status flow: draft → submitted → industry_reviewed → approved | rejected | revision_requested
+  status: 'draft' | 'submitted' | 'industry_reviewed' | 'approved' | 'rejected' | 'revision_requested';
+  // Final submission (after industry sign-off)
+  isFinalSubmitted: boolean;
+  finalSubmittedAt?: Date;
   isOfflineSync: boolean;
 }
 
 const LogbookSchema: Schema = new Schema({
-  student: { type: Schema.Types.ObjectId, ref: 'Student', required: true },
-  tenant: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
-  entryDate: { type: Date, required: true },
-  weekNumber: { type: Number, required: true },
-  activities: { type: String, required: true },
-  toolsUsed: { type: String },
-  skillsLearned: { type: String },
-  challenges: { type: String },
-  solutions: { type: String },
-  attachments: [{ type: String }],
-  supervisorComment: { type: String },
-  supervisorRating: { type: Number, min: 1, max: 5 },
-  isSupervisorSigned: { type: Boolean, default: false },
-  supervisorSignedAt: { type: Date },
-  status: { 
-    type: String, 
-    enum: ['draft', 'submitted', 'approved', 'rejected', 'revision_requested'],
+  student:             { type: Schema.Types.ObjectId, ref: 'Student',  required: true },
+  tenant:              { type: Schema.Types.ObjectId, ref: 'Tenant',   required: true },
+  entryDate:           { type: Date,   required: true },
+  weekNumber:          { type: Number, required: true },
+  activities:          { type: String, required: true },
+  toolsUsed:           { type: String },
+  skillsLearned:       { type: String },
+  challenges:          { type: String },
+  solutions:           { type: String },
+  attachments:         [{ type: String }],
+  // Academic supervisor
+  supervisorComment:   { type: String },
+  supervisorRating:    { type: Number, min: 1, max: 5 },
+  isSupervisorSigned:  { type: Boolean, default: false },
+  supervisorSignedAt:  { type: Date },
+  // Industry supervisor
+  industrySupervisor:  { type: Schema.Types.ObjectId, ref: 'User' },
+  industryComment:     { type: String },
+  industryRating:      { type: Number, min: 1, max: 5 },
+  isIndustrySigned:    { type: Boolean, default: false },
+  industrySignedAt:    { type: Date },
+  // Status & final
+  status: {
+    type: String,
+    enum: ['draft', 'submitted', 'industry_reviewed', 'approved', 'rejected', 'revision_requested'],
     default: 'draft'
   },
-  isOfflineSync: { type: Boolean, default: false }
-}, {
-  timestamps: true
-});
+  isFinalSubmitted:    { type: Boolean, default: false },
+  finalSubmittedAt:    { type: Date },
+  isOfflineSync:       { type: Boolean, default: false },
+}, { timestamps: true });
 
-// Index for performance
 LogbookSchema.index({ student: 1, entryDate: 1 });
 LogbookSchema.index({ status: 1 });
+LogbookSchema.index({ industrySupervisor: 1 });
 
 export default mongoose.model<ILogbookEntry>('Logbook', LogbookSchema);

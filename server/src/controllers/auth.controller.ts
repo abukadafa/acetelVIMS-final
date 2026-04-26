@@ -7,31 +7,28 @@ import RefreshToken from '../models/RefreshToken.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { fetchStudentDetails } from '../utils/sdms.service';
 import AuditLog from '../models/AuditLog.model';
+import NotificationModel from '../models/notification.model';
 import logger from '../utils/logger';
 import { loginSchema, registerSchema } from '../utils/validation';
 import * as authService from '../services/auth.service';
+import { sendEmail, emailTemplates } from '../utils/mail.service';
+import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
+import { autoAllocateStudent } from '../utils/allocation.service';
 
-const isProduction = process.env.NODE_ENV === 'production';
-
-// Cross-origin cookie config:
-// Frontend (acetel-frontend.onrender.com) and backend (acetel-backend.onrender.com)
-// are on different subdomains, so cookies MUST use sameSite:'none' + secure:true
-// in production to be sent with cross-origin requests (withCredentials:true).
 const COOKIE_OPTIONS: CookieOptions = {
   httpOnly: true,
-  secure: true, // Always true for Render/HTTPS
-  sameSite: 'none', // Required for cross-origin cookies on Render subdomains
+  secure: true,
+  sameSite: 'none',
   maxAge: 8 * 60 * 60 * 1000,
   path: '/',
 };
 
 const REFRESH_COOKIE_OPTIONS: CookieOptions = {
   ...COOKIE_OPTIONS,
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
-// Local token generation removed - now handled by auth.service.ts
-
+// ─── LOGIN ─────────────────────────────────────────────────────────────────
 export async function login(req: Request, res: Response): Promise<void> {
   try {
     const validatedData = loginSchema.safeParse(req.body);
@@ -43,107 +40,50 @@ export async function login(req: Request, res: Response): Promise<void> {
     const { identifier, password } = validatedData.data;
     const cleanIdentifier = identifier.trim().toLowerCase();
 
-    // --- PRIORITY 1: Environment-based admin authentication ---
-    // This path bypasses DB password check and uses the ENV password directly.
-    const envAdminEmail = process.env.ADMIN_EMAIL?.trim();
-    const envAdminPass = process.env.ADMIN_PASSWORD?.trim();
+    // ── ADMIN shortcut via ENV ──
+    const envAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+    const envAdminPass  = process.env.ADMIN_PASSWORD?.trim();
 
-    if (
-      envAdminEmail &&
-      (cleanIdentifier === envAdminEmail.toLowerCase() || cleanIdentifier === 'admin')
-    ) {
-      // Admin identifier matched — validate password against ENV
+    if (envAdminEmail && (cleanIdentifier === envAdminEmail || cleanIdentifier === 'admin')) {
       if (password !== envAdminPass) {
-        logger.warn('Login Failure: Admin password mismatch for %s from IP %s', envAdminEmail, req.ip);
-        res.status(401).json({ error: 'Invalid credentials' });
+        res.status(401).json({ error: 'Invalid admin password.' });
         return;
       }
-
-      // Password matched — fetch DB record for metadata (tokens, names, etc.)
-      const adminUser = await User.findOne({ email: envAdminEmail.toLowerCase() });
+      const adminUser = await User.findOne({ email: envAdminEmail });
       if (!adminUser) {
-        logger.error(
-          'CRITICAL: Admin ENV email %s matched but no DB User record found. Run seed script.',
-          envAdminEmail
-        );
-        res.status(500).json({
-          error: 'Admin account not initialised on this server. Contact your administrator.',
-        });
+        res.status(401).json({ error: 'Admin profile missing. Please wait for seeding.' });
         return;
       }
-
-      const { access, refresh } = await authService.generateTokens(
-        {
-          id: adminUser._id.toString(),
-          role: 'admin',
-          email: adminUser.email,
-          tenant: adminUser.tenant?.toString() || 'default',
-        },
-        req.ip || 'unknown',
-        req.get('user-agent') || 'unknown-agent'
-      );
-
+      const { access, refresh } = await authService.generateTokens({
+        id: adminUser._id.toString(), role: 'admin',
+        email: adminUser.email, tenant: adminUser.tenant?.toString() || 'default'
+      }, req.ip || 'unknown', req.get('user-agent') || 'unknown');
       res.cookie('token', access, COOKIE_OPTIONS);
       res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
-
-      logger.info('Login Success (ENV admin): %s from IP %s', adminUser.email, req.ip);
-
-      res.json({
-        user: {
-          id: adminUser._id,
-          email: adminUser.email,
-          role: 'admin',
-          firstName: adminUser.firstName,
-          lastName: adminUser.lastName,
-          tenant: adminUser.tenant,
-        },
-        accessToken: access,
-      });
+      res.json({ user: { id: adminUser._id, email: adminUser.email, role: 'admin',
+        firstName: adminUser.firstName, lastName: adminUser.lastName, tenant: adminUser.tenant },
+        accessToken: access });
       return;
     }
 
-    // --- PRIORITY 2: Standard database-based authentication for all other users ---
+    // ── STANDARD FLOW ──
     const user = await User.findOne({
       $or: [{ email: cleanIdentifier }, { username: cleanIdentifier }],
-      isActive: true,
+      isActive: true
     });
 
     if (!user) {
-      logger.warn('Login Failure: User not found or inactive for identifier: %s from IP %s', cleanIdentifier, req.ip);
-
       const defaultTenant = await Tenant.findOne({ slug: 'acetel' });
-      try {
-        await AuditLog.create({
-          tenant: defaultTenant?._id,
-          action: 'LOGIN_FAILED',
-          module: 'AUTH',
-          details: `Failed login attempt for identifier: ${identifier}`,
-          ipAddress: req.ip,
-        });
-      } catch (logErr: any) {
-        logger.error('AuditLog Error: %s', logErr.message);
-      }
-
+      await AuditLog.create({ tenant: defaultTenant?._id, action: 'LOGIN_FAILED', module: 'AUTH',
+        details: `Failed login for: ${identifier}`, ipAddress: req.ip }).catch(() => {});
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      logger.warn('Login Failure: Password mismatch for user: %s from IP %s', user.email, req.ip);
-      try {
-        await AuditLog.create({
-          user: user._id,
-          tenant: user.tenant,
-          action: 'LOGIN_FAILED',
-          module: 'AUTH',
-          details: `Incorrect password attempt for user: ${user.email}`,
-          ipAddress: req.ip,
-        });
-      } catch (logErr: any) {
-        logger.error('AuditLog Error: %s', logErr.message);
-      }
-
+      await AuditLog.create({ user: user._id, tenant: user.tenant, action: 'LOGIN_FAILED',
+        module: 'AUTH', details: `Wrong password for: ${user.email}`, ipAddress: req.ip }).catch(() => {});
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
@@ -151,17 +91,10 @@ export async function login(req: Request, res: Response): Promise<void> {
     user.lastLogin = new Date();
     await user.save();
 
-    const { access, refresh } = await authService.generateTokens(
-      {
-        id: user._id.toString(),
-        role: user.role,
-        email: user.email,
-        tenant: user.tenant.toString(),
-        programme: user.programme?.toString(),
-      },
-      req.ip || 'unknown',
-      req.get('user-agent') || 'unknown-agent'
-    );
+    const { access, refresh } = await authService.generateTokens({
+      id: user._id.toString(), role: user.role, email: user.email,
+      tenant: user.tenant.toString(), programme: user.programme?.toString()
+    }, req.ip || 'unknown', req.get('user-agent') || 'unknown');
 
     res.cookie('token', access, COOKIE_OPTIONS);
     res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
@@ -169,45 +102,23 @@ export async function login(req: Request, res: Response): Promise<void> {
     let studentData = null;
     if (user.role === 'student') {
       studentData = await Student.findOne({ user: user._id, tenant: user.tenant })
-        .populate('programme')
-        .populate('company')
+        .populate('programme').populate('company')
         .populate('supervisor', 'firstName lastName email phone');
     }
 
-    logger.info('Login Success: User %s logged in from IP %s', user.email, req.ip);
-    try {
-      await AuditLog.create({
-        user: user._id,
-        tenant: user.tenant,
-        action: 'LOGIN_SUCCESS',
-        module: 'AUTH',
-        details: `Successful login for user: ${user.email} (${user.role})`,
-        ipAddress: req.ip,
-      });
-    } catch (logErr: any) {
-      logger.error('AuditLog Error: %s', logErr.message);
-    }
+    await AuditLog.create({ user: user._id, tenant: user.tenant, action: 'LOGIN_SUCCESS',
+      module: 'AUTH', details: `Login: ${user.email} (${user.role})`, ipAddress: req.ip }).catch(() => {});
 
-    res.json({
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
-        avatar: user.avatar,
-        tenant: user.tenant,
-      },
-      student: studentData,
-      accessToken: access,
-    });
+    res.json({ user: { id: user._id, email: user.email, role: user.role,
+      firstName: user.firstName, lastName: user.lastName, phone: user.phone,
+      avatar: user.avatar, tenant: user.tenant }, student: studentData, accessToken: access });
   } catch (err) {
     logger.error('Login Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
 
+// ─── REGISTER ──────────────────────────────────────────────────────────────
 export async function register(req: Request, res: Response): Promise<void> {
   try {
     const validatedData = registerSchema.safeParse(req.body);
@@ -216,11 +127,11 @@ export async function register(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { 
-      email, password, firstName, lastName, phone, 
+    const {
+      email, password, firstName, lastName, phone,
       role, matricNumber, academicSession, level,
       stateOfOrigin, lga, address, lat, lng,
-      tenantSlug = 'acetel' 
+      tenantSlug = 'acetel'
     } = validatedData.data as any;
 
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -235,7 +146,7 @@ export async function register(req: Request, res: Response): Promise<void> {
         tenant = new Tenant({ name: 'ACETEL', slug: 'acetel', institutionType: 'University' });
         await tenant.save();
       } else {
-        res.status(404).json({ error: 'Specified tenant not found' });
+        res.status(404).json({ error: 'Tenant not found' });
         return;
       }
     }
@@ -246,256 +157,230 @@ export async function register(req: Request, res: Response): Promise<void> {
         res.status(400).json({ error: 'Matric number is required for students' });
         return;
       }
-
       const sdmsData = await fetchStudentDetails(matricNumber);
       if (!sdmsData) {
         res.status(404).json({ error: 'Matric number not found in institution records' });
         return;
       }
-
-      const prog = await Programme.findOne({ code: sdmsData.programme, tenant: tenant._id });
+      let prog = await Programme.findOne({ code: sdmsData.programme, tenant: tenant._id });
       if (!prog) {
-        const newProg = new Programme({
+        prog = new Programme({
           code: sdmsData.programme,
           name: (sdmsData as any).programmeName || sdmsData.programme,
           level: (sdmsData as any).level || 'MSc',
           tenant: tenant._id
         });
-        await newProg.save();
-        programmeId = newProg._id;
-      } else {
-        programmeId = prog._id;
+        await prog.save();
       }
+      programmeId = prog._id;
     }
 
-    const avatarPath = req.file ? `/uploads/avatars/${req.file.filename}` : undefined;
-
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail    = email.trim().toLowerCase();
     const cleanUsername = (role === 'student' ? matricNumber.trim() : cleanEmail).toLowerCase();
 
     const user = new User({
-      email: cleanEmail,
-      username: cleanUsername,
-      password,
-      role,
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      phone: phone?.trim(),
-      avatar: avatarPath,
-      tenant: tenant._id
+      email: cleanEmail, username: cleanUsername, password, role,
+      firstName: firstName.trim(), lastName: lastName.trim(),
+      phone: phone?.trim(), tenant: tenant._id
     });
-
     await user.save();
 
+    let studentDoc: any = null;
     if (role === 'student') {
-      const student = new Student({
-        user: user._id,
-        tenant: tenant._id,
-        matricNumber,
-        programme: programmeId,
-        academicSession: academicSession || '2024/2025',
-        level: level || 'MSc',
-        stateOfOrigin,
-        lga,
-        address,
-        lat,
-        lng,
-        riskScore: 0,
-        riskLevel: 'Low'
+      studentDoc = new Student({
+        user: user._id, tenant: tenant._id, matricNumber,
+        programme: programmeId, academicSession: academicSession || '2024/2025',
+        level: level || 'MSc', stateOfOrigin, lga, address, lat, lng,
+        riskScore: 0, riskLevel: 'Low'
       });
-      await student.save();
+      await studentDoc.save();
     }
 
-    const { access, refresh } = await authService.generateTokens({ 
-      id: user._id.toString(), 
-      role: user.role, 
-      email: user.email,
-      tenant: user.tenant.toString()
-    }, req.ip || 'unknown', req.get('user-agent') || 'unknown-agent');
+    const { access, refresh } = await authService.generateTokens({
+      id: user._id.toString(), role: user.role,
+      email: user.email, tenant: user.tenant.toString()
+    }, req.ip || 'unknown', req.get('user-agent') || 'unknown');
 
     res.cookie('token', access, COOKIE_OPTIONS);
     res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
 
-    logger.info('Registration Success: New user %s registered from IP %s', user.email, req.ip);
-    await AuditLog.create({
-      user: user._id,
-      tenant: tenant._id,
-      action: 'USER_REGISTERED',
-      module: 'AUTH',
-      details: `New account registered: ${email} as ${user.role} for tenant ${tenant.slug}`,
-      ipAddress: req.ip
-    });
+    await AuditLog.create({ user: user._id, tenant: tenant._id, action: 'USER_REGISTERED',
+      module: 'AUTH', details: `New ${role} registered: ${cleanEmail}`, ipAddress: req.ip }).catch(() => {});
 
-    res.status(201).json({ 
-      message: 'Registration successful' 
-    });
+    // ── POST-REGISTRATION: Auto-allocate student + send full notifications ──
+    if (role === 'student' && studentDoc) {
+      setImmediate(async () => {
+        try {
+          const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
+          const tempPassword = password; // already plaintext at this stage
+
+          // 1. Auto-allocate to nearest partner company
+          let allocationResult: any = { success: false };
+          try {
+            allocationResult = await autoAllocateStudent(studentDoc._id.toString());
+          } catch (allocErr: any) {
+            logger.warn('Auto-allocation skipped: %s', allocErr.message);
+          }
+
+          const companyName  = allocationResult.success ? allocationResult.company : 'Pending Allocation';
+          const studentName  = `${user.firstName} ${user.lastName}`;
+
+          // 2. In-app notification
+          await NotificationModel.create({
+            user: user._id,
+            title: 'Welcome to ACETEL VIMS',
+            message: `Your account has been created. ${allocationResult.success ? `You have been placed at ${companyName}.` : 'Your company placement is pending.'}`,
+            type: 'success'
+          });
+
+          // 3. Institutional email
+          await sendEmail(cleanEmail, 'Welcome to ACETEL VIMS — Your Login Details',
+            emailTemplates.welcomeStudent(studentName, cleanEmail, tempPassword, appUrl, companyName));
+
+          // 4. Personal email (if different)
+          const personalEmail = (req.body as any).personalEmail;
+          if (personalEmail && personalEmail !== cleanEmail) {
+            await sendEmail(personalEmail, 'Welcome to ACETEL VIMS',
+              emailTemplates.welcomeStudent(studentName, cleanEmail, tempPassword, appUrl, companyName));
+          }
+
+          // 5. WhatsApp notification
+          if (user.phone) {
+            await sendWhatsAppMessage(user.phone,
+              whatsappTemplates.welcomeStudent(studentName, cleanEmail, tempPassword, appUrl, companyName));
+          }
+
+          // 6. Notify company if allocated
+          if (allocationResult.success) {
+            const company = await (await import('../models/Company.model')).default
+              .findOne({ name: companyName });
+            if (company?.contactEmail) {
+              await sendEmail(company.contactEmail,
+                `New Intern Assigned — ${studentName}`,
+                emailTemplates.companyPlacementNotice(companyName, studentName, matricNumber, cleanEmail, user.phone || 'N/A'));
+            }
+          }
+
+        } catch (bgErr: any) {
+          logger.error('Post-registration notifications error: %s', bgErr.message);
+        }
+      });
+    }
+
+    // ── POST-REGISTRATION: Staff welcome email ──
+    if (role !== 'student') {
+      setImmediate(async () => {
+        try {
+          const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
+          await sendEmail(cleanEmail, 'Welcome to ACETEL VIMS — Staff Account Created',
+            emailTemplates.welcomeStaff(`${firstName} ${lastName}`, cleanEmail, password, role, appUrl));
+          if (phone) {
+            await sendWhatsAppMessage(phone,
+              whatsappTemplates.welcomeStaff(`${firstName} ${lastName}`, cleanEmail, password, role, appUrl));
+          }
+        } catch (e: any) {
+          logger.error('Staff welcome notification error: %s', e.message);
+        }
+      });
+    }
+
+    res.status(201).json({ message: 'Registration successful' });
   } catch (err) {
     logger.error('Registration Error: %s', (err as Error).message);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error during registration' });
   }
 }
 
+// ─── REFRESH TOKEN ──────────────────────────────────────────────────────────
 export async function refreshToken(req: Request, res: Response): Promise<void> {
   const token = req.cookies?.refresh_token || req.body.refreshToken;
-  
-  if (!token) {
-    res.status(401).json({ error: 'Refresh token required' });
-    return;
-  }
+  if (!token) { res.status(401).json({ error: 'Refresh token required' }); return; }
 
   try {
-    const refreshTokenRecord = await RefreshToken.findOne({ token, isRevoked: false });
-    
-    if (!refreshTokenRecord) {
-      logger.warn('Suspicious Activity: Invalid or revoked refresh token used from IP %s', req.ip);
-      res.status(401).json({ error: 'Invalid refresh token' });
-      return;
+    const record = await RefreshToken.findOne({ token, isRevoked: false });
+    if (!record || record.expiresAt < new Date()) {
+      res.status(401).json({ error: 'Invalid or expired refresh token' }); return;
     }
 
-    if (refreshTokenRecord.expiresAt < new Date()) {
-      res.status(401).json({ error: 'Refresh token expired' });
-      return;
-    }
+    const user = await User.findById(record.user);
+    if (!user || !user.isActive) { res.status(401).json({ error: 'Authentication failed' }); return; }
 
-    const user = await User.findById(refreshTokenRecord.user);
-    if (!user || !user.isActive) {
-      res.status(401).json({ error: 'Authentication failed' });
-      return;
-    }
-
-    // REVOKE OLD TOKEN (Rotation)
-    refreshTokenRecord.isRevoked = true;
-    
-    const { access, refresh } = await authService.generateTokens({ 
-      id: user._id.toString(), 
-      role: user.role, 
-      email: user.email,
-      tenant: user.tenant.toString(),
-      programme: user.programme?.toString()
-    }, req.ip || 'unknown', req.get('user-agent') || 'unknown-agent');
-
-    refreshTokenRecord.replacedByToken = refresh;
-    await refreshTokenRecord.save();
+    record.isRevoked = true;
+    const { access, refresh } = await authService.generateTokens({
+      id: user._id.toString(), role: user.role, email: user.email,
+      tenant: user.tenant.toString(), programme: user.programme?.toString()
+    }, req.ip || 'unknown', req.get('user-agent') || 'unknown');
+    record.replacedByToken = refresh;
+    await record.save();
 
     res.cookie('token', access, COOKIE_OPTIONS);
     res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
-
     res.json({ message: 'Token refreshed' });
   } catch (err) {
-    logger.warn('Token Refresh Failure: %s from IP %s', (err as Error).message, req.ip);
     res.status(401).json({ error: 'Invalid refresh token' });
   }
 }
 
+// ─── PROFILE ────────────────────────────────────────────────────────────────
 export async function getProfile(req: AuthRequest, res: Response): Promise<void> {
   try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Session invalid' });
-      return;
-    }
-
-    const { id: userId, tenant: userTenant } = req.user;
-    const user = await User.findOne({ _id: userId, tenant: userTenant }).select('-password');
-    
-    if (!user || !user.isActive) {
-      res.status(401).json({ error: 'Unauthorized or account disabled' });
-      return;
-    }
+    if (!req.user) { res.status(401).json({ error: 'Session invalid' }); return; }
+    const user = await User.findOne({ _id: req.user.id, tenant: req.user.tenant }).select('-password');
+    if (!user || !user.isActive) { res.status(401).json({ error: 'Unauthorized' }); return; }
 
     let studentData = null;
     if (user.role === 'student') {
-      studentData = await Student.findOne({ user: user._id, tenant: userTenant })
-        .populate('programme')
-        .populate('company')
+      studentData = await Student.findOne({ user: user._id, tenant: req.user.tenant })
+        .populate('programme').populate('company')
         .populate('supervisor', 'firstName lastName email phone');
     }
-
     res.json({ user, student: studentData });
   } catch (err) {
-    logger.error('Profile Fetch Error: %s', (err as Error).message);
+    logger.error('Profile Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
 
+// ─── CHANGE PASSWORD ────────────────────────────────────────────────────────
 export async function changePassword(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { currentPassword, newPassword } = req.body;
-    const { id: userId, tenant: userTenant } = req.user!;
-    
-    const user = await User.findOne({ _id: userId, tenant: userTenant });
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
+    const user = await User.findOne({ _id: req.user!.id, tenant: req.user!.tenant });
+    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
 
     const isMatch = await user.comparePassword(currentPassword);
-    if (!isMatch) {
-      res.status(400).json({ error: 'Current password incorrect' });
-      return;
-    }
+    if (!isMatch) { res.status(400).json({ error: 'Current password incorrect' }); return; }
 
     user.password = newPassword;
     await user.save();
+    await RefreshToken.updateMany({ user: req.user!.id, isRevoked: false }, { isRevoked: true });
+    await AuditLog.create({ user: user._id, tenant: req.user!.tenant, action: 'PASSWORD_CHANGED',
+      module: 'SECURITY', details: `Password changed: ${user.email}`, ipAddress: req.ip });
 
-    // Revoke all refresh tokens for this user on password change (Force logout of other sessions)
-    await RefreshToken.updateMany({ user: userId, isRevoked: false }, { isRevoked: true });
-
-    await AuditLog.create({
-      user: user._id,
-      tenant: userTenant,
-      action: 'PASSWORD_CHANGED',
-      module: 'SECURITY',
-      details: `User ${user.email} changed their password`,
-      ipAddress: req.ip
-    });
-
-    res.json({ message: 'Password changed successfully. Please log in again on other devices.' });
+    res.json({ message: 'Password changed. Please log in again on other devices.' });
   } catch (err) {
     logger.error('Password Change Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
 
+// ─── LOGOUT ─────────────────────────────────────────────────────────────────
 export async function logout(req: AuthRequest, res: Response): Promise<void> {
   try {
     const token = req.cookies?.refresh_token;
     if (token && req.user?.tenant) {
       await RefreshToken.findOneAndUpdate({ token, tenant: req.user.tenant }, { isRevoked: true });
     }
-
     if (req.user) {
-      await AuditLog.create({
-        user: req.user.id as any,
-        tenant: req.user.tenant as any,
-        action: 'LOGOUT',
-        module: 'AUTH',
-        details: `User ${req.user.email} logged out`,
-        ipAddress: req.ip
-      });
+      await AuditLog.create({ user: req.user.id as any, tenant: req.user.tenant as any,
+        action: 'LOGOUT', module: 'AUTH', details: `Logout: ${req.user.email}`, ipAddress: req.ip }).catch(() => {});
     }
-    
-    const clearOptions: CookieOptions = {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax',
-      path: '/',
-    };
-    res.clearCookie('token', clearOptions);
-    res.clearCookie('refresh_token', clearOptions);
+    const clearOpts: CookieOptions = { httpOnly: true, secure: true, sameSite: 'none', path: '/' };
+    res.clearCookie('token', clearOpts);
+    res.clearCookie('refresh_token', clearOpts);
     res.json({ message: 'Logged out successfully' });
   } catch (err) {
     logger.error('Logout Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
-}
-
-/** GET /api/auth/comms-status — returns active communication channel status */
-export async function getCommsStatus(req: Request, res: Response): Promise<void> {
-  const emailActive = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
-  const whatsappActive = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
-  res.json({
-    email: { active: emailActive, provider: emailActive ? process.env.SMTP_HOST || 'smtp.gmail.com' : null },
-    whatsapp: { active: whatsappActive, provider: whatsappActive ? 'Twilio WhatsApp Business' : null },
-    chat: { active: true, provider: 'ACETEL IMS Real-Time Chat' },
-  });
 }
