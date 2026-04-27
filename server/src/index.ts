@@ -115,7 +115,7 @@ app.use(sanitiseInput);
 // ─────────────────────────────────────────────────────────────────────────────
 app.use(mongoSanitize({
   replaceWith: '_',
-  onSanitize: ({ req, key }) => {
+  onSanitize: ({ req, key }: { req: any; key: string }) => {
     logger.warn('⚠️ MongoDB operator injection attempt — field: %s | IP: %s', key, req.ip);
   },
 }));
@@ -143,7 +143,7 @@ const globalLimiter = rateLimit({
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
   delayAfter: 100,
-  delayMs: (used) => (used - 100) * 200, // +200ms per request above 100
+  delayMs: (used: number) => (used - 100) * 200, // +200ms per request above 100
 });
 
 app.use(globalLimiter);
