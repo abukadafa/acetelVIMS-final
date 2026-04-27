@@ -12,7 +12,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const interval = setInterval(() => setShowNoun(prev => !prev), 2500);
+    const interval = setInterval(() => setShowNoun(prev => !prev), 2800);
     return () => clearInterval(interval);
   }, []);
 
@@ -33,35 +33,49 @@ export default function LoginPage() {
   return (
     <div className="vims-shell">
 
-      {/* ══ LEFT PANEL ══ */}
+      {/* LEFT PANEL */}
       <div className="vims-left">
         <div className="vims-left-inner">
 
-          {/* Crossfading logo + fixed institution name */}
           <div className="vims-logo-wrap">
             <div className="vims-logo-crossfade">
               <img src="/assets/noun-logo.png" alt="NOUN" className="vims-logo-img" style={{ opacity: showNoun ? 1 : 0 }} />
               <img src="/assets/acetel-logo.png" alt="ACETEL" className="vims-logo-img" style={{ opacity: showNoun ? 0 : 1 }} />
             </div>
             <div className="vims-logo-text">
-              <div className="vims-logo-name">
-                Africa Centre of Excellence for Technology Enhanced Learning (ACETEL)
-              </div>
-              <div className="vims-logo-sub">
-                Virtual Internship Management System
-              </div>
+              <div className="vims-logo-name">ACETEL VIMS</div>
+              <div className="vims-logo-sub">Virtual Internship Management</div>
             </div>
           </div>
 
-          {/* Hero */}
+          <div className="vims-status-row">
+            <span className="vims-status-pill"><span className="vims-status-dot" />Secure Institutional Access</span>
+            <span className="vims-status-pill"><span className="vims-status-dot" />Portal Active</span>
+          </div>
+
           <div className="vims-hero">
             <h1 className="vims-hero-title">
-              Empower Virtual<br />Career Transitions.
+              Elevate Your<br />
+              <span className="vims-title-green">Virtual Internship</span><br />
+              <span className="vims-title-gold">Experience.</span>
             </h1>
             <p className="vims-hero-desc">
-              The professional platform for bridging academic theory with industry practice and
-              orchestrating seamless collaboration between interns, supervisors and organizations.
+              The professional platform for bridging academic theory with real-world industry practice
+              — orchestrating seamless collaboration between interns, supervisors, and organizations.
             </p>
+            <div className="vims-trust-list">
+              {[
+                'Intern Placement Intelligence',
+                'Academic–Industry Collaboration',
+                'Real-time Progress Synchronization',
+                'Institutional Compliance & Audit',
+              ].map((item, i) => (
+                <div className="vims-trust-item" key={i}>
+                  <div className="vims-trust-check">✓</div>
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="vims-left-footer">
@@ -70,11 +84,10 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* ══ RIGHT WHITE PANEL ══ */}
+      {/* RIGHT PANEL */}
       <div className="vims-right">
         <div className="vims-form-card">
 
-          {/* Right panel crossfading logo */}
           <div className="vims-right-brand">
             <div className="vims-right-logo-wrap">
               <img src="/assets/noun-logo.png" alt="NOUN" className="vims-right-logo-img" style={{ opacity: showNoun ? 1 : 0 }} />
@@ -89,7 +102,7 @@ export default function LoginPage() {
           </div>
 
           <h2 className="vims-form-title">Sign in</h2>
-          <p className="vims-form-subtitle">Enter your credentials to access your dashboard.</p>
+          <p className="vims-form-subtitle">Enter your credentials to access your internship dashboard.</p>
 
           <form onSubmit={handleSubmit} className="vims-form">
             <div className="vims-field">
@@ -127,7 +140,7 @@ export default function LoginPage() {
             </div>
 
             <Link to="/register" className="vims-btn-outline">
-              Register Student Account
+              Register Student Intern Account
             </Link>
           </form>
 

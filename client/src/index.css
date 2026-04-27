@@ -1497,3 +1497,413 @@ tr:hover td { background: var(--surface-2); }
   border-bottom-color: #1e6b2e !important;
 }
 
+   LANDING PAGE — Full Redesign
+   ACETEL Virtual Internship Management System
+═══════════════════════════════════════════════════ */
+
+/* ── Root ── */
+.landing-root {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  background: #fffef9;
+  color: #0a0a0a;
+  overflow-x: hidden;
+}
+
+/* ── NAV ── */
+.landing-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 48px; height: 68px;
+  background: rgba(13,61,31,0.97);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  transition: box-shadow 0.25s;
+}
+.landing-nav-scrolled {
+  box-shadow: 0 4px 30px rgba(0,0,0,0.4);
+}
+.landing-nav-brand {
+  display: flex; align-items: center; gap: 12px;
+}
+.landing-nav-logobox {
+  position: relative; width: 36px; height: 36px; flex-shrink: 0;
+}
+.landing-nav-logo-img {
+  position: absolute; inset: 0;
+  width: 36px; height: 36px;
+  object-fit: contain; border-radius: 8px;
+  transition: opacity 0.8s ease-in-out;
+}
+.landing-nav-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 1rem; font-weight: 900; color: #fff;
+}
+.landing-nav-sub {
+  font-size: 0.66rem; color: #86efac;
+  font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+}
+.landing-nav-links {
+  display: flex; align-items: center; gap: 6px;
+}
+.landing-nav-link {
+  font-size: 0.85rem; font-weight: 600; color: #dcfce7;
+  padding: 7px 16px; border-radius: 8px; transition: all .2s;
+}
+.landing-nav-link:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.landing-nav-btn {
+  font-size: 0.85rem; font-weight: 700;
+  color: #0d3d1f; background: #22c55e;
+  padding: 8px 22px; border-radius: 8px;
+  transition: all .2s; border: none; cursor: pointer;
+  display: inline-block;
+}
+.landing-nav-btn:hover { background: #16a34a; transform: translateY(-1px); }
+
+/* ── HERO ── */
+.landing-hero {
+  min-height: 100vh;
+  background: linear-gradient(155deg, #061a0b 0%, #0d3d1f 35%, #155e2e 65%, #0d3d1f 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 120px 48px 80px;
+  position: relative; overflow: hidden; text-align: center;
+}
+.landing-hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(34,197,94,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(245,158,11,0.05) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* Live feed widget */
+.landing-hero-live-feed {
+  position: absolute; top: 88px; right: 48px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px; padding: 14px 18px;
+  max-width: 230px; backdrop-filter: blur(10px);
+}
+.landing-live-label {
+  font-size: 0.68rem; font-weight: 700;
+  color: #86efac; letter-spacing: 0.1em; text-transform: uppercase;
+  margin-bottom: 10px; display: flex; align-items: center; gap: 7px;
+}
+.landing-live-dot {
+  display: inline-block; width: 7px; height: 7px;
+  background: #22c55e; border-radius: 50%;
+  animation: vims-blink 2s infinite; flex-shrink: 0;
+}
+.landing-feed-item {
+  font-size: 0.75rem; color: #a7f3d0;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.landing-feed-item:last-child { border: none; }
+
+.landing-hero-inner {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center;
+  max-width: 760px; margin-bottom: 64px;
+}
+.landing-hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(34,197,94,0.12);
+  border: 1px solid rgba(34,197,94,0.3);
+  padding: 7px 18px; border-radius: 50px;
+  font-size: 0.78rem; font-weight: 700;
+  color: #86efac; letter-spacing: 0.06em; text-transform: uppercase;
+  margin-bottom: 24px;
+}
+.landing-hero-eyebrow {
+  font-size: 0.8rem; font-weight: 700;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: #86efac; margin-bottom: 20px;
+}
+.landing-hero-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2.8rem, 6vw, 4.8rem);
+  font-weight: 900; line-height: 1.05;
+  letter-spacing: -0.03em; color: #fff; margin-bottom: 24px;
+}
+.landing-title-green {
+  background: linear-gradient(90deg, #22c55e, #86efac);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.landing-title-gold {
+  background: linear-gradient(90deg, #f59e0b, #fcd34d);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.landing-hero-desc {
+  font-size: 1.05rem; color: #a7f3d0;
+  line-height: 1.8; margin-bottom: 40px;
+}
+.landing-hero-cta {
+  display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+}
+.landing-btn-primary {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff; font-weight: 700; font-size: 0.95rem;
+  padding: 14px 32px; border-radius: 10px;
+  border: none; cursor: pointer; display: inline-block;
+  box-shadow: 0 8px 28px rgba(34,197,94,0.28);
+  transition: all .25s; font-family: inherit;
+}
+.landing-btn-primary:hover {
+  transform: translateY(-2px); box-shadow: 0 12px 36px rgba(34,197,94,0.38);
+}
+.landing-btn-ghost {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #e2e8f0; font-weight: 600; font-size: 0.95rem;
+  padding: 14px 32px; border-radius: 10px; cursor: pointer;
+  transition: all .25s; display: inline-block;
+}
+.landing-btn-ghost:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.3);
+}
+
+/* Stats bar */
+.landing-stats-bar {
+  display: flex; position: relative; z-index: 1;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(10px); overflow: hidden;
+}
+.landing-stat-item {
+  padding: 20px 40px; display: flex; flex-direction: column; align-items: center;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+.landing-stat-item:last-child { border-right: none; }
+.landing-stat-num {
+  font-family: 'Syne', sans-serif; font-size: 1.85rem; font-weight: 900;
+  background: linear-gradient(90deg, #22c55e, #86efac);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.landing-stat-live {
+  background: none !important;
+  -webkit-text-fill-color: #22c55e !important;
+  color: #22c55e;
+}
+.landing-stat-label {
+  font-size: 0.72rem; font-weight: 700;
+  color: #86efac; letter-spacing: 0.06em;
+  text-transform: uppercase; margin-top: 3px;
+}
+
+/* ── SHARED SECTION ── */
+.landing-section { padding: 100px 48px; }
+.landing-section-alt { background: #f9fafb; }
+.landing-section-pale { background: linear-gradient(135deg, #f0fdf4, #fff, #f0fdf4); }
+.landing-container { max-width: 1200px; margin: 0 auto; }
+.landing-section-eyebrow {
+  font-size: 0.78rem; font-weight: 800;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: #16a34a; margin-bottom: 12px;
+}
+.landing-section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 900; letter-spacing: -0.03em;
+  line-height: 1.1; margin-bottom: 14px;
+}
+.landing-section-desc {
+  font-size: 1rem; color: #374151;
+  line-height: 1.75; max-width: 540px; margin-bottom: 56px;
+}
+
+/* ── FEATURES ── */
+.landing-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 22px;
+}
+.landing-feature-card {
+  background: #fff; border: 1px solid #e5e7eb;
+  border-radius: 16px; padding: 28px;
+  transition: all .25s; position: relative; overflow: hidden;
+}
+.landing-feature-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, #16a34a, #bbf7d0);
+  opacity: 0; transition: opacity .25s;
+}
+.landing-feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 50px rgba(21,94,46,0.1);
+  border-color: #bbf7d0;
+}
+.landing-feature-card:hover::before { opacity: 1; }
+.landing-feature-icon {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  border: 1px solid #bbf7d0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; margin-bottom: 16px;
+}
+.landing-feature-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.05rem; font-weight: 800; color: #0a0a0a; margin-bottom: 8px;
+}
+.landing-feature-desc {
+  font-size: 0.875rem; color: #374151; line-height: 1.7;
+}
+
+/* ── PORTALS ── */
+.landing-portals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+.landing-portal-card {
+  background: #fff; border-radius: 16px; padding: 32px 24px;
+  text-align: center; border: 2px solid transparent;
+  cursor: pointer; transition: all .3s; display: block;
+}
+.landing-portal-card:hover {
+  transform: translateY(-6px);
+  border-color: #16a34a;
+  box-shadow: 0 24px 60px rgba(21,94,46,0.14);
+}
+.landing-portal-icon {
+  width: 60px; height: 60px; border-radius: 50%;
+  margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+}
+.landing-portal-role {
+  font-size: 0.65rem; font-weight: 800;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: #16a34a; margin-bottom: 5px;
+}
+.landing-portal-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.1rem; font-weight: 900; color: #0a0a0a; margin-bottom: 8px;
+}
+.landing-portal-desc {
+  font-size: 0.82rem; color: #374151;
+  line-height: 1.65; margin-bottom: 18px;
+}
+.landing-portal-link {
+  font-size: 0.82rem; font-weight: 700; color: #16a34a;
+  transition: letter-spacing .2s;
+}
+.landing-portal-card:hover .landing-portal-link { letter-spacing: 0.02em; }
+
+/* ── CTA STRIP ── */
+.landing-cta-strip {
+  background: linear-gradient(155deg, #061a0b 0%, #0d3d1f 40%, #155e2e 100%);
+  padding: 80px 48px;
+}
+.landing-cta-strip-inner {
+  max-width: 1200px; margin: 0 auto;
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 40px; flex-wrap: wrap;
+}
+.landing-cta-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 900; color: #fff;
+  letter-spacing: -0.025em; margin-bottom: 10px;
+}
+.landing-cta-desc {
+  font-size: 0.95rem; color: #a7f3d0; line-height: 1.6;
+}
+
+/* ── FOOTER ── */
+.landing-footer {
+  background: linear-gradient(135deg, #061a0b, #0d3d1f);
+  padding: 64px 48px 32px;
+}
+.landing-footer-grid {
+  display: grid; grid-template-columns: 2fr 1fr 1fr;
+  gap: 48px; margin-bottom: 48px;
+}
+.landing-footer-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.1rem; font-weight: 900; color: #fff; margin-bottom: 3px;
+}
+.landing-footer-sub {
+  font-size: 0.7rem; color: #86efac;
+  font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; margin-bottom: 14px;
+}
+.landing-footer-desc {
+  font-size: 0.82rem; color: #6ee7b7; line-height: 1.7;
+}
+.landing-footer-col-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.78rem; font-weight: 800;
+  color: #fff; letter-spacing: 0.08em;
+  text-transform: uppercase; margin-bottom: 14px;
+}
+.landing-footer-link {
+  display: block; font-size: 0.82rem;
+  color: #6ee7b7; padding: 4px 0; transition: color .2s;
+}
+.landing-footer-link:hover { color: #22c55e; }
+.landing-footer-bottom {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 24px;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 12px;
+}
+.landing-footer-copy {
+  font-size: 0.72rem; color: #4ade80;
+  font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.landing-footer-status {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.72rem; color: #86efac; font-weight: 600;
+}
+
+/* ── LOGIN PAGE — Trust items upgrade ── */
+.vims-trust-list {
+  display: flex; flex-direction: column; gap: 12px;
+  margin-top: 28px;
+}
+.vims-trust-item {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 0.88rem; font-weight: 600; color: #dcfce7;
+}
+.vims-trust-check {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 11px; font-weight: 800; flex-shrink: 0;
+}
+
+/* ── LOGIN HERO — two-tone text ── */
+.vims-title-green {
+  background: linear-gradient(90deg, #22c55e, #86efac);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.vims-title-gold {
+  background: linear-gradient(90deg, #f59e0b, #fcd34d);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .landing-hero-live-feed { display: none; }
+  .landing-stats-bar { flex-direction: column; }
+  .landing-stat-item { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .landing-footer-grid { grid-template-columns: 1fr; }
+  .landing-nav { padding: 0 20px; }
+  .landing-hero { padding: 100px 24px 60px; }
+  .landing-section { padding: 72px 24px; }
+  .landing-cta-strip { padding: 60px 24px; }
+  .landing-cta-strip-inner { flex-direction: column; align-items: flex-start; }
+  .landing-footer { padding: 48px 24px 28px; }
+}
+
