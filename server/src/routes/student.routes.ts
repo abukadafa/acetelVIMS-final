@@ -21,7 +21,7 @@ r.delete('/:id',     authorize('admin'), deleteStudent);
 export default r;
 
 // Flag student for review
-router.post('/:id/flag', authenticate, authorize('admin', 'supervisor', 'prog_coordinator', 'internship_coordinator'), async (req, res) => {
+r.post('/:id/flag', authenticate, authorize('admin', 'supervisor', 'prog_coordinator', 'internship_coordinator'), async (req: any, res: any) => {
   try {
     const Student = (await import('../models/Student.model')).default;
     const student = await Student.findByIdAndUpdate(req.params.id, { riskLevel: 'High', riskScore: 80 }, { new: true });
@@ -33,7 +33,7 @@ router.post('/:id/flag', authenticate, authorize('admin', 'supervisor', 'prog_co
 });
 
 // Auto-allocate single student
-router.post('/:id/allocate', authenticate, authorize('admin', 'internship_coordinator', 'prog_coordinator'), async (req, res) => {
+r.post('/:id/allocate', authenticate, authorize('admin', 'internship_coordinator', 'prog_coordinator'), async (req: any, res: any) => {
   try {
     const { autoAllocateStudent } = await import('../utils/allocation.service');
     const result = await autoAllocateStudent(req.params.id);

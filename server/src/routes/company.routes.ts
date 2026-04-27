@@ -12,7 +12,7 @@ r.delete('/:id', authorize('admin'), deleteCompany);
 export default r;
 
 // Auto-allocate students to a specific company
-router.post('/:id/auto-allocate', authenticate, authorize('admin', 'internship_coordinator', 'prog_coordinator'), async (req, res) => {
+r.post('/:id/auto-allocate', authenticate, authorize('admin', 'internship_coordinator', 'prog_coordinator'), async (req: any, res: any) => {
   try {
     const company = await (await import('../models/Company.model')).default.findById(req.params.id);
     if (!company) { res.status(404).json({ error: 'Company not found' }); return; }
@@ -40,7 +40,7 @@ router.post('/:id/auto-allocate', authenticate, authorize('admin', 'internship_c
 });
 
 // Student self-allocate endpoint
-router.post('/students/:id/allocate', authenticate, authorize('admin', 'internship_coordinator'), async (req, res) => {
+r.post('/students/:id/allocate', authenticate, authorize('admin', 'internship_coordinator'), async (req: any, res: any) => {
   try {
     const { autoAllocateStudent } = await import('../utils/allocation.service');
     const result = await autoAllocateStudent(req.params.id);
