@@ -1,317 +1,289 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
-import { socket } from '../lib/socket';
-import { Send, Search, MessageCircle, UserCircle, Trash2, ChevronLeft } from 'lucide-react';
+import { socket, connectSocket, onNewMessage } from '../lib/socket';
+import { Send, Search, MessageSquare, ArrowLeft, Circle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-
-interface Contact { _id: string; firstName: string; lastName: string; role: string; email: string; avatar?: string; }
-interface Message { _id: string; sender: { _id: string; firstName: string; lastName: string; role: string }; content: string; type: string; createdAt: string; readBy: string[]; }
-interface Chat { _id: string; participants: Contact[]; lastMessage?: string; lastMessageAt?: string; }
 
 export default function ChatPage() {
   const { user } = useAuth();
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [activeChat, setActiveChat] = useState<Chat | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMsg, setNewMsg] = useState('');
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [view, setView] = useState<'chats' | 'contacts'>('chats');
-  const [mobileShowChat, setMobileShowChat] = useState(false);
+  const [rooms, setRooms]       = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [active, setActive]     = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [input, setInput]       = useState('');
+  const [search, setSearch]     = useState('');
+  const [sending, setSending]   = useState(false);
+  const [loading, setLoading]   = useState(true);
+  const [view, setView]         = useState<'rooms' | 'contacts'>('rooms');
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  useEffect(() => {
+    if (user) {
+      connectSocket(user.id);
+      fetchRooms();
+      fetchContacts();
+      onNewMessage(msg => {
+        setMessages(prev => [...prev, msg]);
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+    return () => { socket.off('new_message'); };
+  }, [user]);
 
-  const loadChats = useCallback(async () => {
+  useEffect(() => {
+    if (active) fetchMessages(active._id);
+  }, [active]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const fetchRooms = async () => {
     try {
       const { data } = await api.get('/chat');
-      setChats(data.chats);
-    } catch { /* silent */ }
-  }, []);
+      setRooms(data.rooms || []);
+    } catch { } finally { setLoading(false); }
+  };
 
-  useEffect(() => {
-    const init = async () => {
-      setLoading(true);
-      try {
-        const [chatRes, contactRes] = await Promise.all([api.get('/chat'), api.get('/chat/contacts')]);
-        setChats(chatRes.data.chats);
-        setContacts(contactRes.data.contacts);
-      } catch { toast.error('Failed to load chat'); }
-      finally { setLoading(false); }
-    };
-    init();
-  }, []);
-
-  useEffect(() => {
-    const handler = (data: any) => {
-      if (activeChat && data.chatId === activeChat._id) {
-        setMessages(prev => [...prev, data.message]);
-        scrollToBottom();
-      }
-      loadChats();
-    };
-    socket.on('chat:new_message', handler);
-    return () => { socket.off('chat:new_message', handler); };
-  }, [activeChat, loadChats]);
-
-  useEffect(() => { scrollToBottom(); }, [messages]);
-
-  const openChat = async (chat: Chat) => {
-    setActiveChat(chat);
-    setMobileShowChat(true);
+  const fetchContacts = async () => {
     try {
-      const { data } = await api.get(`/chat/${chat._id}/messages`);
-      setMessages(data.messages);
+      const { data } = await api.get('/chat/contacts');
+      setContacts(data.contacts || []);
+    } catch {}
+  };
+
+  const fetchMessages = async (roomId: string) => {
+    try {
+      const { data } = await api.get(`/chat/${roomId}`);
+      setMessages(data.messages || []);
     } catch { toast.error('Failed to load messages'); }
   };
 
-  const startNewChat = async (contact: Contact) => {
+  const startChat = async (contact: any) => {
     try {
-      const { data } = await api.post('/chat/start', { targetUserId: contact._id });
-      await loadChats();
-      openChat(data.chat);
-      setView('chats');
-    } catch { toast.error('Could not start chat'); }
+      const { data } = await api.post('/chat/start', { participantId: contact._id });
+      setActive(data.room);
+      setView('rooms');
+      fetchRooms();
+    } catch { toast.error('Failed to start chat'); }
   };
 
-  const handleSend = async (e: React.FormEvent) => {
+  const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeChat || !newMsg.trim() || sending) return;
+    if (!input.trim() || !active) return;
     setSending(true);
-    const optimistic: Message = {
-      _id: `tmp-${Date.now()}`,
-      sender: { _id: user!.id, firstName: user!.firstName, lastName: user!.lastName, role: user!.role },
-      content: newMsg.trim(), type: 'text', createdAt: new Date().toISOString(), readBy: [user!.id],
-    };
-    setMessages(prev => [...prev, optimistic]);
-    const msgText = newMsg.trim();
-    setNewMsg('');
     try {
-      await api.post(`/chat/${activeChat._id}/send`, { content: msgText });
-      await loadChats();
-    } catch { toast.error('Failed to send message'); setMessages(prev => prev.filter(m => m._id !== optimistic._id)); }
+      const { data } = await api.post(`/chat/${active._id}`, { content: input.trim() });
+      setMessages(prev => [...prev, data.data]);
+      setInput('');
+      socket.emit('send_message', { roomId: active._id, message: data.data });
+    } catch { toast.error('Failed to send message'); }
     finally { setSending(false); }
   };
 
-  const deleteMessage = async (msgId: string) => {
-    if (!activeChat) return;
-    try {
-      await api.delete(`/chat/${activeChat._id}/messages/${msgId}`);
-      setMessages(prev => prev.filter(m => m._id !== msgId));
-    } catch { toast.error('Cannot delete message'); }
+  const getOtherParticipant = (room: any) => {
+    const parts = room.participants || [];
+    return parts.find((p: any) => (p._id || p) !== user?.id) || parts[0];
   };
-
-  const otherParticipant = (chat: Chat): Contact | undefined =>
-    chat.participants?.find(p => p._id !== user?.id);
 
   const filteredContacts = contacts.filter(c =>
-    `${c.firstName} ${c.lastName} ${c.email}`.toLowerCase().includes(search.toLowerCase())
+    !search || `${c.firstName} ${c.lastName}`.toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredChats = chats.filter(c => {
-    const other = otherParticipant(c);
-    return !search || `${other?.firstName} ${other?.lastName}`.toLowerCase().includes(search.toLowerCase());
-  });
-
-  const ROLE_LABELS: Record<string, string> = {
-    admin: 'Administrator', supervisor: 'Supervisor',
-    prog_coordinator: 'Programme Coordinator', internship_coordinator: 'Internship Coordinator',
-    ict_support: 'ICT Support', student: 'Student',
+  const roleColor: Record<string, string> = {
+    student: '#166534', supervisor: '#2563eb', industry_supervisor: '#7c3aed',
+    admin: '#dc2626', prog_coordinator: '#d97706', internship_coordinator: '#0891b2',
   };
 
-  if (loading) return <div className="page-loader"><div className="spinner spinner-lg"></div></div>;
-
   return (
-    <div className="page-container animate-fade" style={{ padding: 0, height: 'calc(100vh - 70px)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', height: '100%', overflow: 'hidden' }} className="chat-layout">
+    <div style={{ display: 'flex', height: 'calc(100vh - 86px)', background: '#f9fafb', overflow: 'hidden' }}>
 
-        {/* ── LEFT PANEL ── */}
-        <div style={{ borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', background: 'var(--surface)', overflow: 'hidden' }}
-          className={mobileShowChat ? 'chat-panel-hidden' : ''}>
-          <div style={{ padding: '16px', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <button onClick={() => setView('chats')} className={`btn btn-sm ${view === 'chats' ? 'btn-primary' : 'btn-outline'}`} style={{ flex: 1 }}>
-                <MessageCircle size={14} /> Chats
+      {/* ── Sidebar ── */}
+      <div style={{ width: 320, borderRight: '1.5px solid #e5e7eb', background: '#fff',
+        display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+
+        {/* Header */}
+        <div style={{ padding: '20px 18px', borderBottom: '1px solid #f3f4f6' }}>
+          <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '1.2rem', fontWeight: 800,
+            color: '#111827', margin: '0 0 12px' }}>Real-Time Chat</h2>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            {(['rooms', 'contacts'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)} style={{
+                flex: 1, padding: '8px', border: `1.5px solid ${view === v ? '#166534' : '#e5e7eb'}`,
+                borderRadius: 8, background: view === v ? '#f0fdf4' : '#fff',
+                color: view === v ? '#166534' : '#6b7280',
+                fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer',
+              }}>
+                {v === 'rooms' ? '💬 Chats' : '👥 Contacts'}
               </button>
-              <button onClick={() => setView('contacts')} className={`btn btn-sm ${view === 'contacts' ? 'btn-primary' : 'btn-outline'}`} style={{ flex: 1 }}>
-                <UserCircle size={14} /> Contacts
-              </button>
-            </div>
-            <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
-              <input
-                className="form-input"
-                style={{ paddingLeft: '32px', fontSize: '13px' }}
-                placeholder={view === 'chats' ? 'Search conversations...' : 'Search contacts...'}
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
+            ))}
           </div>
-
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {view === 'chats' ? (
-              filteredChats.length === 0 ? (
-                <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-3)' }}>
-                  <MessageCircle size={32} style={{ opacity: 0.2, marginBottom: '8px' }} />
-                  <p style={{ fontSize: '13px' }}>No conversations yet.<br />Go to Contacts to start one.</p>
-                </div>
-              ) : filteredChats.map(chat => {
-                const other = otherParticipant(chat);
-                const isActive = activeChat?._id === chat._id;
-                return (
-                  <div key={chat._id} onClick={() => openChat(chat)}
-                    style={{ padding: '14px 16px', cursor: 'pointer', borderBottom: '1px solid var(--border)', background: isActive ? 'var(--surface-2)' : '', borderLeft: isActive ? '3px solid var(--primary)' : '3px solid transparent', transition: 'all 0.15s' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>
-                        {other?.firstName?.[0]}{other?.lastName?.[0]}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text)' }}>{other?.firstName} {other?.lastName}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {chat.lastMessage || 'No messages yet'}
-                        </div>
-                      </div>
-                      {chat.lastMessageAt && (
-                        <div style={{ fontSize: '10px', color: 'var(--text-3)', flexShrink: 0 }}>
-                          {new Date(chat.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              filteredContacts.length === 0 ? (
-                <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>No contacts found</div>
-              ) : filteredContacts.map(contact => (
-                <div key={contact._id} onClick={() => startNewChat(contact)}
-                  style={{ padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px', transition: 'background 0.15s' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>
-                    {contact.firstName[0]}{contact.lastName[0]}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{contact.firstName} {contact.lastName}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-3)' }}>{ROLE_LABELS[contact.role] || contact.role}</div>
-                  </div>
-                </div>
-              ))
-            )}
+          <div style={{ position: 'relative' }}>
+            <Search size={15} style={{ position: 'absolute', left: 10, top: '50%',
+              transform: 'translateY(-50%)', color: '#9ca3af' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder={view === 'rooms' ? 'Search chats...' : 'Search contacts...'}
+              style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid #e5e7eb',
+                borderRadius: 8, fontSize: '0.85rem', outline: 'none', background: '#f9fafb',
+                fontFamily: "'Plus Jakarta Sans', sans-serif" }} />
           </div>
         </div>
 
-        {/* ── RIGHT PANEL: Chat window ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#f9fafb' }}
-          className={!mobileShowChat ? 'chat-panel-hidden' : ''}>
-          {activeChat ? (
-            <>
-              {/* Header */}
-              <div style={{ padding: '14px 20px', background: '#fff', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <button className="btn btn-ghost btn-sm chat-back-btn" onClick={() => setMobileShowChat(false)}>
-                  <ChevronLeft size={18} />
-                </button>
-                {(() => { const other = otherParticipant(activeChat); return (
-                  <>
-                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700 }}>
-                      {other?.firstName?.[0]}{other?.lastName?.[0]}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '15px' }}>{other?.firstName} {other?.lastName}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-3)' }}>{ROLE_LABELS[other?.role || ''] || other?.role}</div>
-                    </div>
-                  </>
-                ); })()}
+        {/* List */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {loading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Loading...</div>
+          ) : view === 'rooms' ? (
+            rooms.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>
+                <MessageSquare size={32} style={{ margin: '0 auto 10px', color: '#d1d5db' }} />
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>No chats yet</div>
+                <div style={{ fontSize: '0.82rem' }}>Go to Contacts to start a conversation</div>
               </div>
-
-              {/* Messages */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {messages.length === 0 && (
-                  <div style={{ textAlign: 'center', color: 'var(--text-3)', marginTop: '40px', fontSize: '14px' }}>
-                    <MessageCircle size={32} style={{ opacity: 0.15, marginBottom: '8px' }} />
-                    <p>Start the conversation!</p>
+            ) : rooms.map(room => {
+              const other = getOtherParticipant(room);
+              const isActive = active?._id === room._id;
+              return (
+                <div key={room._id} onClick={() => setActive(room)} style={{
+                  padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12,
+                  background: isActive ? '#f0fdf4' : 'transparent',
+                  borderLeft: isActive ? '3px solid #166534' : '3px solid transparent',
+                  transition: 'all 0.15s',
+                }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+                    background: '#166534', color: '#fff', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', fontWeight: 800, fontSize: '0.85rem',
+                    fontFamily: "'Syne', sans-serif" }}>
+                    {other?.firstName?.[0]}{other?.lastName?.[0]}
                   </div>
-                )}
-                {messages.map(msg => {
-                  const isMine = msg.sender._id === user?.id;
-                  return (
-                    <div key={msg._id} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', gap: '8px' }}>
-                      {!isMine && (
-                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0, alignSelf: 'flex-end' }}>
-                          {msg.sender.firstName?.[0]}{msg.sender.lastName?.[0]}
-                        </div>
-                      )}
-                      <div style={{ maxWidth: '70%', position: 'relative' }}>
-                        <div style={{
-                          padding: '10px 14px',
-                          borderRadius: isMine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                          background: isMine ? 'var(--primary)' : '#fff',
-                          color: isMine ? '#fff' : 'var(--text)',
-                          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                          fontSize: '14px', lineHeight: '1.5',
-                          wordBreak: 'break-word',
-                        }}>
-                          {msg.content}
-                        </div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '4px', textAlign: isMine ? 'right' : 'left', display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', alignItems: 'center', gap: '6px' }}>
-                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          {isMine && (
-                            <button onClick={() => deleteMessage(msg._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0, opacity: 0.5 }} title="Delete">
-                              <Trash2 size={10} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, color: '#111827', fontSize: '0.9rem' }}>
+                      {other?.firstName} {other?.lastName}
                     </div>
-                  );
-                })}
-                <div ref={bottomRef} />
-              </div>
-
-              {/* Input */}
-              <form onSubmit={handleSend} style={{ padding: '16px 20px', background: '#fff', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
-                <textarea
-                  className="form-input"
-                  style={{ flex: 1, resize: 'none', minHeight: '44px', maxHeight: '120px', fontSize: '14px', overflowY: 'auto' }}
-                  placeholder="Type a message..."
-                  value={newMsg}
-                  onChange={e => setNewMsg(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e as any); } }}
-                  rows={1}
-                />
-                <button type="submit" className="btn btn-primary" disabled={!newMsg.trim() || sending}
-                  style={{ height: '44px', width: '44px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', flexShrink: 0 }}>
-                  <Send size={18} />
-                </button>
-              </form>
-            </>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280', overflow: 'hidden',
+                      textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {room.lastMessage?.content || 'No messages yet'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           ) : (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)' }}>
-              <MessageCircle size={56} style={{ opacity: 0.1, marginBottom: '16px' }} />
-              <h3 style={{ margin: '0 0 8px', color: 'var(--text-2)' }}>Select a conversation</h3>
-              <p style={{ fontSize: '14px', textAlign: 'center' }}>Choose from your chats or start a new conversation via Contacts</p>
-            </div>
+            filteredContacts.map(contact => (
+              <div key={contact._id} onClick={() => startChat(contact)} style={{
+                padding: '14px 18px', cursor: 'pointer', display: 'flex',
+                alignItems: 'center', gap: 12, transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+                  background: roleColor[contact.role] || '#166534',
+                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 800, fontSize: '0.85rem', fontFamily: "'Syne', sans-serif" }}>
+                  {contact.firstName?.[0]}{contact.lastName?.[0]}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, color: '#111827', fontSize: '0.9rem' }}>
+                    {contact.firstName} {contact.lastName}
+                  </div>
+                  <div style={{ fontSize: '0.73rem', color: roleColor[contact.role] || '#6b7280',
+                    fontWeight: 600, textTransform: 'capitalize' }}>
+                    {contact.role?.replace(/_/g, ' ')}
+                  </div>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
 
-      <style>{`
-        .chat-layout { position: relative; }
-        @media (max-width: 768px) {
-          .chat-layout { grid-template-columns: 1fr !important; }
-          .chat-panel-hidden { display: none !important; }
-          .chat-back-btn { display: flex !important; }
-        }
-        @media (min-width: 769px) {
-          .chat-back-btn { display: none !important; }
-          .chat-panel-hidden { display: flex !important; }
-        }
-        .form-input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(10,92,54,0.1); }
-      `}</style>
+      {/* ── Chat area ── */}
+      {active ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          {/* Chat header */}
+          <div style={{ padding: '14px 22px', borderBottom: '1.5px solid #e5e7eb',
+            background: '#fff', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button onClick={() => setActive(null)} style={{ background: 'none', border: 'none',
+              cursor: 'pointer', color: '#6b7280', display: 'flex', alignItems: 'center' }}>
+              <ArrowLeft size={18} />
+            </button>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#166534',
+              color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: 800, fontSize: '0.82rem', flexShrink: 0 }}>
+              {getOtherParticipant(active)?.firstName?.[0]}
+              {getOtherParticipant(active)?.lastName?.[0]}
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, color: '#111827', fontFamily: "'Syne', sans-serif" }}>
+                {getOtherParticipant(active)?.firstName} {getOtherParticipant(active)?.lastName}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600,
+                display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Circle size={7} fill="#16a34a" /> Online
+              </div>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 22px',
+            display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {messages.length === 0 ? (
+              <div style={{ margin: 'auto', textAlign: 'center', color: '#9ca3af' }}>
+                <MessageSquare size={40} style={{ margin: '0 auto 10px' }} />
+                <div>No messages yet — say hello!</div>
+              </div>
+            ) : messages.map((msg: any, i) => {
+              const isMine = (msg.sender?._id || msg.sender) === user?.id;
+              return (
+                <div key={i} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
+                  <div style={{
+                    maxWidth: '70%', padding: '10px 14px', borderRadius: isMine ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
+                    background: isMine ? '#166534' : '#fff',
+                    color: isMine ? '#fff' : '#111827',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                    border: isMine ? 'none' : '1px solid #e5e7eb',
+                    fontSize: '0.9rem', lineHeight: 1.5,
+                  }}>
+                    {msg.content}
+                    <div style={{ fontSize: '0.65rem', marginTop: 4, opacity: 0.65, textAlign: 'right' }}>
+                      {new Date(msg.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Input */}
+          <form onSubmit={sendMessage} style={{ padding: '14px 22px',
+            borderTop: '1.5px solid #e5e7eb', background: '#fff',
+            display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input value={input} onChange={e => setInput(e.target.value)}
+              placeholder="Type a message..."
+              style={{ flex: 1, padding: '12px 16px', border: '1.5px solid #e5e7eb',
+                borderRadius: 10, fontSize: '0.9rem', outline: 'none', background: '#f9fafb',
+                fontFamily: "'Plus Jakarta Sans', sans-serif" }} />
+            <button type="submit" disabled={sending || !input.trim()} style={{
+              width: 44, height: 44, borderRadius: 10, background: '#166534',
+              color: '#fff', border: 'none', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+              opacity: sending || !input.trim() ? 0.6 : 1,
+            }}>
+              <Send size={18} />
+            </button>
+          </form>
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexDirection: 'column', gap: 12, color: '#9ca3af' }}>
+          <MessageSquare size={56} style={{ color: '#d1d5db' }} />
+          <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800,
+            fontSize: '1.2rem', color: '#374151' }}>Select a conversation</div>
+          <div style={{ fontSize: '0.875rem' }}>Choose a chat or start a new one from Contacts</div>
+        </div>
+      )}
     </div>
   );
 }

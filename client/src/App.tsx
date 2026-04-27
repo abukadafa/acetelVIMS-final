@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import ChatPage from './pages/ChatPage';
 import CommunicationPage from './pages/CommunicationPage';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -48,7 +49,7 @@ function SyncWrapper({ children }: { children: React.ReactNode }) {
         Object.entries(entry).forEach(([key, value]) => {
           if (value !== undefined) formData.append(key, String(value));
         });
-        await api.post('/logbook', formData, {
+        await api.post('/logbook/sync', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         toast.success(`Logbook entry synced: ${entry.entryDate}`, { id: `sync-${entry.id}` });
@@ -94,6 +95,7 @@ export default function App() {
               
               {/* Common Routes */}
               <Route path="/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
+              <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
               <Route path="/communication" element={<ProtectedRoute><CommunicationPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             </Route>

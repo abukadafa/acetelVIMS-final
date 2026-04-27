@@ -1,59 +1,107 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, MoreVertical, Download, UserPlus, CheckCircle, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Download, UserPlus, MoreVertical, Mail, MessageSquare, Eye, UserCheck, AlertTriangle } from 'lucide-react';
 import api from '../lib/api';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 export default function StudentList() {
-  const [students, setStudents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filterProgramme, setFilterProgramme] = useState('');
-  const [programmes, setProgrammes] = useState<any[]>([]);
+  const [students, setStudents]       = useState<any[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [search, setSearch]           = useState('');
+  const [programmes, setProgrammes]   = useState<any[]>([]);
+  const [filterProgramme, setFilter]  = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newStudent, setNewStudent] = useState({ firstName: '', lastName: '', email: '', matricNumber: '', phone: '' });
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting]   = useState(false);
+  const [openMenu, setOpenMenu]       = useState<string | null>(null);
+  const [newStudent, setNewStudent]   = useState({
+    firstName: '', lastName: '', email: '', matricNumber: '', phone: ''
+  });
+  const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => { fetchData(); }, [filterProgramme]);
 
   useEffect(() => {
-    fetchData();
-  }, [filterProgramme]);
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenu(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [studentsRes, progRes] = await Promise.all([
+      const [studRes, progRes] = await Promise.all([
         api.get('/students', { params: { programme: filterProgramme, search } }),
-        api.get('/students/programmes')
+        api.get('/students/programmes'),
       ]);
-      setStudents(studentsRes.data.students);
-      setProgrammes(progRes.data.programmes);
-    } catch (err) {
-      toast.error('Failed to load student data');
-    } finally {
-      setLoading(false);
-    }
+      setStudents(studRes.data.students || []);
+      setProgrammes(progRes.data.programmes || []);
+    } catch { toast.error('Failed to load students'); }
+    finally { setLoading(false); }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchData();
-  };
-
-  const handleAddStudent = async (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
       const res = await api.post('/admin/students', newStudent);
-      toast.success(res.data.message);
+      toast.success('Student enrolled successfully');
       if (res.data.tempPassword) {
-        alert(`Student created! Temporary Password: ${res.data.tempPassword}\nPlease share this with the student.`);
+        toast(`Temporary Password: ${res.data.tempPassword}`, { duration: 8000, icon: '🔑' });
       }
       setShowAddModal(false);
       setNewStudent({ firstName: '', lastName: '', email: '', matricNumber: '', phone: '' });
       fetchData();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to onboard student');
-    } finally {
-      setSubmitting(false);
+      toast.error(err.response?.data?.error || 'Failed to enroll student');
+    } finally { setSubmitting(false); }
+  };
+
+  const handleAction = async (action: string, student: any) => {
+    setOpenMenu(null);
+    switch (action) {
+      case 'view':
+        navigate(`/students/${student._id}`);
+        break;
+      case 'email':
+        try {
+          await api.post('/notifications/send', {
+            recipientId: student.user?._id || student.user,
+            subject: 'Message from ACETEL',
+            body: 'Please log in to ACETEL VIMS to check important updates.',
+            channel: 'email',
+          });
+          toast.success(`Email sent to ${student.user?.firstName || 'student'}`);
+        } catch { toast.error('Failed to send email'); }
+        break;
+      case 'whatsapp':
+        try {
+          await api.post('/notifications/send', {
+            recipientId: student.user?._id || student.user,
+            body: 'ACETEL VIMS: Please log in to check important updates.',
+            channel: 'whatsapp',
+          });
+          toast.success('WhatsApp notification sent');
+        } catch { toast.error('Failed to send WhatsApp'); }
+        break;
+      case 'allocate':
+        try {
+          await api.post(`/students/${student._id}/allocate`);
+          toast.success('Student auto-allocated to nearest partner');
+          fetchData();
+        } catch (err: any) {
+          toast.error(err.response?.data?.error || 'Auto-allocation failed');
+        }
+        break;
+      case 'flag':
+        try {
+          await api.post(`/students/${student._id}/flag`);
+          toast.success('Student flagged for review');
+          fetchData();
+        } catch { toast.error('Failed to flag student'); }
+        break;
     }
   };
 
@@ -63,148 +111,163 @@ export default function StudentList() {
     return <span className="badge badge-green">Low Risk</span>;
   };
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '10px 14px', border: '1.5px solid #e5e7eb',
+    borderRadius: 8, fontSize: '0.88rem', outline: 'none', background: '#f9fafb',
+    fontFamily: "'Plus Jakarta Sans', sans-serif",
+  };
+
   return (
     <div className="card animate-fade-in">
-      <div className="card-header" style={{ marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+      {/* Header */}
+      <div className="card-header" style={{ marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <h3 className="card-title"><UserPlus size={20} /> Active Students</h3>
-        <div style={{ display: 'flex', gap: '12px' }}>
-           <button 
-             className="btn btn-sm btn-ghost" 
-             onClick={() => window.open(`${api.defaults.baseURL}/students/export`, '_blank')}
-             title="Export Students CSV"
-           >
-             <Download size={16} /> Export CSV
-           </button>
-           <button className="btn btn-sm btn-primary" onClick={() => setShowAddModal(true)}>Add Student</button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-sm btn-ghost"
+            onClick={() => window.open(`${api.defaults.baseURL}/students/export`, '_blank')}>
+            <Download size={15} /> Export CSV
+          </button>
+          <button className="btn btn-sm btn-primary" onClick={() => setShowAddModal(true)}>
+            <UserPlus size={15} /> Enroll Student
+          </button>
         </div>
       </div>
 
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: '250px' }}>
+      {/* Filters */}
+      <form onSubmit={e => { e.preventDefault(); fetchData(); }}
+        style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 240 }}>
           <div className="search-bar">
             <Search className="search-icon" size={18} />
-            <input 
-              type="text" 
-              className="form-control" 
-              placeholder="Search by name, matric, or email..." 
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+            <input type="text" className="form-control" placeholder="Search name, matric, email..."
+              value={search} onChange={e => setSearch(e.target.value)} />
           </div>
         </div>
-        <select 
-          className="form-control" 
-          style={{ width: 'auto', minWidth: '200px' }}
-          value={filterProgramme}
-          onChange={e => setFilterProgramme(e.target.value)}
-        >
-          <option value="">All PG Programmes</option>
-          {programmes.map(p => (
-            <option key={p._id} value={p._id}>{p.name} ({p.level})</option>
-          ))}
+        <select className="form-control" style={{ width: 'auto', minWidth: 200 }}
+          value={filterProgramme} onChange={e => setFilter(e.target.value)}>
+          <option value="">All Programmes</option>
+          {programmes.map((p: any) => <option key={p._id} value={p._id}>{p.name}</option>)}
         </select>
-        <button className="btn btn-ghost" onClick={() => { setSearch(''); setFilterProgramme(''); fetchData(); }}>
-           <Filter size={18} /> Reset
-        </button>
+        <button type="submit" className="btn btn-ghost">Search</button>
+        <button type="button" className="btn btn-ghost"
+          onClick={() => { setSearch(''); setFilter(''); setTimeout(fetchData, 0); }}>Clear</button>
       </form>
 
-      <div className="table-container">
+      {/* Table */}
+      <div style={{ overflowX: 'auto' }}>
         <table className="table">
           <thead>
             <tr>
-              <th>Student Details</th>
-              <th>Programme</th>
-              <th>Matric Number</th>
-              <th>Placement Status</th>
-              <th>Risk Assessment</th>
-              <th>Action</th>
+              <th>Student</th><th>Matric No.</th><th>Programme</th>
+              <th>Company</th><th>Status</th><th>Risk</th><th>Action</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px' }}><div className="spinner spinner-lg" /></td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40 }}><div className="spinner" /></td></tr>
             ) : students.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>No students found Matching the criteria.</td></tr>
-            ) : (
-              students.map(student => (
-                <tr key={student._id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div className="avatar">{student.user.firstName[0]}{student.user.lastName[0]}</div>
-                      <div>
-                        <div style={{ fontWeight: 700 }}>{student.user.firstName} {student.user.lastName}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{student.user.email}</div>
-                      </div>
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: '#6b7280' }}>No students found</td></tr>
+            ) : students.map(s => (
+              <tr key={s._id}>
+                <td>
+                  <div style={{ fontWeight: 700, color: '#111827' }}>
+                    {s.user?.firstName} {s.user?.lastName}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>{s.user?.email}</div>
+                </td>
+                <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{s.matricNumber}</td>
+                <td>{s.programme?.name || '—'}</td>
+                <td>{s.company?.name || <span style={{ color: '#f59e0b', fontWeight: 600 }}>Unassigned</span>}</td>
+                <td>
+                  <span className={`badge badge-${s.status === 'active' ? 'green' : s.status === 'completed' ? 'blue' : 'amber'}`}>
+                    {s.status || 'pending'}
+                  </span>
+                </td>
+                <td>{getRiskBadge(s.riskScore || 0)}</td>
+                <td style={{ position: 'relative' }} ref={openMenu === s._id ? menuRef : undefined}>
+                  <button className="btn btn-sm btn-ghost"
+                    onClick={() => setOpenMenu(openMenu === s._id ? null : s._id)}>
+                    <MoreVertical size={15} />
+                  </button>
+                  {openMenu === s._id && (
+                    <div style={{
+                      position: 'absolute', right: 0, top: '100%', zIndex: 200,
+                      background: '#fff', border: '1.5px solid #e5e7eb', borderRadius: 10,
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 180, overflow: 'hidden',
+                    }}>
+                      {[
+                        { action: 'view',     icon: Eye,         label: 'View Profile' },
+                        { action: 'email',    icon: Mail,        label: 'Send Email' },
+                        { action: 'whatsapp', icon: MessageSquare, label: 'Send WhatsApp' },
+                        { action: 'allocate', icon: UserCheck,   label: 'Auto-Allocate' },
+                        { action: 'flag',     icon: AlertTriangle, label: 'Flag for Review' },
+                      ].map(({ action, icon: Icon, label }) => (
+                        <button key={action} onClick={() => handleAction(action, s)}
+                          style={{
+                            width: '100%', padding: '10px 16px', background: 'none',
+                            border: 'none', display: 'flex', alignItems: 'center', gap: 10,
+                            cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600,
+                            color: action === 'flag' ? '#dc2626' : '#111827',
+                            textAlign: 'left', transition: 'background 0.1s',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                          <Icon size={15} color={action === 'flag' ? '#dc2626' : '#166534'} />
+                          {label}
+                        </button>
+                      ))}
                     </div>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{student.programme.name}</div>
-                    <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{student.programme.level}</div>
-                  </td>
-                  <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{student.matricNumber}</td>
-                  <td>
-                    {student.company ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--green)', fontWeight: 600, fontSize: '0.85rem' }}>
-                        <CheckCircle size={14} /> {student.company.name}
-                      </div>
-                    ) : (
-                      <div style={{ color: 'var(--amber)', fontSize: '0.85rem', fontWeight: 600 }}>Awaiting Allocation</div>
-                    )}
-                  </td>
-                  <td>{getRiskBadge(student.riskScore || 0)}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                       <button className="btn btn-sm btn-ghost" title="View Profile"><ExternalLink size={14} /></button>
-                       <button className="btn btn-sm btn-ghost" title="More Options"><MoreVertical size={14} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
+                  )}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
-      
-      {/* Add Student Modal */}
+
+      {/* Enroll Modal */}
       {showAddModal && (
-        <div className="modal-overlay">
-          <div className="modal-content animate-zoom-in" style={{ maxWidth: '500px' }}>
-            <div className="card-header">
-              <h3 className="card-title"><UserPlus size={18} /> Onboard New Student</h3>
-              <button className="btn btn-sm btn-ghost" onClick={() => setShowAddModal(false)}>✕</button>
-            </div>
-            <form onSubmit={handleAddStudent} style={{ marginTop: '20px' }}>
-               <div className="grid-2">
-                 <div className="form-group">
-                   <label className="form-label">First Name</label>
-                   <input required type="text" className="form-control" value={newStudent.firstName} onChange={e => setNewStudent({...newStudent, firstName: e.target.value})} />
-                 </div>
-                 <div className="form-group">
-                   <label className="form-label">Last Name</label>
-                   <input required type="text" className="form-control" value={newStudent.lastName} onChange={e => setNewStudent({...newStudent, lastName: e.target.value})} />
-                 </div>
-               </div>
-               <div className="form-group">
-                 <label className="form-label">Institutional Email</label>
-                 <input required type="email" className="form-control" value={newStudent.email} onChange={e => setNewStudent({...newStudent, email: e.target.value})} />
-               </div>
-               <div className="grid-2">
-                  <div className="form-group">
-                    <label className="form-label">Matric Number</label>
-                    <input required type="text" className="form-control" value={newStudent.matricNumber} onChange={e => setNewStudent({...newStudent, matricNumber: e.target.value})} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Phone Number</label>
-                    <input type="text" className="form-control" value={newStudent.phone} onChange={e => setNewStudent({...newStudent, phone: e.target.value})} />
-                  </div>
-               </div>
-               <div className="divider" style={{ margin: '16px 0' }}></div>
-               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                 <button type="button" className="btn btn-outline" onClick={() => setShowAddModal(false)}>Cancel</button>
-                 <button type="submit" className="btn btn-primary" disabled={submitting}>
-                   {submitting ? 'Creating...' : 'Onboard Student'}
-                 </button>
-               </div>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 32, width: '100%',
+            maxWidth: 500, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', position: 'relative' }}>
+            <button onClick={() => setShowAddModal(false)} style={{ position: 'absolute',
+              top: 14, right: 14, background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: '1.2rem', color: '#6b7280' }}>✕</button>
+            <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '1.3rem', fontWeight: 800,
+              color: '#111827', marginBottom: 6 }}>Enroll New Student</h2>
+            <p style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: 24 }}>
+              Student will receive login credentials via email and WhatsApp automatically
+            </p>
+            <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {[
+                { name: 'firstName', label: 'First Name', placeholder: 'Amina', required: true },
+                { name: 'lastName',  label: 'Last Name',  placeholder: 'Ibrahim', required: true },
+                { name: 'email',     label: 'Email',      placeholder: 'student@noun.edu.ng', required: true },
+                { name: 'matricNumber', label: 'Matric Number', placeholder: 'NOUN/MSc/2024/...', required: true },
+                { name: 'phone',     label: 'Phone (WhatsApp)', placeholder: '+234...', required: false },
+              ].map(f => (
+                <div key={f.name}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151',
+                    marginBottom: 5, display: 'block' }}>{f.label}{f.required && ' *'}</label>
+                  <input style={inputStyle} required={f.required} placeholder={f.placeholder}
+                    value={(newStudent as any)[f.name]}
+                    onChange={e => setNewStudent(prev => ({ ...prev, [f.name]: e.target.value }))} />
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                <button type="button" onClick={() => setShowAddModal(false)}
+                  style={{ flex: 1, padding: 12, border: '1.5px solid #e5e7eb', borderRadius: 8,
+                    fontWeight: 600, background: '#fff', cursor: 'pointer', color: '#374151' }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={submitting}
+                  style={{ flex: 2, padding: 12, background: '#166534', color: '#fff',
+                    border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer',
+                    opacity: submitting ? 0.7 : 1 }}>
+                  {submitting ? 'Enrolling...' : 'Enroll Student'}
+                </button>
+              </div>
             </form>
           </div>
         </div>

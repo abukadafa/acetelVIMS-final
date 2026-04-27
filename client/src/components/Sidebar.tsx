@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   LogOut, LayoutDashboard, Calendar, Map, Users, Settings,
   BookOpen, UserCheck, Activity, ChevronLeft, ChevronRight,
-  UserCog, MessageSquare, History, Trash2, Radio, ClipboardCheck
+  UserCog, MessageSquare, History, Trash2, Radio, ClipboardCheck, MessageCircle
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -168,6 +168,7 @@ export default function Sidebar() {
         {/* Main Menu */}
         {!collapsed && <div style={S.groupLabel()}>Main Menu</div>}
         <NavLink to="/" icon={LayoutDashboard} label="Dashboard" />
+        <NavLink to="/chat" icon={MessageCircle} label="Real-Time Chat" />
 
         {isRole('student') && (
           <>
@@ -234,7 +235,7 @@ export default function Sidebar() {
 
         <div style={S.divider()} />
         {!collapsed && <div style={S.groupLabel()}>Communication</div>}
-        <NavLink to="/communication" icon={Radio} label="Communication Centre" />
+        <NavLink to="/communication" icon={Radio} label="Notifications & Broadcast" />
         <NavLink to="/feedback" icon={MessageSquare} label="Feedback Portal" />
 
         {/* Account */}
