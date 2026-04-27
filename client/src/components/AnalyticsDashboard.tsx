@@ -27,15 +27,24 @@ interface ProgrammeStat {
 export default function AnalyticsDashboard({ visibleRoles: _visibleRoles = [] }: { visibleRoles?: string[] }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     api.get('/analytics/summary')
-      .then(({ data }) => setData(data))
-      .catch(() => toast.error('Failed to load global analytics'))
+      .then(({ data }) => { setData(data); setError(false); })
+      .catch(() => { setError(true); toast.error('Failed to load analytics — check your connection'); })
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading || !data) return <div className="page-loader"><div className="spinner"></div></div>;
+  if (loading) return <div className="page-loader"><div className="spinner"></div></div>;
+  if (error || !data) return (
+    <div className="card analytics-error">
+      <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚠️</div>
+      <div style={{ fontWeight: 600, marginBottom: '4px' }}>Analytics unavailable</div>
+      <div style={{ fontSize: '0.85rem' }}>Could not load dashboard data. The server may be waking up — please refresh in a moment.</div>
+      <button className="btn btn-sm btn-outline" style={{ marginTop: '16px' }} onClick={() => window.location.reload()}>Refresh Page</button>
+    </div>
+  );
 
   const { summary, byProgramme, registrationTrend: _registrationTrend } = data;
 
