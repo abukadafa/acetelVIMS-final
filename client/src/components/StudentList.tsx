@@ -16,7 +16,7 @@ export default function StudentList() {
   const [newStudent, setNewStudent]   = useState({
     firstName: '', lastName: '', email: '', matricNumber: '', phone: ''
   });
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLTableDataCellElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => { fetchData(); }, [filterProgramme]);
