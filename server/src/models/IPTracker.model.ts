@@ -17,7 +17,7 @@ export interface IIPTracker extends Document {
 }
 
 const IPTrackerSchema: Schema = new Schema({
-  ip: { type: String, required: true, unique: true, index: true },
+  ip: { type: String, required: true, unique: true },  // unique already creates an index
   windows: {
     '1m':  { type: Number, default: 0 },
     '5m':  { type: Number, default: 0 },
@@ -26,7 +26,7 @@ const IPTrackerSchema: Schema = new Schema({
   },
   failedLogins: { type: Number, default: 0 },
   last404s: { type: Number, default: 0 },
-  lastSeen: { type: Date, default: Date.now, index: true },
+  lastSeen: { type: Date, default: Date.now },  // index defined below with TTL
   suspicionScore: { type: Number, default: 0, index: true },
   flaggedAt: { type: Date },
   flagReason: { type: String },
