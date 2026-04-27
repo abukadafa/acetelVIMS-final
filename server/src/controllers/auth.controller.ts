@@ -380,10 +380,12 @@ export async function logout(req: AuthRequest, res: Response): Promise<void> {
 
 // ─── COMMS STATUS ────────────────────────────────────────────────────────────
 export async function getCommsStatus(_req: Request, res: Response): Promise<void> {
+  const emailActive    = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+  const whatsappActive = !!(process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN);
   res.json({
-    email: { active: !!process.env.SMTP_USER, provider: process.env.SMTP_HOST || 'smtp.gmail.com' },
-    whatsapp: { active: !!(process.env.TWILIO_ACCOUNT_SID || process.env.META_WA_TOKEN), provider: process.env.TWILIO_ACCOUNT_SID ? 'Twilio' : 'Meta' },
-    inApp: { active: true, provider: 'Internal' },
+    email:    { active: emailActive,    provider: emailActive    ? (process.env.SMTP_HOST || 'smtp.gmail.com') : null },
+    whatsapp: { active: whatsappActive, provider: whatsappActive ? 'Meta WhatsApp Cloud API (Free)'           : null },
+    chat:     { active: true,           provider: 'ACETEL IMS Real-Time Chat (Socket.IO)'                          },
   });
 }
 

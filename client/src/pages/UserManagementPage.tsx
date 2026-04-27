@@ -13,7 +13,7 @@ import BulkEnrollModal from '../components/BulkEnrollModal';
 import { useAuth } from '../context/AuthContext';
 
 /* ─── Types ────────────────────────────────────────────────────── */
-type Role = 'admin' | 'prog_coordinator' | 'internship_coordinator' | 'ict_support' | 'supervisor';
+type Role = 'admin' | 'prog_coordinator' | 'internship_coordinator' | 'ict_support' | 'supervisor' | 'industry_supervisor';
 type ActiveTab = 'staff' | 'student' | 'matrix';
 
 interface Programme { _id: string; code: string; name: string; level: string; }
@@ -40,9 +40,10 @@ const ROLE_META: Record<Role, RoleMeta> = {
   internship_coordinator: { label: 'Internship Coordinator', color: 'badge-amber', icon: Briefcase, needsProgramme: false, hierarchy: 3 },
   ict_support:            { label: 'ICT Support',            color: 'badge-blue',  icon: Wifi,      needsProgramme: true,  hierarchy: 4 },
   supervisor:             { label: 'Supervisor',             color: 'badge-gray',  icon: Users,     needsProgramme: false, hierarchy: 5 },
+  industry_supervisor:    { label: 'Industry Supervisor',    color: 'badge-amber', icon: Briefcase, needsProgramme: false, hierarchy: 6 },
 };
 
-const ROLE_DISPLAY_ORDER: Role[] = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor'];
+const ROLE_DISPLAY_ORDER: Role[] = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor'];
 
 /* ─── Empty forms ─────────────────────────────────────────────── */
 const emptyStaffForm = () => ({

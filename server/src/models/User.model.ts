@@ -5,7 +5,7 @@ export interface IUser extends Document {
   email: string;
   username: string;
   password?: string;
-  role: 'admin' | 'supervisor' | 'student' | 'prog_coordinator' | 'internship_coordinator' | 'ict_support';
+  role: 'admin' | 'supervisor' | 'student' | 'prog_coordinator' | 'internship_coordinator' | 'ict_support' | 'industry_supervisor';
   firstName: string;
   lastName: string;
   phone?: string;
@@ -29,7 +29,7 @@ const UserSchema: Schema = new Schema({
   role: { 
     type: String, 
     required: true, 
-    enum: ['admin', 'supervisor', 'student', 'prog_coordinator', 'internship_coordinator', 'ict_support'],
+    enum: ['admin', 'supervisor', 'student', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'industry_supervisor'],
     default: 'student'
   },
   firstName: { type: String, required: true },

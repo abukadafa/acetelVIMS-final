@@ -9,6 +9,9 @@ import Student from '../models/Student.model';
 import Company from '../models/Company.model';
 import { z } from 'zod';
 import logger from '../utils/logger';
+import { sendEmail, emailTemplates } from '../utils/mail.service';
+import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
+import Notification from '../models/notification.model';
 
 const STAFF_ROLES = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor'];
 
@@ -179,30 +182,47 @@ export async function createUser(req: AuthRequest, res: Response): Promise<void>
       .select('-password')
       .populate('programme', 'code name level');
 
-    // Send welcome notifications in background
-    setImmediate(async () => {
+    // Welcome notifications — email + WhatsApp
+    const roleLabel = role.replace(/_/g, ' ').replace(/\w/g, (c: string) => c.toUpperCase());
+    try {
+      await sendEmail(
+        email.toLowerCase(),
+        'Welcome to ACETEL IMS — Your Account is Ready',
+        emailTemplates.welcomeStaff(`${firstName} ${lastName}`, email, tempPassword, roleLabel, process.env.FRONTEND_URL || '')
+      );
+    } catch (mailErr) {
+      logger.warn('Welcome email failed for %s: %s', email, (mailErr as Error).message);
+    }
+    if (phone) {
       try {
-        const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
-        const { sendEmail, emailTemplates } = await import('../utils/mail.service');
-        const { sendWhatsAppMessage, whatsappTemplates } = await import('../utils/whatsapp.service');
-        await sendEmail(
-          email.toLowerCase(),
-          'Welcome to ACETEL VIMS — Your Staff Account',
-          emailTemplates.welcomeStaff(`${firstName} ${lastName}`, email.toLowerCase(), tempPassword, role, appUrl)
-        );
-        if (phone) {
-          await sendWhatsAppMessage(phone,
-            whatsappTemplates.welcomeStaff(`${firstName} ${lastName}`, email.toLowerCase(), tempPassword, role, appUrl));
-        }
-      } catch (notifErr: any) {
-        logger.warn('Staff welcome notification failed: %s', notifErr.message);
+        await sendWhatsAppMessage(phone, `*ACETEL IMS — Account Created* 🎓
+
+Hello ${firstName},
+
+Your staff account has been created.
+
+*Role:* ${roleLabel}
+*Login Email:* ${email}
+*Temporary Password:* ${tempPassword}
+
+Login here: ${process.env.FRONTEND_URL}
+
+_Please change your password after first login._`);
+      } catch (waErr) {
+        logger.warn('Welcome WhatsApp failed for %s: %s', phone, (waErr as Error).message);
       }
+    }
+    await Notification.create({
+      user: user._id, tenant: tenantId,
+      title: 'Welcome to ACETEL IMS!',
+      message: `Your ${roleLabel} account is ready. Login with your email and temporary password.`,
+      type: 'success',
     });
 
     res.status(201).json({
       user: saved,
       tempPassword,
-      message: 'Staff user created successfully. Welcome email and WhatsApp sent.',
+      message: 'Staff user created successfully',
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -290,6 +310,49 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       targetId: student._id,
       details: `Onboarded student ${email} for programme ${targetProgramme}`,
       ipAddress: req.ip
+    });
+
+    // Resolve programme name for notification
+    const prog = await Programme.findById(targetProgramme).select('name');
+    const progName = prog?.name || 'your programme';
+
+    // Welcome notifications — institutional email + personal email + WhatsApp
+    const appUrl = process.env.FRONTEND_URL || 'https://acetel-frontend.onrender.com';
+    const welcomeHtml = emailTemplates.welcomeStudent(`${firstName} ${lastName}`, email, tempPassword, process.env.FRONTEND_URL || '', 'Pending Placement');
+    try {
+      await sendEmail(email.toLowerCase(), 'Welcome to ACETEL IMS — Your Account is Ready', welcomeHtml);
+    } catch (e) { logger.warn('Student welcome email (inst.) failed: %s', (e as Error).message); }
+    if (personalEmail) {
+      try {
+        await sendEmail(personalEmail, 'Welcome to ACETEL IMS — Your Account is Ready', welcomeHtml);
+      } catch (e) { logger.warn('Student welcome email (personal) failed: %s', (e as Error).message); }
+    }
+    if (phone) {
+      try {
+        await sendWhatsAppMessage(phone,
+          `*ACETEL IMS — Enrollment Successful* 🎓
+
+Hello ${firstName},
+
+You have been enrolled on the ACETEL Virtual Internship Management System.
+
+*Matric Number:* ${matricNumber}
+*Programme:* ${progName}
+*Login Email:* ${email}
+*Temporary Password:* ${tempPassword}
+
+Access the portal here:
+${appUrl}
+
+_Please change your password after first login._`
+        );
+      } catch (e) { logger.warn('Student welcome WhatsApp failed: %s', (e as Error).message); }
+    }
+    await Notification.create({
+      user: user._id, tenant: tenantId,
+      title: 'Welcome to ACETEL IMS!',
+      message: `Your student account is ready. Matric: ${matricNumber}. Login with your institutional email and temporary password.`,
+      type: 'success',
     });
 
     res.status(201).json({

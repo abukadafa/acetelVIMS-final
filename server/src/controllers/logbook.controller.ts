@@ -382,3 +382,112 @@ export async function getWeeklyPerformance(req: AuthRequest, res: Response): Pro
     res.status(500).json({ error: 'Server error' });
   }
 }
+
+/** PUT /api/logbook/:id/industry-review — Industry supervisor signs off */
+export async function industryReviewLogbook(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { id } = idParamSchema.parse(req.params);
+    const { comment, rating } = z.object({
+      comment: z.string().min(5).max(2000),
+      rating:  z.number().min(1).max(5),
+    }).parse(req.body);
+    const { id: userId, tenant: userTenant, role } = req.user!;
+
+    if (role !== 'industry_supervisor' && role !== 'admin') {
+      res.status(403).json({ error: 'Only industry supervisors can perform this action' });
+      return;
+    }
+
+    const entry = await Logbook.findOne({ _id: id, tenant: userTenant }).populate('student');
+    if (!entry) { res.status(404).json({ error: 'Logbook entry not found' }); return; }
+
+    (entry as any).industrySupervisorId      = userId;
+    (entry as any).industrySupervisorComment = comment;
+    (entry as any).industrySupervisorRating  = rating;
+    (entry as any).isIndustrySigned          = true;
+    (entry as any).industrySignedAt          = new Date();
+    entry.status = 'industry_reviewed' as any;
+    await entry.save();
+
+    const student = entry.student as any;
+    if (student?.user) {
+      await Notification.create({
+        user: student.user, tenant: userTenant,
+        title: 'Industry Supervisor Reviewed Your Logbook',
+        message: `Your logbook for ${new Date(entry.entryDate).toLocaleDateString()} has been reviewed. You may now submit it to the school.`,
+        type: 'success',
+      });
+      io.to(`user:${student.user}`).emit('notification', { title: 'Logbook Reviewed', message: 'You can now make final submission.' });
+    }
+    res.json({ message: 'Industry review submitted. Student can now make final submission.', entry });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: 'Validation failed', details: err.errors }); return; }
+    logger.error('industryReviewLogbook error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+/** POST /api/logbook/:id/final-submit — Student final submission after industry sign-off */
+export async function finalSubmitLogbook(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { id } = idParamSchema.parse(req.params);
+    const { id: userId, tenant: userTenant } = req.user!;
+
+    const student = await Student.findOne({ user: userId, tenant: userTenant });
+    if (!student) { res.status(404).json({ error: 'Student profile not found' }); return; }
+
+    const entry = await Logbook.findOne({ _id: id, tenant: userTenant, student: student._id });
+    if (!entry) { res.status(404).json({ error: 'Logbook entry not found' }); return; }
+
+    if (!(entry as any).isIndustrySigned) {
+      res.status(400).json({ error: 'Your industry supervisor must review this entry before final submission.' });
+      return;
+    }
+    if (entry.status === ('final_submitted' as any)) {
+      res.status(400).json({ error: 'Already finally submitted.' });
+      return;
+    }
+
+    entry.status = 'final_submitted' as any;
+    (entry as any).finalSubmittedAt = new Date();
+    (entry as any).finalSubmittedBy = userId;
+    await entry.save();
+
+    if (student.supervisor) {
+      await Notification.create({
+        user: student.supervisor, tenant: userTenant,
+        title: 'Final Logbook Submission',
+        message: `Student ${student.matricNumber} made a final logbook submission for ${new Date(entry.entryDate).toLocaleDateString()}.`,
+        type: 'info',
+      });
+      io.to(`user:${student.supervisor}`).emit('notification', { title: 'Final Logbook', message: `${student.matricNumber} submitted final logbook.` });
+    }
+    res.json({ message: 'Logbook finally submitted to school successfully.', entry });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: 'Validation failed', details: err.errors }); return; }
+    logger.error('finalSubmitLogbook error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+/** GET /api/logbook/industry — Industry supervisor's assigned students' logbooks */
+export async function getIndustryLogbooks(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { id: userId, tenant: userTenant } = req.user!;
+    const { status } = logbookQuerySchema.parse(req.query);
+
+    const students = await Student.find({ supervisor: userId, tenant: userTenant });
+    const studentIds = students.map(s => s._id);
+    const filter: any = { student: { $in: studentIds }, tenant: userTenant };
+    if (status) filter.status = status;
+
+    const entries = await Logbook.find(filter)
+      .populate({ path: 'student', populate: { path: 'user', select: 'firstName lastName email' } })
+      .sort({ entryDate: -1 });
+
+    res.json({ entries, studentCount: students.length });
+  } catch (err) {
+    logger.error('getIndustryLogbooks error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}

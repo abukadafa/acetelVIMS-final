@@ -9,9 +9,9 @@ import { toast } from 'react-hot-toast';
 import api from '../lib/api';
 
 interface CommsStatus {
-  email:     { active: boolean; provider: string | null; };
-  whatsapp:  { active: boolean; provider: string | null; };
-  chat:      { active: boolean; provider: string | null; };
+  email:    { active: boolean; provider: string | null; };
+  whatsapp: { active: boolean; provider: string | null; };
+  chat:     { active: boolean; provider: string | null; };
 }
 
 function StatusBadge({ active, label }: { active: boolean; label: string }) {
@@ -113,7 +113,7 @@ export default function SettingsPage() {
       label: 'WhatsApp Notifications',
       color: '#25D366',
       description: 'Instant WhatsApp messages for placements, inactivity alerts, feedback replies and chat pings via Twilio',
-      howTo: comms?.whatsapp.active ? null : 'Add WA_PHONE_NUMBER_ID and WA_ACCESS_TOKEN to your Render backend ENV to activate (see WhatsApp Setup page)',
+      howTo: comms?.whatsapp.active ? null : 'Go to WhatsApp Setup (admin sidebar) for free Meta Cloud API setup instructions.',
     },
   ];
 

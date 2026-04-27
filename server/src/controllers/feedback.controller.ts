@@ -188,13 +188,13 @@ export async function addResponse(req: AuthRequest, res: Response): Promise<void
         await sendEmail(
           ticketOwner.email,
           `New response on your feedback: "${feedback.subject}"`,
-          emailTemplates.feedbackResponse(ticketOwner.firstName, feedback.subject, responderName, message)
+          emailTemplates.feedbackResponse(ticketOwner.firstName, feedback.subject, message, process.env.FRONTEND_URL)
         );
       }
 
       // WhatsApp notification
       if (ticketOwner.phone) {
-        await sendWhatsAppMessage(ticketOwner.phone, whatsappTemplates.feedbackReply(ticketOwner.firstName, feedback.subject, ""));
+        await sendWhatsAppMessage(ticketOwner.phone, whatsappTemplates.feedbackReply(ticketOwner.firstName, feedback.subject, message));
       }
     }
 
