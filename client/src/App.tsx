@@ -22,18 +22,16 @@ import { setupOfflineAutoSync } from './lib/offline';
 import { socket, connectSocket, disconnectSocket } from './lib/socket';
 import api from './lib/api';
 
+// SyncWrapper must be INSIDE BrowserRouter so routing context is available
 function SyncWrapper({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
 
   useEffect(() => {
     if (user) {
-      // Connected to real-time notification service
       connectSocket(user.id);
-      
       socket.on('notification', (data) => {
         toast.success(data.message, { icon: '🔔' });
       });
-
       return () => {
         disconnectSocket();
         socket.off('notification');
@@ -43,14 +41,13 @@ function SyncWrapper({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (user && user.role === 'student') {
-      // Offline sync initialized
       setupOfflineAutoSync(async (entry) => {
         const formData = new FormData();
         Object.entries(entry).forEach(([key, value]) => {
           if (value !== undefined) formData.append(key, String(value));
         });
-        await api.post('/logbook/sync', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+        await api.post('logbook/sync', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
         toast.success(`Logbook entry synced: ${entry.entryDate}`, { id: `sync-${entry.id}` });
       });
@@ -60,30 +57,26 @@ function SyncWrapper({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function ProtectedRoute({ children, roles }: { children: React.ReactNode, roles?: string[] }) {
+function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
   const { user, loading, isRole } = useAuth();
-  
   if (loading) return <div className="page-loader"><div className="spinner spinner-lg"></div></div>;
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !isRole(...roles)) return <Navigate to="/" replace />;
-  
   return <>{children}</>;
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <SyncWrapper>
-        <BrowserRouter>
+      <BrowserRouter>
+        <SyncWrapper>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/reset" element={<ResetPasswordPage />} />
-            
+
             <Route element={<Layout />}>
               <Route index element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              
-              {/* Institutional Supervision & Research */}
               <Route path="/logbook" element={<ProtectedRoute><LogbookPage /></ProtectedRoute>} />
               <Route path="/attendance" element={<ProtectedRoute roles={['student']}><Dashboard /></ProtectedRoute>} />
               <Route path="/map" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator']}><Dashboard /></ProtectedRoute>} />
@@ -92,21 +85,25 @@ export default function App() {
               <Route path="/users" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><UserManagementPage /></ProtectedRoute>} />
               <Route path="/audit-trail" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><AuditTrailPage /></ProtectedRoute>} />
               <Route path="/bin" element={<ProtectedRoute roles={['admin']}><RecycleBinPage /></ProtectedRoute>} />
-              
-              {/* Common Routes */}
               <Route path="/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
               <Route path="/communication" element={<ProtectedRoute><CommunicationPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             </Route>
-  
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-          
+
           <OfflineIndicator />
-          <Toaster position="top-right" toastOptions={{ duration: 4000, style: { background: '#333', color: '#fff', borderRadius: '12px' } }} />
-        </BrowserRouter>
-      </SyncWrapper>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: { background: '#333', color: '#fff', borderRadius: '12px' },
+            }}
+          />
+        </SyncWrapper>
+      </BrowserRouter>
     </AuthProvider>
   );
 }

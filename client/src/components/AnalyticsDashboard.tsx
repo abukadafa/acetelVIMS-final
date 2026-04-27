@@ -38,11 +38,15 @@ export default function AnalyticsDashboard({ visibleRoles: _visibleRoles = [] }:
 
   if (loading) return <div className="page-loader"><div className="spinner"></div></div>;
   if (error || !data) return (
-    <div className="card analytics-error">
-      <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚠️</div>
-      <div style={{ fontWeight: 600, marginBottom: '4px' }}>Analytics unavailable</div>
-      <div style={{ fontSize: '0.85rem' }}>Could not load dashboard data. The server may be waking up — please refresh in a moment.</div>
-      <button className="btn btn-sm btn-outline" style={{ marginTop: '16px' }} onClick={() => window.location.reload()}>Refresh Page</button>
+    <div className="card" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)' }}>
+      <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>📊</div>
+      <div style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--text)' }}>Dashboard Loading</div>
+      <div style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
+        Analytics data is being fetched. If this persists, the server may still be waking up.
+      </div>
+      <button className="btn btn-primary btn-sm" onClick={() => window.location.reload()}>
+        Refresh Dashboard
+      </button>
     </div>
   );
 
