@@ -48,9 +48,7 @@
     "typescript": "^5.4.5",
     "uuid": "^14.0.0",
     "winston": "^3.17.0",
-    "zod": "^3.23.8"
-  },
-  "devDependencies": {
+    "zod": "^3.23.8",
     "@types/hpp": "^0.2.7"
   }
 }
