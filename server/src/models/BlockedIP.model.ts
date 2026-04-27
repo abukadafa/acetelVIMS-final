@@ -16,7 +16,7 @@ export interface IBlockedIP extends Document {
 }
 
 const BlockedIPSchema: Schema = new Schema({
-  ip: { type: String, required: true, unique: true, index: true },
+  ip: { type: String, required: true, unique: true },  // unique already creates an index
   reason: { type: String, required: true },
   requestCount: { type: Number, default: 0 },
   firstSeen: { type: Date, default: Date.now },

@@ -1497,6 +1497,68 @@ tr:hover td { background: var(--surface-2); }
   border-bottom-color: #1e6b2e !important;
 }
 
+
+/* ── Dashboard ─────────────────────────────────────────────── */
+.dashboard-container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.animate-fade {
+  animation: fadeIn 0.3s ease;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; max-height: 0; }
+  to   { opacity: 1; max-height: 500px; }
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-secondary, #888);
+  padding: 40px 20px;
+  font-size: 0.9rem;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border, #e5e7eb);
+  margin: 8px 0;
+}
+
+.info-row {
+  padding: 4px 0;
+}
+
+.activity-list .card {
+  margin-bottom: 0;
+}
+
+.text-primary { color: var(--primary, #16a34a); }
+
+/* ── Analytics error/empty state ───────────────────────────── */
+.analytics-error {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-secondary, #888);
+}
+
+@media (max-width: 768px) {
+  .dashboard-container { padding: 16px; }
+}
    LANDING PAGE — Full Redesign
    ACETEL Virtual Internship Management System
 ═══════════════════════════════════════════════════ */

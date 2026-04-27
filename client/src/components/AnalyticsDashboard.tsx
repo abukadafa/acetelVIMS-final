@@ -27,15 +27,28 @@ interface ProgrammeStat {
 export default function AnalyticsDashboard({ visibleRoles: _visibleRoles = [] }: { visibleRoles?: string[] }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     api.get('/analytics/summary')
-      .then(({ data }) => setData(data))
-      .catch(() => toast.error('Failed to load global analytics'))
+      .then(({ data }) => { setData(data); setError(false); })
+      .catch(() => { setError(true); toast.error('Failed to load analytics — check your connection'); })
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading || !data) return <div className="page-loader"><div className="spinner"></div></div>;
+  if (loading) return <div className="page-loader"><div className="spinner"></div></div>;
+  if (error || !data) return (
+    <div className="card" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)' }}>
+      <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>📊</div>
+      <div style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--text)' }}>Dashboard Loading</div>
+      <div style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
+        Analytics data is being fetched. If this persists, the server may still be waking up.
+      </div>
+      <button className="btn btn-primary btn-sm" onClick={() => window.location.reload()}>
+        Refresh Dashboard
+      </button>
+    </div>
+  );
 
   const { summary, byProgramme, registrationTrend: _registrationTrend } = data;
 

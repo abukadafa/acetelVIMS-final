@@ -54,9 +54,19 @@ export async function login(req: Request, res: Response): Promise<void> {
         res.status(401).json({ error: 'Admin profile missing. Please wait for seeding.' });
         return;
       }
+      // Ensure we always use a real tenant ObjectId in the token
+      let adminTenantId = adminUser.tenant?.toString();
+      if (!adminTenantId || adminTenantId === 'default') {
+        const defaultTenantDoc = await Tenant.findOne({ slug: 'acetel' });
+        adminTenantId = defaultTenantDoc?._id.toString() || '';
+        // Sync it back to the user record
+        if (defaultTenantDoc) {
+          await User.findByIdAndUpdate(adminUser._id, { tenant: defaultTenantDoc._id });
+        }
+      }
       const { access, refresh } = await authService.generateTokens({
         id: adminUser._id.toString(), role: 'admin',
-        email: adminUser.email, tenant: adminUser.tenant?.toString() || 'default'
+        email: adminUser.email, tenant: adminTenantId
       }, req.ip || 'unknown', req.get('user-agent') || 'unknown');
       res.cookie('token', access, COOKIE_OPTIONS);
       res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
