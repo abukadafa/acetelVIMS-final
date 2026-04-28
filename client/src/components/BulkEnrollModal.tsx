@@ -69,7 +69,7 @@ export default function BulkEnrollModal({ onClose, onSuccess }: BulkEnrollModalP
 
         setFileData(data);
         setStep(3); // Move to preview
-      } catch (err) {
+      } catch {
         toast.error('Failed to parse file. Please use the provided CSV template.');
       }
     };

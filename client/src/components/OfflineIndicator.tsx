@@ -20,7 +20,7 @@ export default function OfflineIndicator() {
         await api.post('/logbook/sync', { entries });
         setPendingCount(0);
         toast.success(`Successfully synced ${entries.length} offline entries!`);
-      } catch (err) {
+      } catch {
         console.error('Auto-sync failed');
       } finally {
         setSyncing(false);

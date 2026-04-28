@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
 import { MessageSquare, Send, CheckCircle, Download, Star, Flag, Clock, Filter, Search, AlertTriangle } from 'lucide-react';
@@ -23,7 +23,7 @@ const PRIORITY_ICON: Record<string, any> = {
 };
 
 export default function FeedbackPage() {
-  const { isRole, user } = useAuth();
+  const { isRole } = useAuth();
   const [feedbackList, setFeedbackList] = useState<FeedbackEntry[]>([]);
   const [selected, setSelected] = useState<FeedbackEntry | null>(null);
   const [stats, setStats] = useState({ open: 0, assigned: 0, closed: 0 });
@@ -41,9 +41,7 @@ export default function FeedbackPage() {
   const [ratingComment, setRatingComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { fetchFeedback(); }, [filterStatus, filterPriority]);
-
-  const fetchFeedback = async () => {
+  const fetchFeedback = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (filterStatus) params.set('status', filterStatus);
@@ -51,13 +49,15 @@ export default function FeedbackPage() {
       const { data } = await api.get(`/feedback?${params.toString()}`);
       setFeedbackList(data.feedback);
       setStats(data.stats || { open: 0, assigned: 0, closed: 0 });
-      if (selected) {
-        const updated = data.feedback.find((f: any) => f._id === selected._id);
-        if (updated) setSelected(updated);
-      }
+      setSelected(current => {
+        if (!current) return current;
+        return data.feedback.find((f: any) => f._id === current._id) || current;
+      });
     } catch { toast.error('Failed to load feedback'); }
     finally { setLoading(false); }
-  };
+  }, [filterPriority, filterStatus]);
+
+  useEffect(() => { fetchFeedback(); }, [fetchFeedback]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  LogOut, LayoutDashboard, Calendar, Map, Users, Settings,
+  LogOut, LayoutDashboard, Map, Users, Settings,
   BookOpen, UserCheck, Activity, ChevronLeft, ChevronRight,
   UserCog, MessageSquare, History, Trash2, MessageCircle,
-  Mail, Shield, Smartphone, Building2, Star, Send, PenSquare,
+  Mail, Shield, Smartphone, Building2, PenSquare,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import ComposeMessage from './ComposeMessage';

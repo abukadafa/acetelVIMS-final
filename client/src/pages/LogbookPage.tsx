@@ -77,7 +77,7 @@ export default function LogbookPage() {
         const { data } = await api.get('/logbook/performance');
         setPerformance(data.performance);
       }
-    } catch (err) {
+    } catch {
       toast.error('Failed to synchronize logbook data');
     } finally {
       setLoading(false);

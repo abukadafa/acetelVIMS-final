@@ -4,7 +4,7 @@ import api from '../lib/api';
 import { Navigate } from 'react-router-dom';
 import {
   Smartphone, CheckCircle, XCircle, Send, ExternalLink,
-  Copy, ChevronRight, AlertCircle, RefreshCw, Info,
+  Copy, AlertCircle, RefreshCw, Info,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 

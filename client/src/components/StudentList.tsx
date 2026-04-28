@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Download, UserPlus, MoreVertical, Mail, MessageSquare, Eye, UserCheck, AlertTriangle } from 'lucide-react';
 import api from '../lib/api';
 import { toast } from 'react-hot-toast';
@@ -19,17 +19,7 @@ export default function StudentList() {
   const menuRef = useRef<HTMLTableDataCellElement>(null);
   const navigate = useNavigate();
 
-  useEffect(() => { fetchData(); }, [filterProgramme]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenu(null);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [studRes, progRes] = await Promise.all([
@@ -40,7 +30,17 @@ export default function StudentList() {
       setProgrammes(progRes.data.programmes || []);
     } catch { toast.error('Failed to load students'); }
     finally { setLoading(false); }
-  };
+  }, [filterProgramme, search]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenu(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();

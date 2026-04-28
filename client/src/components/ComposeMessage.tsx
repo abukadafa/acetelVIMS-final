@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, MessageCircle, Mail, MessageSquare, ChevronDown, Search, Users } from 'lucide-react';
+import { X, Send, MessageCircle, Mail, MessageSquare, ChevronDown, Search } from 'lucide-react';
 import api from '../lib/api';
-import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -28,7 +27,6 @@ const ROLE_LABELS: Record<string, string> = {
 type Channel = 'chat' | 'email' | 'feedback';
 
 export default function ComposeMessage({ onClose }: Props) {
-  const { user, isRole } = useAuth();
   const navigate = useNavigate();
   const [channel, setChannel] = useState<Channel>('chat');
   const [contacts, setContacts] = useState<Contact[]>([]);

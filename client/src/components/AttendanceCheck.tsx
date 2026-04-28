@@ -25,7 +25,7 @@ export default function AttendanceCheck({ onComplete }: { onComplete: () => void
         setCheckedIn(true);
         setLastCheckIn(todayRecord);
       }
-    } catch (err) {
+    } catch {
       console.error('Failed to load attendance');
     }
   }

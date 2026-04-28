@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
-import { Shield, Ban, CheckCircle, AlertTriangle, RefreshCw, Eye, Lock, Unlock, Activity } from 'lucide-react';
+import { Shield, Ban, CheckCircle, AlertTriangle, RefreshCw, Lock, Unlock, Activity } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Navigate } from 'react-router-dom';
 

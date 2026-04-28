@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Building2, Search, MapPin, Users, Plus, Star, ExternalLink, Upload, X, Globe, Settings } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Building2, Search, MapPin, Users, Plus, ExternalLink, Upload, X, Globe, Settings } from 'lucide-react';
 import api from '../lib/api';
 import { toast } from 'react-hot-toast';
 import BulkEnrollModal from './BulkEnrollModal';
@@ -35,16 +35,16 @@ export default function CompanyManagement() {
     website: '', maxStudents: 10, lat: 9.0765, lng: 7.3986,
   });
 
-  useEffect(() => { fetchData(); }, [search]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await api.get('/companies', { params: { search } });
       setCompanies(data.companies || []);
     } catch { toast.error('Failed to load partner organisations'); }
     finally { setLoading(false); }
-  };
+  }, [search]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { Mail, Lock, User, Phone, BookOpen, MapPin, ArrowRight, ArrowLeft, Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import api from '../lib/api';
 
 type Step = 'identity' | 'academic' | 'location' | 'account' | 'success';

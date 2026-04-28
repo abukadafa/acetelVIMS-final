@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
-import { Send, Mail, MessageSquare, Phone, Users, Bell, Search, Paperclip, X, CheckCheck } from 'lucide-react';
+import { Send, Mail, MessageSquare, Bell, Search, X, CheckCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 type Channel = 'in-app' | 'email' | 'whatsapp';
@@ -38,27 +38,27 @@ export default function CommunicationPage() {
 
   const canBroadcast = ['admin', 'prog_coordinator', 'internship_coordinator'].includes(user?.role || '');
 
-  useEffect(() => {
-    fetchMessages();
-    if (canBroadcast) fetchUsers();
-  }, []);
-
-  async function fetchMessages() {
+  const fetchMessages = useCallback(async () => {
     try {
       const { data } = await api.get('/notifications?limit=100');
       setMessages(data.notifications || []);
     } catch { toast.error('Could not load messages'); }
     finally { setLoading(false); }
-  }
+  }, []);
 
-  async function fetchUsers() {
+  const fetchUsers = useCallback(async () => {
     try {
       const { data } = await api.get('/admin/users?limit=200');
       setUsers(data.users || []);
     } catch {
       return;
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    fetchMessages();
+    if (canBroadcast) fetchUsers();
+  }, [canBroadcast, fetchMessages, fetchUsers]);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();

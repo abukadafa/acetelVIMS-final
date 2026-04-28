@@ -24,7 +24,8 @@ interface ProgrammeStat {
   attendanceRate: number;
 }
 
-export default function AnalyticsDashboard({ visibleRoles: _visibleRoles = [] }: { visibleRoles?: string[] }) {
+export default function AnalyticsDashboard({ visibleRoles = [] }: { visibleRoles?: string[] }) {
+  void visibleRoles;
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -50,7 +51,7 @@ export default function AnalyticsDashboard({ visibleRoles: _visibleRoles = [] }:
     </div>
   );
 
-  const { summary, byProgramme, registrationTrend: _registrationTrend } = data;
+  const { summary, byProgramme } = data;
 
   // Global KPIs
   const kpis = [
