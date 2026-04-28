@@ -947,9 +947,9 @@ tr:hover td { background: var(--surface-2); }
 .vims-left {
   flex: 1;
   background:
-    radial-gradient(circle at top left, rgba(74, 222, 128, 0.16), transparent 32%),
-    radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.18), transparent 28%),
-    linear-gradient(155deg, #06140a 0%, #0c2414 36%, #12311d 68%, #184526 100%);
+    radial-gradient(circle at top left, rgba(134, 239, 172, 0.2), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(74, 222, 128, 0.18), transparent 26%),
+    linear-gradient(155deg, #0a2210 0%, #0f3418 34%, #166534 68%, #15803d 100%);
   display: flex;
   position: relative;
   overflow: hidden;
@@ -959,8 +959,8 @@ tr:hover td { background: var(--surface-2); }
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(ellipse at 20% 80%, rgba(255,255,255,0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 10%, rgba(255,255,255,0.04) 0%, transparent 40%);
+    radial-gradient(ellipse at 20% 80%, rgba(255,255,255,0.08) 0%, transparent 52%),
+    radial-gradient(ellipse at 80% 10%, rgba(255,255,255,0.05) 0%, transparent 42%);
   pointer-events: none;
 }
 .vims-left-inner {
@@ -1007,7 +1007,7 @@ tr:hover td { background: var(--surface-2); }
 }
 .vims-logo-sub {
   font-size: 0.82rem;
-  color: #d1fae5;
+  color: #ecfdf5;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   margin-top: 6px;
@@ -1026,8 +1026,8 @@ tr:hover td { background: var(--surface-2); }
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(6, 24, 10, 0.24);
+  border: 1px solid rgba(220, 252, 231, 0.18);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
   border-radius: 100px;
@@ -1065,11 +1065,11 @@ tr:hover td { background: var(--surface-2); }
 }
 .vims-hero-desc {
   font-size: 1rem;
-  color: rgba(240, 253, 244, 0.92);
+  color: rgba(255, 255, 255, 0.96);
   line-height: 1.75;
   max-width: 470px;
   margin-bottom: 32px;
-  font-weight: 500;
+  font-weight: 600;
   text-wrap: balance;
 }
 .vims-tags { display: flex; flex-wrap: wrap; gap: 9px; }
@@ -1085,7 +1085,7 @@ tr:hover td { background: var(--surface-2); }
 
 .vims-left-footer {
   font-size: 0.7rem;
-  color: rgba(240,253,244,0.72);
+  color: rgba(240,253,244,0.88);
   text-transform: uppercase;
   letter-spacing: 0.12em;
   padding-top: 22px;
@@ -1936,13 +1936,13 @@ tr:hover td { background: var(--surface-2); }
 }
 .vims-trust-item {
   display: flex; align-items: center; gap: 12px;
-  font-size: 0.88rem; font-weight: 600; color: #dcfce7;
+  font-size: 0.9rem; font-weight: 700; color: #f0fdf4;
 }
 .vims-trust-check {
   width: 26px; height: 26px; border-radius: 50%;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
+  background: linear-gradient(135deg, #4ade80, #22c55e);
   display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 11px; font-weight: 800; flex-shrink: 0;
+  color: #052e16; font-size: 11px; font-weight: 900; flex-shrink: 0;
 }
 
 /* ── LOGIN HERO — two-tone text ── */

@@ -55,13 +55,11 @@ export default function LoginPage() {
 
           <div className="vims-hero">
             <h1 className="vims-hero-title">
-              Elevate Your<br />
-              <span className="vims-title-green">Virtual Internship</span><br />
-              <span className="vims-title-gold">Experience.</span>
+              Start Your Virtual<br />
+              Internship Journey.
             </h1>
             <p className="vims-hero-desc">
-              The professional platform for bridging academic theory with real-world industry practice
-              — orchestrating seamless collaboration between interns, supervisors, and organizations.
+              Global virtual internship platform connecting students with real-world industry experience through structured, mentor-driven, and technology-enabled collaboration.
             </p>
             <div className="vims-trust-list">
               {[
