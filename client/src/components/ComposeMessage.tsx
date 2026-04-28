@@ -24,7 +24,7 @@ const ROLE_LABELS: Record<string, string> = {
   ict_support: 'ICT Support', student: 'Student',
 };
 
-type Channel = 'chat' | 'email' | 'feedback';
+type Channel = 'chat' | 'email' | 'whatsapp' | 'feedback';
 
 export default function ComposeMessage({ onClose }: Props) {
   const navigate = useNavigate();
@@ -67,8 +67,8 @@ export default function ComposeMessage({ onClose }: Props) {
       if (channel === 'chat') {
         if (!selectedContact) { toast.error('Please select a recipient'); setLoading(false); return; }
         // Start or get existing chat then navigate
-        const { data } = await api.post('/chat/start', { targetUserId: selectedContact._id });
-        await api.post(`/chat/${data.chat._id}/send`, { content: message });
+        const { data } = await api.post('/chat/start', { participantId: selectedContact._id });
+        await api.post(`/chat/${data.room._id}`, { content: message });
         toast.success(`Message sent to ${selectedContact.firstName}`);
         onClose();
         navigate('/chat');
@@ -83,6 +83,17 @@ export default function ComposeMessage({ onClose }: Props) {
           recipientIds: [selectedContact._id],
         });
         toast.success(`Email sent to ${selectedContact.firstName}`);
+        onClose();
+
+      } else if (channel === 'whatsapp') {
+        if (!selectedContact) { toast.error('Please select a recipient'); setLoading(false); return; }
+        await api.post('/notifications/send', {
+          recipientId: selectedContact._id,
+          subject: subject.trim() || undefined,
+          body: message,
+          channel: 'whatsapp',
+        });
+        toast.success(`WhatsApp message sent to ${selectedContact.firstName}`);
         onClose();
 
       } else if (channel === 'feedback') {
@@ -105,10 +116,11 @@ export default function ComposeMessage({ onClose }: Props) {
   const CHANNELS: { key: Channel; label: string; icon: typeof MessageCircle; color: string; desc: string }[] = [
     { key: 'chat',     label: 'Chat',     icon: MessageCircle, color: '#0a5c36', desc: 'Instant message' },
     { key: 'email',    label: 'Email',    icon: Mail,          color: '#3b82f6', desc: 'Formal email' },
+    { key: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, color: '#16a34a', desc: 'Direct mobile alert' },
     { key: 'feedback', label: 'Feedback', icon: MessageSquare, color: '#f59e0b', desc: 'Support ticket' },
   ];
 
-  const needsRecipient = channel === 'chat' || channel === 'email';
+  const needsRecipient = channel === 'chat' || channel === 'email' || channel === 'whatsapp';
   const needsSubject   = channel === 'email' || channel === 'feedback';
 
   return (
@@ -265,6 +277,7 @@ export default function ComposeMessage({ onClose }: Props) {
           <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-3)', lineHeight: '1.5' }}>
             {channel === 'chat'     && '💬 Message delivered instantly. Recipient gets a notification and email if offline.'}
             {channel === 'email'    && '📧 Sent with ACETEL IMS branding. Delivered to recipient\'s inbox.'}
+            {channel === 'whatsapp' && '📱 Sends a WhatsApp alert to the recipient phone number saved in their profile.'}
             {channel === 'feedback' && '🎫 Creates a support ticket visible to coordinators and admins.'}
           </p>
 

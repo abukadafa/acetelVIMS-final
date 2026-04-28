@@ -97,10 +97,9 @@ export default function WhatsAppSetupPage() {
     setTestLoading(true);
     setTestResult(null);
     try {
-      const { data } = await api.post('/auth/whatsapp-test', { phone: testPhone.trim() });
-      setTestResult(data);
-      if (data.success) toast.success('WhatsApp test sent!');
-      else toast.error(data.message);
+      const { data } = await api.post('/auth/test-whatsapp', { phone: testPhone.trim() });
+      setTestResult({ success: true, message: data.message || 'Test WhatsApp message sent' });
+      toast.success(data.message || 'WhatsApp test sent!');
     } catch (err: any) {
       const msg = err.response?.data?.error || 'Test failed';
       setTestResult({ success: false, message: msg });
