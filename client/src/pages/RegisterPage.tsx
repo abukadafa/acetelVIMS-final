@@ -103,7 +103,7 @@ export default function RegisterPage() {
               Start Your Virtual<br />Internship Journey.
             </h1>
             <p className="vims-hero-desc">
-              Complete your digital profile to begin tracking your industry placement, logbook entries and academic progress in real-time.
+              The professional platform for bridging academic theory with real-world industry practice - orchestrating seamless collaboration between interns, supervisors, and organizations.
             </p>
 
             {/* Step progress indicators */}
