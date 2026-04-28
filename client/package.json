@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "type-check": "tsc -b --skipLibCheck"
+    "type-check": "tsc -b"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",

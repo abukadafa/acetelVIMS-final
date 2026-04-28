@@ -73,14 +73,14 @@ export default function WhatsAppSetupPage() {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [copied, setCopied] = useState('');
 
-  if (!isRole('admin')) return <Navigate to="/" replace />;
-
   useEffect(() => {
     api.get('/auth/comms-status')
       .then(r => setStatus(r.data))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  if (!isRole('admin')) return <Navigate to="/" replace />;
 
   const refreshStatus = async () => {
     setLoading(true);

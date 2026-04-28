@@ -43,14 +43,18 @@ export default function ChatPage() {
     try {
       const { data } = await api.get('/chat');
       setRooms(data.rooms || []);
-    } catch { } finally { setLoading(false); }
+    } catch {
+      return;
+    } finally { setLoading(false); }
   };
 
   const fetchContacts = async () => {
     try {
       const { data } = await api.get('/chat/contacts');
       setContacts(data.contacts || []);
-    } catch {}
+    } catch {
+      return;
+    }
   };
 
   const fetchMessages = async (roomId: string) => {

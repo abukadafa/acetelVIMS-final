@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Calendar, Map, Users, Settings,
   BookOpen, UserCheck, Activity, ChevronLeft, ChevronRight,
   UserCog, MessageSquare, History, Trash2, MessageCircle,
-  Mail, Shield, Smartphone, Building2, Star, Send,
+  Mail, Shield, Smartphone, Building2, Star, Send, PenSquare,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import ComposeMessage from './ComposeMessage';

@@ -22,8 +22,6 @@ export default function FirewallPage() {
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [showUnblockModal, setShowUnblockModal] = useState(false);
 
-  if (!isRole('admin')) return <Navigate to="/" replace />;
-
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -40,6 +38,8 @@ export default function FirewallPage() {
   }, [statusFilter]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  if (!isRole('admin')) return <Navigate to="/" replace />;
 
   const handleBlock = async (e: React.FormEvent) => {
     e.preventDefault();

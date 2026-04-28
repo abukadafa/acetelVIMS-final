@@ -55,7 +55,9 @@ export default function CommunicationPage() {
     try {
       const { data } = await api.get('/admin/users?limit=200');
       setUsers(data.users || []);
-    } catch {}
+    } catch {
+      return;
+    }
   }
 
   async function handleSend(e: React.FormEvent) {
