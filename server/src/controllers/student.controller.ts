@@ -13,6 +13,50 @@ import Company from '../models/Company.model';
 import { sendEmail, emailTemplates } from '../utils/mail.service';
 import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
 
+const STATE_COORDS: Record<string, { lat: number; lng: number }> = {
+  fct: { lat: 9.0765, lng: 7.3986 },
+  lagos: { lat: 6.5244, lng: 3.3792 },
+  kano: { lat: 12.0022, lng: 8.5920 },
+  kaduna: { lat: 10.5105, lng: 7.4165 },
+  rivers: { lat: 4.8156, lng: 7.0498 },
+  oyo: { lat: 7.3775, lng: 3.9470 },
+  enugu: { lat: 6.4584, lng: 7.5464 },
+  ogun: { lat: 7.1608, lng: 3.3487 },
+  anambra: { lat: 6.2209, lng: 6.9369 },
+  akwaibom: { lat: 5.0077, lng: 7.8497 },
+  abia: { lat: 5.4527, lng: 7.5248 },
+  bauchi: { lat: 10.3158, lng: 9.8442 },
+  benue: { lat: 7.1906, lng: 8.1292 },
+  borno: { lat: 11.8846, lng: 13.1519 },
+  crossriver: { lat: 5.8702, lng: 8.5988 },
+  delta: { lat: 5.7040, lng: 5.9339 },
+  ebonyi: { lat: 6.2649, lng: 8.0137 },
+  edo: { lat: 6.6342, lng: 5.9304 },
+  ekiti: { lat: 7.7190, lng: 5.3110 },
+  gombe: { lat: 10.2897, lng: 11.1673 },
+  imo: { lat: 5.5720, lng: 7.0588 },
+  jigawa: { lat: 12.2280, lng: 9.5616 },
+  katsina: { lat: 12.9886, lng: 7.6006 },
+  kebbi: { lat: 12.4539, lng: 4.1975 },
+  kogi: { lat: 7.8020, lng: 6.7333 },
+  kwara: { lat: 8.9669, lng: 4.3874 },
+  nasarawa: { lat: 8.5378, lng: 8.3220 },
+  niger: { lat: 9.9309, lng: 5.5983 },
+  ondo: { lat: 7.2508, lng: 5.2103 },
+  osun: { lat: 7.5629, lng: 4.5199 },
+  plateau: { lat: 9.2182, lng: 9.5179 },
+  sokoto: { lat: 13.0059, lng: 5.2476 },
+  taraba: { lat: 8.8932, lng: 11.3604 },
+  yobe: { lat: 12.2939, lng: 11.4390 },
+  zamfara: { lat: 12.1222, lng: 6.2236 },
+  adamawa: { lat: 9.3265, lng: 12.3984 },
+  bayelsa: { lat: 4.7719, lng: 6.0699 },
+};
+
+function stateKey(state?: string): string {
+  return String(state || '').toLowerCase().replace(/[^a-z]/g, '');
+}
+
 const studentQuerySchema = z.object({
   programme: z.string().optional(),
   status: z.enum(['pending', 'active', 'completed', 'withdrawn', 'suspended']).optional(),
@@ -371,15 +415,38 @@ export async function updateStudentLocation(req: AuthRequest, res: Response): Pr
 export async function getAllStudentsForMap(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { tenant: userTenant } = req.user!;
-    const students = await Student.find({ 
+    const students = await Student.find({
       tenant: userTenant,
-      status: { $in: ['active', 'pending'] } 
+      status: { $in: ['active', 'pending'] }
     })
       .populate('user', 'firstName lastName')
       .populate('programme', 'name level')
-      .populate('company', 'name lat lng');
-    
-    res.json({ students });
+      .populate('company', 'name lat lng state');
+
+    const mapped = students.map((s: any) => {
+      const studentState = s.stateOfOrigin;
+      const studentFallback = STATE_COORDS[stateKey(studentState)];
+      const companyState = s.company?.state;
+      const companyFallback = STATE_COORDS[stateKey(companyState)];
+
+      const lat = s.lat ?? s.company?.lat ?? studentFallback?.lat;
+      const lng = s.lng ?? s.company?.lng ?? studentFallback?.lng;
+
+      const company = s.company ? {
+        ...(s.company.toObject?.() ?? s.company),
+        lat: s.company.lat ?? companyFallback?.lat,
+        lng: s.company.lng ?? companyFallback?.lng,
+      } : s.company;
+
+      return {
+        ...(s.toObject?.() ?? s),
+        lat,
+        lng,
+        company,
+      };
+    });
+
+    res.json({ students: mapped });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
