@@ -9,6 +9,9 @@ import { autoAllocateStudent } from '../utils/allocation.service';
 import logger from '../utils/logger';
 import { z } from 'zod';
 import AuditLog from '../models/AuditLog.model';
+import Company from '../models/Company.model';
+import { sendEmail, emailTemplates } from '../utils/mail.service';
+import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
 
 const studentQuerySchema = z.object({
   programme: z.string().optional(),
@@ -29,6 +32,7 @@ const studentUpdateSchema = z.object({
   stateOfOrigin: z.string().optional(),
   lga: z.string().optional(),
   address: z.string().optional(),
+  company: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid company ID').optional(),
 });
 
 const locationUpdateSchema = z.object({
@@ -149,6 +153,7 @@ export async function updateStudent(req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    const prevCompanyId = student.company?.toString() || null;
     Object.assign(student, data);
     await student.save();
 
@@ -163,6 +168,43 @@ export async function updateStudent(req: AuthRequest, res: Response): Promise<vo
         details: `Updated student profile: ${student.matricNumber}`,
         ipAddress: (req as any).ip,
       }).catch(() => {});
+    }
+
+    // If posting changed, notify student automatically
+    const newCompanyId = student.company?.toString() || null;
+    const postingChanged = prevCompanyId !== newCompanyId && !!newCompanyId;
+    if (postingChanged) {
+      const u = await User.findById(student.user).select('firstName lastName email phone');
+      const c = await Company.findOne({ _id: newCompanyId, tenant: userTenant, isDeleted: false }).select('name address contactPerson');
+      if (u && c) {
+        const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
+        const studentName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Student';
+        await NotificationModel.create({
+          tenant: userTenant,
+          user: u._id,
+          title: 'New Posting / Placement Update',
+          message: `You have been posted to ${c.name}.`,
+          type: 'success',
+          channel: 'in-app',
+          link: '/dashboard',
+        }).catch(() => {});
+
+        await sendEmail(
+          u.email,
+          'ACETEL IMS — New Posting / Placement Update',
+          emailTemplates.companyPlacementNotice(c.name, studentName, student.matricNumber, u.email, u.phone || 'N/A')
+        ).catch(() => false);
+
+        if (u.phone) {
+          const waMsg = whatsappTemplates.placementSuccessful(
+            studentName,
+            c.name,
+            c.address || 'Company Location',
+            c.contactPerson || 'Company Supervisor'
+          );
+          await sendWhatsAppMessage(u.phone, waMsg).catch(() => false);
+        }
+      }
     }
 
     res.json({ message: 'Student updated successfully', student });

@@ -14,36 +14,42 @@ import { sendWhatsAppMessage, whatsappTemplates } from './whatsapp.service';
 export async function autoAllocateStudent(studentId: string): Promise<any> {
   const student = await Student.findById(studentId).populate('programme');
   if (!student) throw new Error('Student not found');
-  if (!student.lat || !student.lng || !student.stateOfOrigin) {
-    throw new Error('Student address and coordinates are required for auto-allocation');
+  if (!student.stateOfOrigin) {
+    return { success: false, message: 'Student state is required for auto-allocation' };
   }
 
   const programme = student.programme as any;
   const targetSector = getSectorFromProgramme(programme.code);
 
-  // Find all approved companies in the same state
-  const availableCompanies = await Company.find({ 
+  // Find all approved companies in the same state (tenant-scoped, not deleted)
+  const availableCompanies = await Company.find({
+    tenant: student.tenant,
     state: student.stateOfOrigin,
     isApproved: true,
-    $expr: { $lt: ['$currentStudents', '$maxStudents'] } 
+    isDeleted: false,
+    $expr: { $lt: ['$currentStudents', '$maxStudents'] }
   });
 
   if (availableCompanies.length === 0) {
     return { success: false, message: `No available companies found in ${student.stateOfOrigin}` };
   }
 
-  // Calculate distances and score relevance
+  // Score companies. If GPS is present for both sides, use distance; otherwise fall back to capacity.
   const scoredCompanies = availableCompanies.map(company => {
-    const distance = calculateDistance(
-      student.lat!, student.lng!, 
-      company.lat!, company.lng!
-    );
-    
+    const hasGps = !!(student.lat && student.lng && company.lat && company.lng);
+    const distance = hasGps
+      ? calculateDistance(student.lat!, student.lng!, company.lat!, company.lng!)
+      : null;
+
     // Boost relevance if sector matches
     const sectorMatch = company.sector === targetSector;
-    const score = distance - (sectorMatch ? 50 : 0); // 50km 'bonus' for sector match
 
-    return { company, distance, score };
+    // Lower score is better.
+    // If no distance, prioritize lower utilization in same state.
+    const utilization = company.maxStudents ? (company.currentStudents / company.maxStudents) : 1;
+    const score = (distance ?? 99999) - (sectorMatch ? 50 : 0) + utilization * 100;
+
+    return { company, distance: distance ?? 0, score, sectorMatch };
   });
 
   // Sort by score (asc)
@@ -98,7 +104,7 @@ export async function autoAllocateStudent(studentId: string): Promise<any> {
     success: true, 
     company: bestMatch.company.name, 
     distance: bestMatch.distance.toFixed(2),
-    sectorMatch: bestMatch.company.sector === targetSector
+    sectorMatch: bestMatch.sectorMatch
   };
 }
 

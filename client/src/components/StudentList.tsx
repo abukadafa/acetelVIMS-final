@@ -25,6 +25,8 @@ export default function StudentList() {
     gender: 'Male',
     isNigerian: true,
     address: '',
+    stateOfOrigin: '',
+    lga: '',
   });
   const menuRef = useRef<HTMLTableDataCellElement>(null);
   const navigate = useNavigate();
@@ -58,11 +60,32 @@ export default function StudentList() {
     try {
       const res = await api.post('/admin/students', newStudent);
       toast.success('Student enrolled successfully');
-      toast.success('Login details sent automatically via Email and WhatsApp (if phone was provided).');
+      const delivery = res.data?.delivery;
+      const posting = res.data?.posting;
+      if (delivery) {
+        if (delivery.email) toast.success('Welcome email sent to institutional email.');
+        else toast.error('Welcome email was not sent (SMTP not configured or email failed).');
+        if (newStudent.personalEmail) {
+          if (delivery.personalEmail) toast.success('Welcome email sent to personal email.');
+          else toast.error('Personal email was not sent (SMTP not configured or email failed).');
+        }
+        if (newStudent.phone) {
+          if (delivery.whatsapp) toast.success('WhatsApp sent to student number.');
+          else toast.error('WhatsApp was not sent (WhatsApp provider not configured or failed).');
+        }
+      } else {
+        toast.success('Login details sending triggered (check delivery configuration).');
+      }
+
+      if (posting?.success) {
+        toast.success(`Student posted to ${posting.company} (same state).`);
+      } else if (posting?.message) {
+        toast.error(`Posting not completed: ${posting.message}`);
+      }
       setShowAddModal(false);
       setNewStudent({
         firstName: '', lastName: '', email: '', matricNumber: '',
-        phone: '', programme: '', personalEmail: '', gender: 'Male', isNigerian: true, address: '',
+        phone: '', programme: '', personalEmail: '', gender: 'Male', isNigerian: true, address: '', stateOfOrigin: '', lga: '',
       });
       fetchData();
     } catch (err: any) {
@@ -336,6 +359,18 @@ export default function StudentList() {
                   marginBottom: 5, display: 'block' }}>Full Address</label>
                 <input style={inputStyle} placeholder="Full residential address" value={newStudent.address}
                   onChange={e => setNewStudent(prev => ({ ...prev, address: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151',
+                  marginBottom: 5, display: 'block' }}>Student State (for Posting) *</label>
+                <input style={inputStyle} required placeholder="e.g. Lagos, FCT, Kano" value={newStudent.stateOfOrigin}
+                  onChange={e => setNewStudent(prev => ({ ...prev, stateOfOrigin: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151',
+                  marginBottom: 5, display: 'block' }}>LGA (optional)</label>
+                <input style={inputStyle} placeholder="Local Government Area" value={newStudent.lga}
+                  onChange={e => setNewStudent(prev => ({ ...prev, lga: e.target.value }))} />
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
                 <button type="button" onClick={() => setShowAddModal(false)}

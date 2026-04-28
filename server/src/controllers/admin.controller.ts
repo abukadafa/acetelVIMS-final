@@ -12,6 +12,7 @@ import logger from '../utils/logger';
 import { sendEmail, emailTemplates } from '../utils/mail.service';
 import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
 import Notification from '../models/notification.model';
+import { autoAllocateStudent } from '../utils/allocation.service';
 
 const STAFF_ROLES = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor'];
 
@@ -45,6 +46,8 @@ const createStudentSchema = z.object({
   gender: z.enum(['Male', 'Female', 'Other']).optional(),
   isNigerian: z.boolean().optional(),
   address: z.string().optional(),
+  stateOfOrigin: z.string().optional(),
+  lga: z.string().optional(),
   academicSession: z.string().optional(),
   level: z.string().optional(),
 });
@@ -240,6 +243,7 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       firstName, lastName, email, matricNumber, 
       programme, phone, password, 
       personalEmail, gender, isNigerian, address,
+      stateOfOrigin, lga,
       academicSession, level 
     } = createStudentSchema.parse(req.body);
     const tenantId = req.user!.tenant;
@@ -297,7 +301,9 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       personalEmail,
       gender,
       isNigerian: isNigerian ?? true,
-      address
+      address,
+      stateOfOrigin,
+      lga,
     });
 
     await student.save();
@@ -359,9 +365,18 @@ _Please change your password after first login._`
       type: 'success',
     });
 
+    // Auto-post (state-based) immediately after enrollment
+    let posting: any = null;
+    try {
+      posting = await autoAllocateStudent((student._id as any).toString());
+    } catch (e) {
+      logger.warn('Auto-post failed: %s', (e as Error).message);
+    }
+
     res.status(201).json({
       message: 'Student onboarded successfully',
       delivery,
+      posting,
       tempPassword
     });
   } catch (err) {
