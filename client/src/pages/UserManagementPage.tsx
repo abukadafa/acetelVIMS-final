@@ -83,6 +83,8 @@ export default function UserManagementPage() {
     gender: 'Male',
     isNigerian: true,
     address: '',
+    stateOfOrigin: '',
+    lga: '',
     academicSession: '2024/2025',
     level: 'MSc'
   });
@@ -181,18 +183,36 @@ export default function UserManagementPage() {
         gender: studentForm.gender,
         isNigerian: studentForm.isNigerian,
         address: studentForm.address,
+        stateOfOrigin: studentForm.stateOfOrigin,
+        lga: studentForm.lga,
         academicSession: studentForm.academicSession,
         level: studentForm.level
       };
       const { data } = await api.post('/admin/students', payload);
       toast.success('Student onboarded successfully!');
-      toast.success('Login details sent automatically via Email and WhatsApp (if phone was provided).');
+      if (data?.delivery) {
+        if (data.delivery.email) toast.success('Welcome email sent to institutional email.');
+        else toast.error('Welcome email not sent (SMTP not configured or failed).');
+        if (studentForm.personalEmail) {
+          if (data.delivery.personalEmail) toast.success('Welcome email sent to personal email.');
+          else toast.error('Personal email not sent (SMTP not configured or failed).');
+        }
+        if (studentForm.phone) {
+          if (data.delivery.whatsapp) toast.success('WhatsApp sent to student phone.');
+          else toast.error('WhatsApp not sent (provider not configured or failed).');
+        }
+      }
+      if (data?.posting?.success) {
+        toast.success(`Student posted automatically to ${data.posting.company}.`);
+      } else if (data?.posting?.message) {
+        toast.error(`Auto-post not completed: ${data.posting.message}`);
+      }
       // Credentials are sent automatically; do not display/copy in UI
       setStudentTempCred(null);
       setShowStudentModal(false);
       setStudentForm({
         surname: '', otherNames: '', email: '', matricNumber: '', programme: '', phone: '',
-        personalEmail: '', gender: 'Male', isNigerian: true, address: '', academicSession: '2024/2025', level: 'MSc'
+        personalEmail: '', gender: 'Male', isNigerian: true, address: '', stateOfOrigin: '', lga: '', academicSession: '2024/2025', level: 'MSc'
       });
       load();
     } catch (err: any) {
@@ -776,6 +796,21 @@ export default function UserManagementPage() {
                  <div className="form-group">
                    <label className="form-label">Full Address</label>
                    <textarea className="form-control" style={{ height: 60 }} value={studentForm.address} onChange={e => setStudentForm(f => ({ ...f, address: e.target.value }))} />
+                 </div>
+
+                 <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">State of Origin (for auto-posting) *</label>
+                    <input className="form-control" required
+                      value={studentForm.stateOfOrigin}
+                      onChange={e => setStudentForm(f => ({ ...f, stateOfOrigin: e.target.value }))} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">LGA (optional)</label>
+                    <input className="form-control"
+                      value={studentForm.lga}
+                      onChange={e => setStudentForm(f => ({ ...f, lga: e.target.value }))} />
+                  </div>
                  </div>
  
                  {isAdmin && (
