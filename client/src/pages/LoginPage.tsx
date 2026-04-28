@@ -48,11 +48,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="vims-status-row">
-            <span className="vims-status-pill"><span className="vims-status-dot" />Secure Institutional Access</span>
-            <span className="vims-status-pill"><span className="vims-status-dot" />Portal Active</span>
-          </div>
-
           <div className="vims-hero">
             <h1 className="vims-hero-title">
               Start Your Virtual<br />
