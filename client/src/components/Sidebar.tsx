@@ -208,7 +208,7 @@ export default function Sidebar() {
         {/* ── ACCOUNT ── */}
         <div className="nav-group">
           <SectionLabel>Account</SectionLabel>
-          <NavLink to="/settings" icon={Settings} label="Settings" />
+          {isRole('admin') && <NavLink to="/settings" icon={Settings} label="Settings" />}
           <NavBtn onClick={logout} icon={LogOut} label="Logout" />
         </div>
       </nav>

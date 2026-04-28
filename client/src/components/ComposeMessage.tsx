@@ -114,8 +114,8 @@ export default function ComposeMessage({ onClose }: Props) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-card animate-slide-up"
-        style={{ maxWidth: '520px', margin: 'auto' }}
+        className="modal animate-slide-up"
+        style={{ maxWidth: '520px', margin: 'auto', color: 'var(--text)', background: '#fff' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -126,7 +126,7 @@ export default function ComposeMessage({ onClose }: Props) {
           <button className="btn btn-ghost" style={{ color: '#fff' }} onClick={onClose}><X size={18} /></button>
         </div>
 
-        <form onSubmit={handleSend} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSend} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', color: 'var(--text)' }}>
 
           {/* Channel selector */}
           <div>

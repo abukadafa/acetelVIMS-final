@@ -91,12 +91,6 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Status pills */}
-          <div className="vims-status-row">
-            <span className="vims-status-pill"><span className="vims-status-dot" />Secure Registration Portal</span>
-            <span className="vims-status-pill"><span className="vims-status-dot" />SDMS Verification Active</span>
-          </div>
-
           {/* Hero */}
           <div className="vims-hero">
             <h1 className="vims-hero-title">

@@ -8,6 +8,9 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import SettingsPage from './pages/SettingsPage';
+import EmailPage from './pages/EmailPage';
+import WhatsAppSetupPage from './pages/WhatsAppSetupPage';
+import FirewallPage from './pages/FirewallPage';
 import Dashboard from './pages/Dashboard';
 import Layout from './components/Layout';
 import StudentList from './components/StudentList';
@@ -79,6 +82,9 @@ export default function App() {
 
             <Route element={<Layout />}>
               <Route index element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/analytics" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'ict_support']}><Dashboard /></ProtectedRoute>} />
+              <Route path="/students" element={<ProtectedRoute roles={['supervisor', 'industry_supervisor']}><Dashboard /></ProtectedRoute>} />
+              <Route path="/reviews" element={<ProtectedRoute roles={['supervisor', 'industry_supervisor']}><LogbookPage /></ProtectedRoute>} />
               <Route path="/logbook" element={<ProtectedRoute><LogbookPage /></ProtectedRoute>} />
               <Route path="/attendance" element={<ProtectedRoute roles={['student']}><Dashboard /></ProtectedRoute>} />
               <Route path="/map" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator']}><Dashboard /></ProtectedRoute>} />
@@ -90,7 +96,10 @@ export default function App() {
               <Route path="/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
               <Route path="/communication" element={<ProtectedRoute><CommunicationPage /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/email" element={<ProtectedRoute><EmailPage /></ProtectedRoute>} />
+              <Route path="/whatsapp" element={<ProtectedRoute roles={['admin']}><WhatsAppSetupPage /></ProtectedRoute>} />
+              <Route path="/firewall" element={<ProtectedRoute roles={['admin']}><FirewallPage /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute roles={['admin']}><SettingsPage /></ProtectedRoute>} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
