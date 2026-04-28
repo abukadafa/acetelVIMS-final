@@ -326,6 +326,16 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
     const appUrl = process.env.FRONTEND_URL || 'https://acetel-frontend.onrender.com';
     const welcomeHtml = emailTemplates.welcomeStudent(`${firstName} ${lastName}`, email, tempPassword, appUrl, 'Pending Placement');
     const delivery = { email: false, personalEmail: false, whatsapp: false };
+    const deliveryDetails = {
+      emailConfigured: !!(process.env.SMTP_USER && process.env.SMTP_PASS),
+      whatsappConfigured: !!(
+        (process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN) ||
+        (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM)
+      ),
+      phoneProvided: !!phone,
+      institutionalEmail: email.toLowerCase(),
+      personalEmail: personalEmail || null,
+    };
     try {
       delivery.email = await sendEmail(email.toLowerCase(), 'Welcome to ACETEL IMS — Your Account is Ready', welcomeHtml);
       if (!delivery.email) logger.warn('Student welcome email (inst.) failed for %s', email);
@@ -376,6 +386,7 @@ _Please change your password after first login._`
     res.status(201).json({
       message: 'Student onboarded successfully',
       delivery,
+      deliveryDetails,
       posting,
       tempPassword
     });

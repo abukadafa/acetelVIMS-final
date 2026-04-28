@@ -63,6 +63,12 @@ export default function StudentList() {
       const delivery = res.data?.delivery;
       const posting = res.data?.posting;
       if (delivery) {
+        if (res.data?.deliveryDetails && !res.data.deliveryDetails.emailConfigured) {
+          toast.error('Email is not configured on backend (SMTP_USER/SMTP_PASS missing).');
+        }
+        if (res.data?.deliveryDetails && !res.data.deliveryDetails.whatsappConfigured && newStudent.phone) {
+          toast.error('WhatsApp is not configured on backend (Meta/Twilio env missing).');
+        }
         if (delivery.email) toast.success('Welcome email sent to institutional email.');
         else toast.error('Welcome email was not sent (SMTP not configured or email failed).');
         if (newStudent.personalEmail) {

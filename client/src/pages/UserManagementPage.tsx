@@ -193,6 +193,12 @@ export default function UserManagementPage() {
       const { data } = await api.post('/admin/students', payload);
       toast.success('Student onboarded successfully!');
       if (data?.delivery) {
+        if (data?.deliveryDetails && !data.deliveryDetails.emailConfigured) {
+          toast.error('Email is not configured on backend (SMTP_USER/SMTP_PASS missing).');
+        }
+        if (data?.deliveryDetails && !data.deliveryDetails.whatsappConfigured && studentForm.phone) {
+          toast.error('WhatsApp is not configured on backend (Meta/Twilio env missing).');
+        }
         if (data.delivery.email) toast.success('Welcome email sent to institutional email.');
         else toast.error('Welcome email not sent (SMTP not configured or failed).');
         if (studentForm.personalEmail) {

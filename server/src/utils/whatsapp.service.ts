@@ -1,6 +1,15 @@
 function normalizeToE164Like(input: string): string {
   // Keep digits only; Meta expects international format digits, Twilio works with +.
-  const digits = String(input || '').replace(/[^\d]/g, '');
+  let digits = String(input || '').replace(/[^\d]/g, '');
+  if (!digits) return '';
+
+  // Common local input handling (default country code fallback for local numbers)
+  // Example: 08012345678 -> 2348012345678 (default NG)
+  const defaultCountry = (process.env.DEFAULT_COUNTRY_CODE || '234').replace(/[^\d]/g, '');
+  if (digits.startsWith('0') && digits.length >= 10 && defaultCountry) {
+    digits = `${defaultCountry}${digits.slice(1)}`;
+  }
+
   return digits;
 }
 
