@@ -5,6 +5,7 @@ import NotificationModel from '../models/notification.model';
 import User from '../models/User.model';
 import { sendEmail, emailTemplates } from '../utils/mail.service';
 import logger from '../utils/logger';
+import { io } from '../index';
 
 // ── listChats (alias for getRooms) ──────────────────────────────────────────
 export async function listChats(req: AuthRequest, res: Response): Promise<void> {
@@ -111,6 +112,7 @@ export async function sendMessage(req: AuthRequest, res: Response): Promise<void
     room.lastMessageBy = req.user!.id as any;
     (room as any).updatedAt = sentAt;
     await room.save();
+    const savedMessage = (room.messages as any[])[(room.messages as any[]).length - 1];
 
     // Notify other participants
     const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
@@ -121,13 +123,35 @@ export async function sendMessage(req: AuthRequest, res: Response): Promise<void
     for (const participantId of otherParticipants) {
       const participant = await User.findById(participantId).select('firstName lastName email');
       if (!participant) continue;
-      await NotificationModel.create({
+      const created = await NotificationModel.create({
+        tenant: req.user!.tenant,
         user: participantId,
         title: `New message from ${senderName}`,
         message: content.trim().substring(0, 100),
         type: 'info',
         channel: 'in-app',
-      }).catch(() => {});
+        link: '/chat',
+      }).catch(() => null);
+      if (created) {
+        io.to(`user:${participantId}`).emit('notification', {
+          _id: created._id,
+          title: created.title,
+          message: created.message,
+          channel: created.channel,
+          link: created.link,
+        });
+      }
+
+      // Real-time chat delivery to recipient UI
+      io.to(`user:${participantId}`).emit('new_message', {
+        ...savedMessage?.toObject?.() ?? savedMessage,
+        roomId: room._id,
+        sender: {
+          _id: req.user!.id,
+          firstName: sender?.firstName || '',
+          lastName: sender?.lastName || '',
+        },
+      });
       if (participant.email) {
         await sendEmail(
           participant.email,
@@ -141,7 +165,18 @@ export async function sendMessage(req: AuthRequest, res: Response): Promise<void
         ).catch(() => {});
       }
     }
-    res.json({ message: 'Message sent', data: message });
+    // Also emit to sender so other tabs stay in sync
+    io.to(`user:${req.user!.id}`).emit('new_message', {
+      ...savedMessage?.toObject?.() ?? savedMessage,
+      roomId: room._id,
+      sender: {
+        _id: req.user!.id,
+        firstName: sender?.firstName || '',
+        lastName: sender?.lastName || '',
+      },
+    });
+
+    res.json({ message: 'Message sent', data: savedMessage });
   } catch (err) {
     logger.error('sendMessage: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });

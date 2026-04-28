@@ -5,12 +5,13 @@ import User from '../models/User.model';
 import { sendEmail } from '../utils/mail.service';
 import { sendWhatsAppMessage } from '../utils/whatsapp.service';
 import logger from '../utils/logger';
+import { io } from '../index';
 
 export async function getNotifications(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const notifications = await NotificationModel.find({ user: req.user!.id })
+    const notifications = await NotificationModel.find({ user: req.user!.id, tenant: req.user!.tenant })
       .sort({ createdAt: -1 }).limit(100);
-    const unreadCount = await NotificationModel.countDocuments({ user: req.user!.id, isRead: false });
+    const unreadCount = await NotificationModel.countDocuments({ user: req.user!.id, tenant: req.user!.tenant, isRead: false });
     res.json({ notifications, unreadCount });
   } catch (err) {
     logger.error('getNotifications: %s', (err as Error).message);
@@ -21,7 +22,7 @@ export async function getNotifications(req: AuthRequest, res: Response): Promise
 export async function markRead(req: AuthRequest, res: Response): Promise<void> {
   try {
     await NotificationModel.findOneAndUpdate(
-      { _id: req.params.id, user: req.user!.id },
+      { _id: req.params.id, user: req.user!.id, tenant: req.user!.tenant },
       { isRead: true, readAt: new Date() }
     );
     res.json({ message: 'Marked as read' });
@@ -33,7 +34,7 @@ export async function markRead(req: AuthRequest, res: Response): Promise<void> {
 export async function markAllRead(req: AuthRequest, res: Response): Promise<void> {
   try {
     await NotificationModel.updateMany(
-      { user: req.user!.id, isRead: false },
+      { user: req.user!.id, tenant: req.user!.tenant, isRead: false },
       { isRead: true, readAt: new Date() }
     );
     res.json({ message: 'All notifications marked as read' });
@@ -66,11 +67,24 @@ export async function sendNotification(req: AuthRequest, res: Response): Promise
 
     for (const recipient of recipients) {
       const notifBody = `${senderName}: ${body}`;
+      const baseTitle = subject || `Message from ${senderName}`;
 
       if (channel === 'in-app' || !channel) {
-        await NotificationModel.create({
-          user: recipient._id, title: subject || 'Message from ' + senderName,
-          message: notifBody, type: 'info', channel: 'in-app'
+        const created = await NotificationModel.create({
+          tenant: tenantId,
+          user: recipient._id,
+          title: baseTitle,
+          message: notifBody,
+          type: 'info',
+          channel: 'in-app',
+          link: '/communication',
+        });
+        io.to(`user:${recipient._id}`).emit('notification', {
+          _id: created._id,
+          title: created.title,
+          message: created.message,
+          channel: created.channel,
+          link: created.link,
         });
         sent++;
       }
@@ -88,9 +102,21 @@ export async function sendNotification(req: AuthRequest, res: Response): Promise
             </a>
           </div>`;
         await sendEmail(recipient.email, subject || `Message from ${senderName}`, html);
-        await NotificationModel.create({
-          user: recipient._id, title: subject || 'Email from ' + senderName,
-          message: notifBody, type: 'info', channel: 'email'
+        const created = await NotificationModel.create({
+          tenant: tenantId,
+          user: recipient._id,
+          title: subject || `Email from ${senderName}`,
+          message: notifBody,
+          type: 'info',
+          channel: 'email',
+          link: '/communication',
+        });
+        io.to(`user:${recipient._id}`).emit('notification', {
+          _id: created._id,
+          title: created.title,
+          message: created.message,
+          channel: created.channel,
+          link: created.link,
         });
         sent++;
       }
@@ -98,9 +124,21 @@ export async function sendNotification(req: AuthRequest, res: Response): Promise
       if (channel === 'whatsapp' && recipient.phone) {
         const msg = `*ACETEL VIMS Message*\n\nFrom: ${senderName}\n\n${body}\n\n${appUrl}`;
         await sendWhatsAppMessage(recipient.phone, msg);
-        await NotificationModel.create({
-          user: recipient._id, title: subject || 'WhatsApp from ' + senderName,
-          message: notifBody, type: 'info', channel: 'whatsapp'
+        const created = await NotificationModel.create({
+          tenant: tenantId,
+          user: recipient._id,
+          title: subject || `WhatsApp from ${senderName}`,
+          message: notifBody,
+          type: 'info',
+          channel: 'whatsapp',
+          link: '/communication',
+        });
+        io.to(`user:${recipient._id}`).emit('notification', {
+          _id: created._id,
+          title: created.title,
+          message: created.message,
+          channel: created.channel,
+          link: created.link,
         });
         sent++;
       }

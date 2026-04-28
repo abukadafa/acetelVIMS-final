@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
 import { Send, Mail, MessageSquare, Bell, Search, X, CheckCheck } from 'lucide-react';
@@ -6,15 +7,14 @@ import { toast } from 'react-hot-toast';
 
 type Channel = 'in-app' | 'email' | 'whatsapp';
 
-interface Message {
+interface NotificationItem {
   _id: string;
-  from: { firstName: string; lastName: string; role: string };
-  to: string;
-  subject?: string;
-  body: string;
+  title: string;
+  message: string;
   channel: Channel;
   createdAt: string;
   isRead: boolean;
+  link?: string;
 }
 
 const CHANNEL_ICONS = {
@@ -25,7 +25,8 @@ const CHANNEL_ICONS = {
 
 export default function CommunicationPage() {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const navigate = useNavigate();
+  const [messages, setMessages] = useState<NotificationItem[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -80,10 +81,17 @@ export default function CommunicationPage() {
     setMessages(prev => prev.map(m => m._id === id ? { ...m, isRead: true } : m));
   }
 
-  const filtered = messages.filter(m =>
-    !search || m.body.toLowerCase().includes(search.toLowerCase()) ||
-    m.subject?.toLowerCase().includes(search.toLowerCase())
-  );
+  async function openMessage(msg: NotificationItem) {
+    await markRead(msg._id);
+    if (msg.link) navigate(msg.link);
+  }
+
+  const filtered = messages
+    .filter(m => m.channel === activeChannel)
+    .filter(m =>
+      !search || m.message.toLowerCase().includes(search.toLowerCase()) ||
+      m.title?.toLowerCase().includes(search.toLowerCase())
+    );
 
   const unread = messages.filter(m => !m.isRead).length;
 
@@ -185,7 +193,7 @@ export default function CommunicationPage() {
           const cfg = CHANNEL_ICONS[msg.channel] || CHANNEL_ICONS['in-app'];
           const Icon = cfg.icon;
           return (
-            <div key={msg._id} onClick={() => markRead(msg._id)} style={{
+            <div key={msg._id} onClick={() => openMessage(msg)} style={{
               padding: '16px 20px',
               borderBottom: i < filtered.length - 1 ? '1px solid #f3f4f6' : 'none',
               background: msg.isRead ? '#fff' : '#f0fdf4',
@@ -202,15 +210,13 @@ export default function CommunicationPage() {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                  {msg.subject && (
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>{msg.subject}</span>
-                  )}
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>{msg.title}</span>
                   {!msg.isRead && (
                     <span style={{ background: '#166534', color: '#fff', fontSize: '0.6rem', fontWeight: 800,
                       padding: '2px 7px', borderRadius: 100, textTransform: 'uppercase' }}>New</span>
                   )}
                 </div>
-                <div style={{ fontSize: '0.875rem', color: '#374151', lineHeight: 1.5 }}>{msg.body}</div>
+                <div style={{ fontSize: '0.875rem', color: '#374151', lineHeight: 1.5 }}>{msg.message}</div>
                 <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 5 }}>
                   {new Date(msg.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
                   {msg.isRead && <CheckCheck size={13} style={{ display: 'inline', marginLeft: 6, color: '#16a34a' }} />}

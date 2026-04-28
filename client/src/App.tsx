@@ -12,6 +12,8 @@ import EmailPage from './pages/EmailPage';
 import WhatsAppSetupPage from './pages/WhatsAppSetupPage';
 import FirewallPage from './pages/FirewallPage';
 import Dashboard from './pages/Dashboard';
+import LiveTrackingPage from './pages/LiveTrackingPage';
+import StudentProfilePage from './pages/StudentProfilePage';
 import Layout from './components/Layout';
 import StudentList from './components/StudentList';
 import CompanyManagement from './components/CompanyManagement';
@@ -87,8 +89,9 @@ export default function App() {
               <Route path="/reviews" element={<ProtectedRoute roles={['supervisor', 'industry_supervisor']}><LogbookPage /></ProtectedRoute>} />
               <Route path="/logbook" element={<ProtectedRoute><LogbookPage /></ProtectedRoute>} />
               <Route path="/attendance" element={<ProtectedRoute roles={['student']}><Dashboard /></ProtectedRoute>} />
-              <Route path="/map" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator']}><Dashboard /></ProtectedRoute>} />
+              <Route path="/map" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator']}><LiveTrackingPage /></ProtectedRoute>} />
               <Route path="/all-students" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><StudentList /></ProtectedRoute>} />
+              <Route path="/all-students/:id" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor']}><StudentProfilePage /></ProtectedRoute>} />
               <Route path="/companies" element={<ProtectedRoute roles={['admin', 'internship_coordinator']}><CompanyManagement /></ProtectedRoute>} />
               <Route path="/users" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><UserManagementPage /></ProtectedRoute>} />
               <Route path="/audit-trail" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><AuditTrailPage /></ProtectedRoute>} />

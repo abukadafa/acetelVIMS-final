@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Download, UserPlus, MoreVertical, Mail, MessageSquare, Eye, UserCheck, AlertTriangle } from 'lucide-react';
+import { Search, Download, UserPlus, MoreVertical, Mail, MessageSquare, Eye, UserCheck, AlertTriangle, Pencil, Trash2, History } from 'lucide-react';
 import api from '../lib/api';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import AuditTrailModal from './AuditTrailModal';
 
 export default function StudentList() {
   const [students, setStudents]       = useState<any[]>([]);
@@ -13,6 +14,8 @@ export default function StudentList() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [submitting, setSubmitting]   = useState(false);
   const [openMenu, setOpenMenu]       = useState<string | null>(null);
+  const [editing, setEditing]         = useState<any | null>(null);
+  const [auditTarget, setAuditTarget] = useState<{ targetId?: string; title: string } | null>(null);
   const [newStudent, setNewStudent]   = useState({
     firstName: '', lastName: '', email: '', matricNumber: '', phone: ''
   });
@@ -63,7 +66,7 @@ export default function StudentList() {
     setOpenMenu(null);
     switch (action) {
       case 'view':
-        navigate(`/students/${student._id}`);
+        navigate(`/all-students/${student._id}`);
         break;
       case 'email':
         try {
@@ -101,6 +104,25 @@ export default function StudentList() {
           toast.success('Student flagged for review');
           fetchData();
         } catch { toast.error('Failed to flag student'); }
+        break;
+      case 'edit':
+        setEditing(student);
+        break;
+      case 'delete':
+        if (!confirm(`Deactivate ${student.user?.firstName || 'this student'}?`)) return;
+        try {
+          await api.delete(`/students/${student._id}`);
+          toast.success('Student deactivated');
+          fetchData();
+        } catch (err: any) {
+          toast.error(err.response?.data?.error || 'Failed to deactivate student');
+        }
+        break;
+      case 'audit':
+        setAuditTarget({
+          targetId: student.user?._id || student.user,
+          title: `Audit Trail — ${student.user?.firstName || ''} ${student.user?.lastName || ''}`.trim(),
+        });
         break;
     }
   };
@@ -201,18 +223,21 @@ export default function StudentList() {
                         { action: 'whatsapp', icon: MessageSquare, label: 'Send WhatsApp' },
                         { action: 'allocate', icon: UserCheck,   label: 'Auto-Allocate' },
                         { action: 'flag',     icon: AlertTriangle, label: 'Flag for Review' },
+                        { action: 'edit',     icon: Pencil,      label: 'Edit Student' },
+                        { action: 'audit',    icon: History,     label: 'Audit Trail' },
+                        { action: 'delete',   icon: Trash2,      label: 'Deactivate' },
                       ].map(({ action, icon: Icon, label }) => (
                         <button key={action} onClick={() => handleAction(action, s)}
                           style={{
                             width: '100%', padding: '10px 16px', background: 'none',
                             border: 'none', display: 'flex', alignItems: 'center', gap: 10,
                             cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600,
-                            color: action === 'flag' ? '#dc2626' : '#111827',
+                            color: action === 'flag' || action === 'delete' ? '#dc2626' : '#111827',
                             textAlign: 'left', transition: 'background 0.1s',
                           }}
                           onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-                          <Icon size={15} color={action === 'flag' ? '#dc2626' : '#166534'} />
+                          <Icon size={15} color={action === 'flag' || action === 'delete' ? '#dc2626' : '#166534'} />
                           {label}
                         </button>
                       ))}
@@ -271,6 +296,90 @@ export default function StudentList() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Edit Student Modal */}
+      {editing && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 320, padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: '100%',
+            maxWidth: 560, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', position: 'relative' }}>
+            <button onClick={() => setEditing(null)} style={{ position: 'absolute',
+              top: 14, right: 14, background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: '1.2rem', color: '#6b7280' }}>✕</button>
+            <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '1.25rem', fontWeight: 800,
+              color: '#111827', marginBottom: 6 }}>
+              Edit Student
+            </h2>
+            <p style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: 18 }}>
+              Update academic verification and placement fields.
+            </p>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setSubmitting(true);
+              try {
+                await api.put(`/students/${editing._id}`, {
+                  status: editing.status,
+                  personalEmail: editing.personalEmail,
+                  stateOfOrigin: editing.stateOfOrigin,
+                  lga: editing.lga,
+                  address: editing.address,
+                });
+                toast.success('Student updated');
+                setEditing(null);
+                fetchData();
+              } catch (err: any) {
+                toast.error(err.response?.data?.error || 'Failed to update student');
+              } finally { setSubmitting(false); }
+            }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', marginBottom: 5, display: 'block' }}>Status</label>
+                <select style={inputStyle} value={editing.status || 'pending'}
+                  onChange={e => setEditing((p: any) => ({ ...p, status: e.target.value }))}>
+                  {['pending', 'active', 'completed', 'withdrawn', 'suspended'].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', marginBottom: 5, display: 'block' }}>Personal Email</label>
+                <input style={inputStyle} type="email" value={editing.personalEmail || ''}
+                  onChange={e => setEditing((p: any) => ({ ...p, personalEmail: e.target.value }))}
+                  placeholder="student@gmail.com" />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', marginBottom: 5, display: 'block' }}>State of Origin</label>
+                <input style={inputStyle} value={editing.stateOfOrigin || ''}
+                  onChange={e => setEditing((p: any) => ({ ...p, stateOfOrigin: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', marginBottom: 5, display: 'block' }}>LGA</label>
+                <input style={inputStyle} value={editing.lga || ''}
+                  onChange={e => setEditing((p: any) => ({ ...p, lga: e.target.value }))} />
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', marginBottom: 5, display: 'block' }}>Address</label>
+                <input style={inputStyle} value={editing.address || ''}
+                  onChange={e => setEditing((p: any) => ({ ...p, address: e.target.value }))} />
+              </div>
+              <div style={{ gridColumn: 'span 2', display: 'flex', gap: 12, marginTop: 6 }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setEditing(null)} style={{ flex: 1 }}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={submitting} style={{ flex: 1 }}>
+                  {submitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {auditTarget && (
+        <AuditTrailModal
+          targetId={auditTarget.targetId}
+          title={auditTarget.title}
+          onClose={() => setAuditTarget(null)}
+        />
       )}
     </div>
   );

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Building2, Search, MapPin, Users, Plus, ExternalLink, Upload, X, Globe, Settings } from 'lucide-react';
+import { Building2, Search, MapPin, Users, Plus, ExternalLink, Upload, X, Globe, Settings, Pencil, Trash2, History } from 'lucide-react';
 import api from '../lib/api';
 import { toast } from 'react-hot-toast';
 import BulkEnrollModal from './BulkEnrollModal';
+import AuditTrailModal from './AuditTrailModal';
 
 interface Company {
   _id: string; name: string; address: string; state: string; sector: string;
@@ -27,6 +28,8 @@ export default function CompanyManagement() {
   const [showBulkEnroll, setShowBulkEnroll] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState<Company | null>(null);
+  const [editingId, setEditingId]       = useState<string | null>(null);
+  const [auditTarget, setAuditTarget]   = useState<{ targetId?: string; title: string } | null>(null);
   const [submitting, setSubmitting]     = useState(false);
   const [allocating, setAllocating]     = useState(false);
   const [form, setForm]                 = useState({
@@ -51,15 +54,21 @@ export default function CompanyManagement() {
     if (!form.contactEmail) { toast.error('Contact email is required'); return; }
     setSubmitting(true);
     try {
-      await api.post('/companies', form);
-      toast.success('Partner registered successfully');
+      if (editingId) {
+        await api.put(`/companies/${editingId}`, form);
+        toast.success('Partner updated successfully');
+      } else {
+        await api.post('/companies', form);
+        toast.success('Partner registered successfully');
+      }
       setShowAddModal(false);
+      setEditingId(null);
       setForm({ name: '', address: '', state: 'FCT', sector: 'Information Technology',
         specialisation: '', contactEmail: '', contactPhone: '', contactPerson: '',
         website: '', maxStudents: 10, lat: 9.0765, lng: 7.3986 });
       fetchData();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to register partner');
+      toast.error(err.response?.data?.error || (editingId ? 'Failed to update partner' : 'Failed to register partner'));
     } finally { setSubmitting(false); }
   };
 
@@ -93,7 +102,7 @@ export default function CompanyManagement() {
           <button className="btn btn-outline btn-sm" onClick={() => setShowBulkEnroll(true)}>
             <Upload size={16} /> Bulk Import
           </button>
-          <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}>
+          <button className="btn btn-primary btn-sm" onClick={() => { setEditingId(null); setShowAddModal(true); }}>
             <Plus size={16} /> Register Partner
           </button>
         </div>
@@ -177,18 +186,18 @@ export default function CompanyManagement() {
         ))}
       </div>
 
-      {/* ── Register Partner Modal ── */}
+      {/* ── Register/Edit Partner Modal ── */}
       {showAddModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex',
           alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20, overflowY: 'auto' }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: 32, width: '100%', maxWidth: 640,
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
-            <button onClick={() => setShowAddModal(false)} style={{ position: 'absolute', top: 16, right: 16,
+            <button onClick={() => { setShowAddModal(false); setEditingId(null); }} style={{ position: 'absolute', top: 16, right: 16,
               background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><X size={20} /></button>
             <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '1.3rem', fontWeight: 800,
-              color: '#111827', marginBottom: 6 }}>Register Industry Partner</h2>
+              color: '#111827', marginBottom: 6 }}>{editingId ? 'Edit Industry Partner' : 'Register Industry Partner'}</h2>
             <p style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: 24 }}>
-              Add a new ACETEL Industry Internship Placement Partner
+              {editingId ? 'Update this partner’s details' : 'Add a new ACETEL Industry Internship Placement Partner'}
             </p>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -260,7 +269,7 @@ export default function CompanyManagement() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                <button type="button" onClick={() => setShowAddModal(false)}
+                <button type="button" onClick={() => { setShowAddModal(false); setEditingId(null); }}
                   style={{ flex: 1, padding: 12, border: '1.5px solid #e5e7eb', borderRadius: 8,
                     fontWeight: 600, background: '#fff', cursor: 'pointer', color: '#374151' }}>
                   Cancel
@@ -269,7 +278,7 @@ export default function CompanyManagement() {
                   style={{ flex: 2, padding: 12, background: '#166534', color: '#fff',
                     border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer',
                     opacity: submitting ? 0.7 : 1 }}>
-                  {submitting ? 'Registering...' : 'Register Partner'}
+                  {submitting ? (editingId ? 'Saving...' : 'Registering...') : (editingId ? 'Save Changes' : 'Register Partner')}
                 </button>
               </div>
             </form>
@@ -313,13 +322,64 @@ export default function CompanyManagement() {
                   <ExternalLink size={14} /> Visit Website
                 </button>
               )}
-              <button className="btn btn-primary btn-sm" style={{ flex: 1 }}
+              <button className="btn btn-outline btn-sm" style={{ flex: 1 }}
+                onClick={() => {
+                  setEditingId(showManageModal._id);
+                  setForm({
+                    name: showManageModal.name || '',
+                    address: showManageModal.address || '',
+                    state: showManageModal.state || 'FCT',
+                    sector: showManageModal.sector || 'Information Technology',
+                    specialisation: showManageModal.specialisation || '',
+                    contactEmail: showManageModal.contactEmail || '',
+                    contactPhone: showManageModal.contactPhone || '',
+                    contactPerson: showManageModal.contactPerson || '',
+                    website: showManageModal.website || '',
+                    maxStudents: showManageModal.maxStudents || 10,
+                    lat: showManageModal.lat ?? 9.0765,
+                    lng: showManageModal.lng ?? 7.3986,
+                  });
+                  setShowManageModal(null);
+                  setShowAddModal(true);
+                }}>
+                <Pencil size={14} /> Edit
+              </button>
+              <button className="btn btn-outline btn-sm" style={{ flex: 1 }}
+                onClick={() => {
+                  setAuditTarget({ targetId: showManageModal._id, title: `Audit Trail — ${showManageModal.name}` });
+                  setShowManageModal(null);
+                }}>
+                <History size={14} /> Audit
+              </button>
+              <button className="btn btn-outline btn-sm" style={{ flex: 1 }}
                 onClick={() => { handleAutoAllocate(showManageModal._id); setShowManageModal(null); }}>
-                <Users size={14} /> Auto-Allocate Students
+                <Users size={14} /> Allocate
+              </button>
+              <button className="btn btn-sm" style={{ flex: 1, border: '1.5px solid #fecaca', color: '#b91c1c', background: '#fff' }}
+                onClick={async () => {
+                  if (!confirm(`Delete ${showManageModal.name}?`)) return;
+                  try {
+                    await api.delete(`/companies/${showManageModal._id}`);
+                    toast.success('Partner deleted');
+                    setShowManageModal(null);
+                    fetchData();
+                  } catch (err: any) {
+                    toast.error(err.response?.data?.error || 'Failed to delete partner');
+                  }
+                }}>
+                <Trash2 size={14} /> Delete
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {auditTarget && (
+        <AuditTrailModal
+          targetId={auditTarget.targetId}
+          title={auditTarget.title}
+          onClose={() => setAuditTarget(null)}
+        />
       )}
 
       {showBulkEnroll && (

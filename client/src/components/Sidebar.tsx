@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   LogOut, LayoutDashboard, Map, Users, Settings,
   BookOpen, UserCheck, Activity, ChevronLeft, ChevronRight,
-  UserCog, MessageSquare, History, Trash2, MessageCircle,
+  UserCog, MessageSquare, Inbox, History, Trash2, MessageCircle,
   Mail, Shield, Smartphone, Building2, PenSquare,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
@@ -49,11 +49,9 @@ export default function Sidebar() {
         const unread = (chatRes.data.chats || []).filter((c: any) =>
           c.lastMessageBy && c.lastMessageBy !== user.id
         ).length;
-        const unreadFeedback = (notifRes.data.notifications || []).filter((n: any) =>
-          !n.isRead && n.link === '/feedback'
-        ).length;
+        const unreadInbox = (notifRes.data.notifications || []).filter((n: any) => !n.isRead).length;
         setUnreadChats(unread);
-        setUnreadNotif(unreadFeedback);
+        setUnreadNotif(unreadInbox);
       } catch { /* silent */ }
     };
     poll();
@@ -204,8 +202,9 @@ export default function Sidebar() {
             {!collapsed && <span className="nav-label" style={{ color: '#fff', fontWeight: 700 }}>Compose</span>}
           </button>
           <NavLink to="/chat"     icon={MessageCircle}  label="Team Chat"       badge={unreadChats} />
+          <NavLink to="/communication" icon={Inbox} label="Inbox" badge={unreadNotifications > 0 ? unreadNotifications : undefined} />
           <NavLink to="/email"    icon={Mail}           label="Email Centre" />
-          <NavLink to="/feedback" icon={MessageSquare}  label="Feedback Portal" badge={unreadNotifications > 0 ? unreadNotifications : undefined} />
+          <NavLink to="/feedback" icon={MessageSquare}  label="Feedback Portal" />
         </div>
 
         {/* ── ACCOUNT ── */}

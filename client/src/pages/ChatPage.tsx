@@ -17,6 +17,7 @@ export default function ChatPage() {
   const [loading, setLoading]   = useState(true);
   const [view, setView]         = useState<'rooms' | 'contacts'>('rooms');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const activeIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -24,6 +25,7 @@ export default function ChatPage() {
       fetchRooms();
       fetchContacts();
       onNewMessage(msg => {
+        if (msg?.roomId && activeIdRef.current && msg.roomId !== activeIdRef.current) return;
         setMessages(prev => [...prev, msg]);
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
       });
@@ -33,6 +35,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (active) fetchMessages(active._id);
+    activeIdRef.current = active?._id || null;
   }, [active]);
 
   useEffect(() => {
