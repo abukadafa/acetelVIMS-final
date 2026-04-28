@@ -17,6 +17,7 @@ const REQUIRED_ENV_VARS = [
 const OPTIONAL_ENV_VARS = [
   'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS',         // Email
   'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_WHATSAPP_FROM', // WhatsApp
+  'WA_PHONE_NUMBER_ID', 'WA_ACCESS_TOKEN', 'META_WA_VERIFY_TOKEN',   // WhatsApp (Meta Cloud API)
   'GEMINI_API_KEY',                                             // AI
 ];
 
@@ -44,6 +45,11 @@ export function validateEnv() {
 
   // Report feature availability
   const emailActive = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
-  const waActive = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
-  logger.info('📧 Email notifications: %s | 📱 WhatsApp (Twilio): %s', emailActive ? 'ACTIVE' : 'SIMULATED', waActive ? 'ACTIVE' : 'SIMULATED');
+  const waTwilioActive = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM);
+  const waMetaActive = !!(process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN);
+  logger.info(
+    '📧 Email notifications: %s | 📱 WhatsApp: %s',
+    emailActive ? 'ACTIVE' : 'DISABLED',
+    waMetaActive ? 'ACTIVE (Meta Cloud API)' : (waTwilioActive ? 'ACTIVE (Twilio)' : 'SIMULATED')
+  );
 }

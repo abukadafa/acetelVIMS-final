@@ -1,8 +1,67 @@
+function normalizeToE164Like(input: string): string {
+  // Keep digits only; Meta expects international format digits, Twilio works with +.
+  const digits = String(input || '').replace(/[^\d]/g, '');
+  return digits;
+}
+
 export async function sendWhatsAppMessage(phone: string, message: string): Promise<boolean> {
   try {
-    // Production: integrate with Twilio or Meta WhatsApp Business API
-    // Replace this block with actual API call using process.env.TWILIO_* or META_WA_* vars
-    console.log(`[WHATSAPP OUTGOING] To: ${phone}\n${message}`);
+    const toDigits = normalizeToE164Like(phone);
+    if (!toDigits) return false;
+
+    // Option A: Meta WhatsApp Cloud API
+    if (process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN) {
+      const url = `https://graph.facebook.com/v19.0/${process.env.WA_PHONE_NUMBER_ID}/messages`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: toDigits,
+          type: 'text',
+          text: { body: message },
+        }),
+      });
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => '');
+        console.error('WhatsApp(Meta) failed:', resp.status, body);
+        return false;
+      }
+      return true;
+    }
+
+    // Option B: Twilio WhatsApp (no SDK required)
+    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM) {
+      const sid = process.env.TWILIO_ACCOUNT_SID;
+      const token = process.env.TWILIO_AUTH_TOKEN;
+      const from = process.env.TWILIO_WHATSAPP_FROM;
+      const auth = Buffer.from(`${sid}:${token}`).toString('base64');
+      const form = new URLSearchParams();
+      form.set('From', from.startsWith('whatsapp:') ? from : `whatsapp:${from}`);
+      form.set('To', `whatsapp:+${toDigits}`);
+      form.set('Body', message);
+
+      const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: form.toString(),
+      });
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => '');
+        console.error('WhatsApp(Twilio) failed:', resp.status, body);
+        return false;
+      }
+      return true;
+    }
+
+    // Fallback: simulated (dev)
+    console.log(`[WHATSAPP OUTGOING - SIMULATED] To: ${phone}\n${message}`);
     return true;
   } catch (error) {
     console.error('WhatsApp error:', error);

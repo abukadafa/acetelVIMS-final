@@ -318,18 +318,21 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
 
     // Welcome notifications — institutional email + personal email + WhatsApp
     const appUrl = process.env.FRONTEND_URL || 'https://acetel-frontend.onrender.com';
-    const welcomeHtml = emailTemplates.welcomeStudent(`${firstName} ${lastName}`, email, tempPassword, process.env.FRONTEND_URL || '', 'Pending Placement');
+    const welcomeHtml = emailTemplates.welcomeStudent(`${firstName} ${lastName}`, email, tempPassword, appUrl, 'Pending Placement');
+    const delivery = { email: false, personalEmail: false, whatsapp: false };
     try {
-      await sendEmail(email.toLowerCase(), 'Welcome to ACETEL IMS — Your Account is Ready', welcomeHtml);
+      delivery.email = await sendEmail(email.toLowerCase(), 'Welcome to ACETEL IMS — Your Account is Ready', welcomeHtml);
+      if (!delivery.email) logger.warn('Student welcome email (inst.) failed for %s', email);
     } catch (e) { logger.warn('Student welcome email (inst.) failed: %s', (e as Error).message); }
     if (personalEmail) {
       try {
-        await sendEmail(personalEmail, 'Welcome to ACETEL IMS — Your Account is Ready', welcomeHtml);
+        delivery.personalEmail = await sendEmail(personalEmail, 'Welcome to ACETEL IMS — Your Account is Ready', welcomeHtml);
+        if (!delivery.personalEmail) logger.warn('Student welcome email (personal) failed for %s', personalEmail);
       } catch (e) { logger.warn('Student welcome email (personal) failed: %s', (e as Error).message); }
     }
     if (phone) {
       try {
-        await sendWhatsAppMessage(phone,
+        delivery.whatsapp = await sendWhatsAppMessage(phone,
           `*ACETEL IMS — Enrollment Successful* 🎓
 
 Hello ${firstName},
@@ -346,6 +349,7 @@ ${appUrl}
 
 _Please change your password after first login._`
         );
+        if (!delivery.whatsapp) logger.warn('Student welcome WhatsApp failed for %s', phone);
       } catch (e) { logger.warn('Student welcome WhatsApp failed: %s', (e as Error).message); }
     }
     await Notification.create({
@@ -357,6 +361,7 @@ _Please change your password after first login._`
 
     res.status(201).json({
       message: 'Student onboarded successfully',
+      delivery,
       tempPassword
     });
   } catch (err) {
