@@ -10,11 +10,21 @@ const normalisedBase = API_BASE.endsWith('/') ? API_BASE : API_BASE + '/';
 const api = axios.create({
   baseURL: normalisedBase,
   withCredentials: true,
+  timeout: 30000, // 30 s — accommodates Render free-tier cold starts
   headers: {
     'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
   },
 });
+
+/**
+ * Pings the health endpoint to wake the backend before the user logs in.
+ * On Render free tier the server sleeps after 15 min of inactivity; this
+ * fires immediately on app load so the warm-up happens in the background.
+ */
+export function warmUpBackend() {
+  axios.get(`${normalisedBase}health`).catch(() => {/* silent — just warming up */});
+}
 
 /**
  * Sets the Bearer token on the shared axios instance immediately,

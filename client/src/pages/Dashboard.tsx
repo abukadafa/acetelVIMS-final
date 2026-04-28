@@ -49,7 +49,7 @@ export default function Dashboard() {
     { id: 'ict_support', label: 'ICT Support' },
   ];
 
-  if (!user) return null;
+  if (!user) return <div className="page-loader"><div className="spinner spinner-lg"></div></div>;
 
   return (
     <div className="dashboard-container animate-fade">

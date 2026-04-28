@@ -53,18 +53,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    try {
-      const { data } = await api.get('auth/profile');
-      setUser(data.user);
-      if (data.student) setStudent(data.student);
-    } catch (err: any) {
-      if (err.response?.status === 401) {
-        setAuthToken(null);
-        setUser(null);
-        setStudent(null);
+    // Retry up to 4 times with backoff — handles Render free-tier cold starts
+    // where the backend can take 10–30 s to wake up after inactivity.
+    const MAX_RETRIES = 4;
+    const BACKOFF_MS = [2000, 4000, 6000, 8000];
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const { data } = await api.get('auth/profile');
+        setUser(data.user);
+        if (data.student) setStudent(data.student);
+        setLoading(false);
+        return; // success — stop retrying
+      } catch (err: any) {
+        if (err.response?.status === 401) {
+          // Genuine auth failure — don't retry
+          setAuthToken(null);
+          setUser(null);
+          setStudent(null);
+          setLoading(false);
+          return;
+        }
+        // Network error or 5xx — backend may be waking up
+        if (attempt < MAX_RETRIES) {
+          await new Promise(res => setTimeout(res, BACKOFF_MS[attempt]));
+        } else {
+          // All retries exhausted — clear auth and let user try again
+          setAuthToken(null);
+          setUser(null);
+          setStudent(null);
+          setLoading(false);
+        }
       }
-    } finally {
-      setLoading(false);
     }
   }, []);
 

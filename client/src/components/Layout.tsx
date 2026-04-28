@@ -7,7 +7,14 @@ import { Navigate, Outlet } from 'react-router-dom';
 export default function Layout() {
   const { user, loading } = useAuth();
 
-  if (loading) return <div className="page-loader"><div className="spinner spinner-lg"></div></div>;
+  if (loading) return (
+    <div className="page-loader">
+      <div className="spinner spinner-lg"></div>
+      <p style={{ marginTop: '16px', color: '#6b7280', fontSize: '14px' }}>
+        Connecting to server…
+      </p>
+    </div>
+  );
   if (!user) return <Navigate to="/login" replace />;
 
   return (
