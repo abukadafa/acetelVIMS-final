@@ -4,6 +4,7 @@ import api from '../lib/api';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import AuditTrailModal from './AuditTrailModal';
+import ReasonModal from './ReasonModal';
 
 export default function StudentList() {
   const [students, setStudents]       = useState<any[]>([]);
@@ -16,8 +17,14 @@ export default function StudentList() {
   const [openMenu, setOpenMenu]       = useState<string | null>(null);
   const [editing, setEditing]         = useState<any | null>(null);
   const [auditTarget, setAuditTarget] = useState<{ targetId?: string; title: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [newStudent, setNewStudent]   = useState({
-    firstName: '', lastName: '', email: '', matricNumber: '', phone: '', programme: ''
+    firstName: '', lastName: '', email: '', matricNumber: '',
+    phone: '', programme: '',
+    personalEmail: '',
+    gender: 'Male',
+    isNigerian: true,
+    address: '',
   });
   const menuRef = useRef<HTMLTableDataCellElement>(null);
   const navigate = useNavigate();
@@ -53,7 +60,10 @@ export default function StudentList() {
       toast.success('Student enrolled successfully');
       toast.success('Login details sent automatically via Email and WhatsApp (if phone was provided).');
       setShowAddModal(false);
-      setNewStudent({ firstName: '', lastName: '', email: '', matricNumber: '', phone: '', programme: '' });
+      setNewStudent({
+        firstName: '', lastName: '', email: '', matricNumber: '',
+        phone: '', programme: '', personalEmail: '', gender: 'Male', isNigerian: true, address: '',
+      });
       fetchData();
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to enroll student');
@@ -107,14 +117,7 @@ export default function StudentList() {
         setEditing(student);
         break;
       case 'delete':
-        if (!confirm(`Deactivate ${student.user?.firstName || 'this student'}?`)) return;
-        try {
-          await api.delete(`/students/${student._id}`);
-          toast.success('Student deactivated');
-          fetchData();
-        } catch (err: any) {
-          toast.error(err.response?.data?.error || 'Failed to deactivate student');
-        }
+        setDeleteTarget(student);
         break;
       case 'audit':
         setAuditTarget({
@@ -137,6 +140,27 @@ export default function StudentList() {
     fontFamily: "'Plus Jakarta Sans', sans-serif",
   };
 
+  const handleExport = async () => {
+    try {
+      const res = await api.get('/students/export', {
+        responseType: 'blob',
+        params: { programme: filterProgramme || undefined, search: search || undefined },
+      });
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Students_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Export downloaded');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Export failed');
+    }
+  };
+
   return (
     <div className="card animate-fade-in">
       {/* Header */}
@@ -144,7 +168,7 @@ export default function StudentList() {
         <h3 className="card-title"><UserPlus size={20} /> Active Students</h3>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-sm btn-ghost"
-            onClick={() => window.open(`${api.defaults.baseURL}/students/export`, '_blank')}>
+            onClick={handleExport}>
             <Download size={15} /> Export CSV
           </button>
           <button className="btn btn-sm btn-primary" onClick={() => setShowAddModal(true)}>
@@ -266,14 +290,15 @@ export default function StudentList() {
               {[
                 { name: 'firstName', label: 'First Name', placeholder: 'Amina', required: true },
                 { name: 'lastName',  label: 'Last Name',  placeholder: 'Ibrahim', required: true },
-                { name: 'email',     label: 'Email',      placeholder: 'student@noun.edu.ng', required: true },
-                { name: 'matricNumber', label: 'Matric Number', placeholder: 'NOUN/MSc/2024/...', required: true },
-                { name: 'phone',     label: 'Phone (WhatsApp)', placeholder: '+234...', required: false },
+                { name: 'email',     label: 'Institutional Email', placeholder: 'student@noun.edu.ng', required: true, type: 'email' },
+                { name: 'personalEmail', label: 'Personal Email (optional)', placeholder: 'student@gmail.com', required: false, type: 'email' },
+                { name: 'matricNumber', label: 'Matric Number (Username)', placeholder: 'ACE24240010', required: true },
+                { name: 'phone',     label: 'Phone (WhatsApp)', placeholder: '+234...', required: false, type: 'tel' },
               ].map(f => (
                 <div key={f.name}>
                   <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151',
                     marginBottom: 5, display: 'block' }}>{f.label}{f.required && ' *'}</label>
-                  <input style={inputStyle} required={f.required} placeholder={f.placeholder}
+                  <input style={inputStyle} required={f.required} placeholder={f.placeholder} type={(f as any).type || 'text'}
                     value={(newStudent as any)[f.name]}
                     onChange={e => setNewStudent(prev => ({ ...prev, [f.name]: e.target.value }))} />
                 </div>
@@ -288,6 +313,29 @@ export default function StudentList() {
                     <option key={p._id} value={p._id}>{p.name}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151',
+                  marginBottom: 5, display: 'block' }}>Gender</label>
+                <select style={inputStyle} value={newStudent.gender}
+                  onChange={e => setNewStudent(prev => ({ ...prev, gender: e.target.value }))}>
+                  {['Male', 'Female', 'Other'].map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151',
+                  marginBottom: 5, display: 'block' }}>Nationality</label>
+                <select style={inputStyle} value={String(newStudent.isNigerian)}
+                  onChange={e => setNewStudent(prev => ({ ...prev, isNigerian: e.target.value === 'true' }))}>
+                  <option value="true">Nigerian</option>
+                  <option value="false">Non-Nigerian</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151',
+                  marginBottom: 5, display: 'block' }}>Full Address</label>
+                <input style={inputStyle} placeholder="Full residential address" value={newStudent.address}
+                  onChange={e => setNewStudent(prev => ({ ...prev, address: e.target.value }))} />
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
                 <button type="button" onClick={() => setShowAddModal(false)}
@@ -388,6 +436,25 @@ export default function StudentList() {
           targetId={auditTarget.targetId}
           title={auditTarget.title}
           onClose={() => setAuditTarget(null)}
+        />
+      )}
+
+      {deleteTarget && (
+        <ReasonModal
+          title="Deactivate student account?"
+          message={`Provide a reason for deactivating ${deleteTarget.user?.firstName || 'this student'}. This will be logged in the audit trail.`}
+          confirmText="Deactivate"
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={async (reason) => {
+            try {
+              await api.delete(`/students/${deleteTarget._id}`, { data: { reason } });
+              toast.success('Student deactivated');
+              setDeleteTarget(null);
+              fetchData();
+            } catch (err: any) {
+              toast.error(err.response?.data?.error || 'Failed to deactivate student');
+            }
+          }}
         />
       )}
     </div>

@@ -4,6 +4,9 @@ import Company from '../models/Company.model';
 import Student from '../models/Student.model';
 import logger from '../utils/logger';
 import { z } from 'zod';
+import { sendEmail, emailTemplates } from '../utils/mail.service';
+import { sendWhatsAppMessage } from '../utils/whatsapp.service';
+import AuditLog from '../models/AuditLog.model';
 
 const companyQuerySchema = z.object({
   state: z.string().optional(),
@@ -80,6 +83,43 @@ export async function createCompany(req: AuthRequest, res: Response): Promise<vo
     const company = new Company({ ...data, tenant: userTenant });
     await company.save();
     
+    // Audit
+    await AuditLog.create({
+      tenant: userTenant,
+      user: req.user!.id as any,
+      action: 'CREATE_COMPANY',
+      module: 'COMPANY_MANAGEMENT',
+      targetId: company._id,
+      details: `Registered partner company: ${company.name}`,
+      ipAddress: req.ip,
+    }).catch(() => {});
+
+    // Auto-send onboarding to partner contact (email + WhatsApp if provided)
+    const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
+    if (company.contactEmail) {
+      const html = emailTemplates.companyPlacementNotice(
+        company.name,
+        company.contactPerson || 'Partner Contact',
+        'N/A',
+        company.contactEmail,
+        company.contactPhone || 'N/A'
+      );
+      await sendEmail(company.contactEmail, 'ACETEL IMS — Partner Registration Confirmed', html).catch((e) => {
+        logger.warn('Partner welcome email failed: %s', (e as Error).message);
+      });
+    }
+    if (company.contactPhone) {
+      await sendWhatsAppMessage(company.contactPhone, `*ACETEL IMS — Partner Registered* 🏢
+
+Hello ${company.contactPerson || 'Partner'},
+
+Your organisation *${company.name}* has been registered on ACETEL IMS.
+
+Portal: ${appUrl}
+
+_You will be contacted by the institution for next steps._`).catch(() => false);
+    }
+
     logger.info('Company created: %s by user %s', company._id, req.user!.id);
     res.status(201).json({ message: 'Company created', id: company._id, company });
   } catch (err) {

@@ -90,7 +90,7 @@ export default function UserManagementPage() {
   const [saving, setSaving]         = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [savingStudent, setSavingStudent] = useState(false);
-  const [studentTempCred, setStudentTempCred] = useState<{ name: string; email: string; pass: string; matric: string } | null>(null);
+  const [studentTempCred, setStudentTempCred] = useState<null>(null);
 
   const [tempCred, setTempCred]     = useState<{ name: string; email: string; pass: string } | null>(null);
   const [copied, setCopied]         = useState(false);
@@ -155,7 +155,8 @@ export default function UserManagementPage() {
       } else {
         const { data } = await api.post('/admin/users', form);
         toast.success('User created');
-        setTempCred({ name: `${form.firstName} ${form.lastName}`, email: form.email, pass: data.tempPassword });
+        // Credentials are sent automatically; do not display/copy in UI
+        setTempCred(null);
         setShowModal(false);
       }
       load();
@@ -185,12 +186,9 @@ export default function UserManagementPage() {
       };
       const { data } = await api.post('/admin/students', payload);
       toast.success('Student onboarded successfully!');
-      setStudentTempCred({
-        name: `${studentForm.otherNames} ${studentForm.surname}`,
-        email: studentForm.email,
-        pass: data.tempPassword,
-        matric: studentForm.matricNumber,
-      });
+      toast.success('Login details sent automatically via Email and WhatsApp (if phone was provided).');
+      // Credentials are sent automatically; do not display/copy in UI
+      setStudentTempCred(null);
       setShowStudentModal(false);
       setStudentForm({
         surname: '', otherNames: '', email: '', matricNumber: '', programme: '', phone: '',
@@ -237,12 +235,7 @@ export default function UserManagementPage() {
   };
 
   const copyStudentCreds = () => {
-    if (!studentTempCred) return;
-    navigator.clipboard.writeText(
-      `ACETEL Student Login\nName: ${studentTempCred.name}\nMatriculation: ${studentTempCred.matric}\nEmail: ${studentTempCred.email}\nPassword: ${studentTempCred.pass}\nURL: ${window.location.origin}/login`
-    );
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    return;
   };
 
   const handleExport = async (endpoint: string, filename: string) => {
@@ -810,60 +803,9 @@ export default function UserManagementPage() {
         </div>
       )}
 
-      {/* ══ Staff Temp Credentials Modal ══ */}
-      {tempCred && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 460 }}>
-            <div className="modal-header">
-              <h2 className="modal-title">🎉 Staff User Created</h2>
-            </div>
-            <div className="modal-body">
-              <div className="alert alert-info" style={{ marginBottom: 16 }}>
-                Share these credentials securely with <strong>{tempCred.name}</strong>. The password must be changed after first login.
-              </div>
-              <div className="cred-box">
-                <div className="cred-row"><span className="cred-key">Email</span><span className="cred-val">{tempCred.email}</span></div>
-                <div className="cred-row"><span className="cred-key">Password</span><span className="cred-val cred-pw">{tempCred.pass}</span></div>
-                <div className="cred-row"><span className="cred-key">URL</span><span className="cred-val">{window.location.origin}/login</span></div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-outline" onClick={copyCreds} id="copy-creds-btn">
-                {copied ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy All</>}
-              </button>
-              <button className="btn btn-primary" onClick={() => setTempCred(null)} id="close-creds-btn">Done</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Staff credentials are sent automatically (no manual copy modal). */}
 
-      {/* ══ Student Temp Credentials Modal ══ */}
-      {studentTempCred && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 480 }}>
-            <div className="modal-header" style={{ background: 'linear-gradient(135deg, var(--success) 0%, #10b981 100%)', color: '#fff', borderRadius: '16px 16px 0 0' }}>
-              <h2 className="modal-title" style={{ color: '#fff' }}>🎓 Student Onboarded!</h2>
-            </div>
-            <div className="modal-body">
-              <div className="alert alert-info" style={{ marginBottom: 16 }}>
-                Share these credentials securely with <strong>{studentTempCred.name}</strong>. The password must be changed after first login.
-              </div>
-              <div className="cred-box">
-                <div className="cred-row"><span className="cred-key">Matric Number (Username)</span><span className="cred-val cred-info">{studentTempCred.matric}</span></div>
-                <div className="cred-row"><span className="cred-key">Password</span><span className="cred-val cred-pw">{studentTempCred.pass}</span></div>
-                <div className="cred-row"><span className="cred-key">Official Email</span><span className="cred-val">{studentTempCred.email}</span></div>
-                <div className="cred-row"><span className="cred-key">URL</span><span className="cred-val">{window.location.origin}/login</span></div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-outline" onClick={copyStudentCreds} id="copy-stu-creds-btn">
-                {copied ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy All</>}
-              </button>
-              <button className="btn btn-primary" onClick={() => setStudentTempCred(null)} id="close-stu-creds-btn">Done</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Student credentials are sent automatically (no manual copy modal). */}
 
       {/* ══ Justification Modal ══ */}
       {showReasonModal && reasonTarget && (

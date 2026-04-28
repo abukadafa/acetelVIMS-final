@@ -8,6 +8,7 @@ import NotificationModel from '../models/notification.model';
 import { autoAllocateStudent } from '../utils/allocation.service';
 import logger from '../utils/logger';
 import { z } from 'zod';
+import AuditLog from '../models/AuditLog.model';
 
 const studentQuerySchema = z.object({
   programme: z.string().optional(),
@@ -151,6 +152,19 @@ export async function updateStudent(req: AuthRequest, res: Response): Promise<vo
     Object.assign(student, data);
     await student.save();
 
+    // Audit (admin/coordinators updating student profile)
+    if (userRole !== 'student') {
+      await AuditLog.create({
+        tenant: userTenant,
+        user: userId as any,
+        action: 'UPDATE_STUDENT',
+        module: 'STUDENT_MANAGEMENT',
+        targetId: student._id,
+        details: `Updated student profile: ${student.matricNumber}`,
+        ipAddress: (req as any).ip,
+      }).catch(() => {});
+    }
+
     res.json({ message: 'Student updated successfully', student });
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -228,6 +242,11 @@ export async function deleteStudent(req: AuthRequest, res: Response): Promise<vo
   try {
     const { id } = idParamSchema.parse(req.params);
     const { tenant: userTenant } = req.user!;
+    const reason = String((req.body as any)?.reason || '').trim();
+    if (!reason || reason.length < 5) {
+      res.status(400).json({ error: 'A reason is required' });
+      return;
+    }
 
     const student = await Student.findOne({ _id: id, tenant: userTenant });
     if (!student) {
@@ -238,6 +257,17 @@ export async function deleteStudent(req: AuthRequest, res: Response): Promise<vo
     // Soft delete linked user and student
     await User.findOneAndUpdate({ _id: student.user, tenant: userTenant }, { isDeleted: true, isActive: false });
     await Student.findOneAndUpdate({ _id: id, tenant: userTenant }, { isDeleted: true, status: 'withdrawn' });
+
+    await AuditLog.create({
+      tenant: userTenant,
+      user: req.user!.id as any,
+      action: 'DELETE_STUDENT',
+      module: 'STUDENT_MANAGEMENT',
+      targetId: student._id,
+      reason,
+      details: `Deactivated student: ${student.matricNumber}`,
+      ipAddress: req.ip,
+    }).catch(() => {});
     
     res.json({ message: 'Student record deactivated' });
   } catch (err) {
