@@ -155,7 +155,9 @@ export default function UserManagementPage() {
         setShowModal(false);
         setShowReasonModal(false);
       } else {
-        const { data } = await api.post('/admin/users', form);
+        const payload: Record<string, any> = { ...form };
+        if (!payload.password) delete payload.password;
+        const { data } = await api.post('/admin/users', payload);
         toast.success('User created');
         // Credentials are sent automatically; do not display/copy in UI
         setTempCred(null);
