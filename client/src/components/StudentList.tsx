@@ -17,7 +17,7 @@ export default function StudentList() {
   const [editing, setEditing]         = useState<any | null>(null);
   const [auditTarget, setAuditTarget] = useState<{ targetId?: string; title: string } | null>(null);
   const [newStudent, setNewStudent]   = useState({
-    firstName: '', lastName: '', email: '', matricNumber: '', phone: ''
+    firstName: '', lastName: '', email: '', matricNumber: '', phone: '', programme: ''
   });
   const menuRef = useRef<HTMLTableDataCellElement>(null);
   const navigate = useNavigate();
@@ -51,11 +51,9 @@ export default function StudentList() {
     try {
       const res = await api.post('/admin/students', newStudent);
       toast.success('Student enrolled successfully');
-      if (res.data.tempPassword) {
-        toast(`Temporary Password: ${res.data.tempPassword}`, { duration: 8000, icon: '🔑' });
-      }
+      toast.success('Login details sent automatically via Email and WhatsApp (if phone was provided).');
       setShowAddModal(false);
-      setNewStudent({ firstName: '', lastName: '', email: '', matricNumber: '', phone: '' });
+      setNewStudent({ firstName: '', lastName: '', email: '', matricNumber: '', phone: '', programme: '' });
       fetchData();
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to enroll student');
@@ -280,6 +278,17 @@ export default function StudentList() {
                     onChange={e => setNewStudent(prev => ({ ...prev, [f.name]: e.target.value }))} />
                 </div>
               ))}
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151',
+                  marginBottom: 5, display: 'block' }}>Programme *</label>
+                <select style={inputStyle} required value={newStudent.programme}
+                  onChange={e => setNewStudent(prev => ({ ...prev, programme: e.target.value }))}>
+                  <option value="">Select Programme</option>
+                  {programmes.map((p: any) => (
+                    <option key={p._id} value={p._id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
                 <button type="button" onClick={() => setShowAddModal(false)}
                   style={{ flex: 1, padding: 12, border: '1.5px solid #e5e7eb', borderRadius: 8,

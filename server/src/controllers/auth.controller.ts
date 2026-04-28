@@ -14,6 +14,7 @@ import * as authService from '../services/auth.service';
 import { sendEmail, emailTemplates } from '../utils/mail.service';
 import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
 import { autoAllocateStudent } from '../utils/allocation.service';
+import { z } from 'zod';
 
 const COOKIE_OPTIONS: CookieOptions = {
   httpOnly: true,
@@ -340,6 +341,45 @@ export async function getProfile(req: AuthRequest, res: Response): Promise<void>
     res.json({ user, student: studentData });
   } catch (err) {
     logger.error('Profile Error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+const updateProfileSchema = z.object({
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  phone: z.string().min(5).optional(),
+});
+
+export async function updateProfile(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { firstName, lastName, phone } = updateProfileSchema.parse(req.body);
+    const user = await User.findOne({ _id: req.user!.id, tenant: req.user!.tenant });
+    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+
+    if (firstName !== undefined) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
+    if (phone !== undefined) user.phone = phone;
+
+    await user.save();
+
+    await AuditLog.create({
+      user: user._id,
+      tenant: req.user!.tenant,
+      action: 'UPDATE_PROFILE',
+      module: 'AUTH',
+      details: `Updated profile: ${user.email}`,
+      ipAddress: req.ip,
+    }).catch(() => {});
+
+    const updated = await User.findOne({ _id: req.user!.id, tenant: req.user!.tenant }).select('-password');
+    res.json({ user: updated, message: 'Profile updated successfully' });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      return;
+    }
+    logger.error('updateProfile: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }

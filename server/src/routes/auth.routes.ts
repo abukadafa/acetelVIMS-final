@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import {
   login, register, refreshToken, getProfile, changePassword, logout,
-  getCommsStatus, testWhatsApp, whatsappWebhookVerify, whatsappWebhookReceive
+  getCommsStatus, testWhatsApp, whatsappWebhookVerify, whatsappWebhookReceive, updateProfile
 } from '../controllers/auth.controller';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { upload } from '../middleware/upload.middleware';
@@ -20,6 +20,7 @@ r.post('/register',        upload.single('avatar'), register);
 r.post('/refresh',         refreshToken);
 r.post('/logout',          authenticate, logout);
 r.get('/profile',          authenticate, getProfile);
+r.put('/profile',          authenticate, updateProfile);
 r.put('/change-password',  authenticate, changePassword);
 
 // Communications & WhatsApp
