@@ -103,7 +103,7 @@ export default function RegisterPage() {
               Start Your Virtual<br />Internship Journey.
             </h1>
             <p className="vims-hero-desc">
-              The professional platform for bridging academic theory with real-world industry practice - orchestrating seamless collaboration between interns, supervisors, and organizations.
+              A professional platform that bridges academic theory with real-world industry practice, enabling seamless collaboration between interns, supervisors, and partner organizations.
             </p>
 
             {/* Step progress indicators */}
@@ -151,7 +151,7 @@ export default function RegisterPage() {
             <div style={{ marginBottom: '24px' }}>
               <h2 className="vims-form-title">
                 {step === 'identity' && 'Personal Identity'}
-                {step === 'academic' && 'Academic Details'}
+                {step === 'academic' && 'Academic Verification'}
                 {step === 'location' && 'Location & Placement'}
                 {step === 'account' && 'Create Account'}
               </h2>
@@ -315,19 +315,30 @@ export default function RegisterPage() {
 
       <style>{`
         .reg-steps { display: flex; flex-direction: column; gap: 14px; margin-top: 36px; }
-        .reg-step { display: flex; align-items: center; gap: 14px; }
+        .reg-step {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 12px 14px;
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(10px);
+        }
         .reg-step-dot {
           width: 28px; height: 28px; border-radius: 50%;
-          background: #e5e7eb; color: #9ca3af;
+          background: rgba(255, 255, 255, 0.08);
+          color: rgba(240, 253, 244, 0.92);
           display: flex; align-items: center; justify-content: center;
           font-size: 0.75rem; font-weight: 800; flex-shrink: 0;
-          border: 2px solid #d1d5db;
+          border: 2px solid rgba(255, 255, 255, 0.18);
         }
         .reg-step-done .reg-step-dot {
-          background: #1e6b2e; color: #fff; border-color: #1e6b2e;
+          background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; border-color: #4ade80;
+          box-shadow: 0 6px 18px rgba(34, 197, 94, 0.32);
         }
-        .reg-step-label { font-size: 0.88rem; font-weight: 600; color: #374151; }
-        .reg-step-done .reg-step-label { color: #0a0a0a; font-weight: 700; }
+        .reg-step-label { font-size: 0.92rem; font-weight: 700; color: rgba(240, 253, 244, 0.88); letter-spacing: 0.01em; }
+        .reg-step-done .reg-step-label { color: #ffffff; font-weight: 800; }
 
         .reg-progress-bar {
           height: 4px; background: #e5e7eb; border-radius: 4px;

@@ -946,7 +946,10 @@ tr:hover td { background: var(--surface-2); }
 /* ── LEFT PANEL — rich deep green, premium feel ── */
 .vims-left {
   flex: 1;
-  background: linear-gradient(145deg, #14532d 0%, #166534 45%, #15803d 100%);
+  background:
+    radial-gradient(circle at top left, rgba(74, 222, 128, 0.16), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.18), transparent 28%),
+    linear-gradient(155deg, #06140a 0%, #0c2414 36%, #12311d 68%, #184526 100%);
   display: flex;
   position: relative;
   overflow: hidden;
@@ -967,6 +970,7 @@ tr:hover td { background: var(--surface-2); }
   flex-direction: column;
   padding: 48px 52px;
   width: 100%;
+  color: #f8fafc;
 }
 
 /* Crossfading logo block */
@@ -994,20 +998,20 @@ tr:hover td { background: var(--surface-2); }
 .vims-logo-text { display: flex; flex-direction: column; }
 .vims-logo-name {
   font-family: 'Syne', sans-serif;
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   font-weight: 800;
   color: #ffffff;
   line-height: 1.2;
-  letter-spacing: -0.025em;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  letter-spacing: -0.03em;
+  text-shadow: 0 8px 24px rgba(0,0,0,0.28);
 }
 .vims-logo-sub {
-  font-size: 0.9rem;
-  color: #bbf7d0;
+  font-size: 0.82rem;
+  color: #d1fae5;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-top: 4px;
-  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin-top: 6px;
+  font-weight: 800;
 }
 
 /* Status pills */
@@ -1022,48 +1026,51 @@ tr:hover td { background: var(--surface-2); }
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: #f0fdf4;
-  border: 1.5px solid #16a34a;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
   border-radius: 100px;
-  padding: 6px 14px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #14532d;
-  letter-spacing: 0.02em;
+  padding: 8px 14px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #f8fafc;
+  letter-spacing: 0.04em;
 }
 .vims-status-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #16a34a;
-  box-shadow: 0 0 8px rgba(22,163,74,0.8);
+  background: #4ade80;
+  box-shadow: 0 0 10px rgba(74,222,128,0.85);
   flex-shrink: 0;
   animation: vims-blink 2s infinite;
 }
 @keyframes vims-blink {
-  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(22,163,74,0.8); }
-  50%       { opacity: 0.5; box-shadow: 0 0 3px rgba(22,163,74,0.3); }
+  0%, 100% { opacity: 1; box-shadow: 0 0 10px rgba(74,222,128,0.85); }
+  50%       { opacity: 0.55; box-shadow: 0 0 4px rgba(74,222,128,0.35); }
 }
 
 /* Hero text */
 .vims-hero { flex: 1; display: flex; flex-direction: column; justify-content: center; }
 .vims-hero-title {
   font-family: 'Syne', sans-serif;
-  font-size: 2.75rem;
-  font-weight: 800;
+  font-size: 2.95rem;
+  font-weight: 900;
   color: #ffffff;
-  line-height: 1.1;
-  letter-spacing: -0.025em;
-  margin-bottom: 20px;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  margin-bottom: 18px;
+  text-shadow: 0 10px 30px rgba(0,0,0,0.32);
 }
 .vims-hero-desc {
   font-size: 1rem;
-  color: #dcfce7;
-  line-height: 1.8;
-  max-width: 420px;
+  color: rgba(240, 253, 244, 0.92);
+  line-height: 1.75;
+  max-width: 470px;
   margin-bottom: 32px;
   font-weight: 500;
+  text-wrap: balance;
 }
 .vims-tags { display: flex; flex-wrap: wrap; gap: 9px; }
 .vims-tag {
@@ -1077,14 +1084,14 @@ tr:hover td { background: var(--surface-2); }
 }
 
 .vims-left-footer {
-  font-size: 0.68rem;
-  color: rgba(255,255,255,0.55);
+  font-size: 0.7rem;
+  color: rgba(240,253,244,0.72);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   padding-top: 22px;
-  border-top: 1px solid rgba(255,255,255,0.2);
+  border-top: 1px solid rgba(255,255,255,0.14);
   margin-top: 40px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* ── RIGHT WHITE PANEL ── */
