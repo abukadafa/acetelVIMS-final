@@ -49,8 +49,11 @@ export default function Sidebar() {
         const unread = (chatRes.data.chats || []).filter((c: any) =>
           c.lastMessageBy && c.lastMessageBy !== user.id
         ).length;
+        const unreadFeedback = (notifRes.data.notifications || []).filter((n: any) =>
+          !n.isRead && n.link === '/feedback'
+        ).length;
         setUnreadChats(unread);
-        setUnreadNotif(notifRes.data.unreadCount || 0);
+        setUnreadNotif(unreadFeedback);
       } catch { /* silent */ }
     };
     poll();

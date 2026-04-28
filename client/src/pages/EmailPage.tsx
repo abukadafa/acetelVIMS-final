@@ -99,8 +99,9 @@ export default function EmailPage() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    const recipientIds = pickedContacts.map(c => c._id).filter(Boolean);
     if (!subject.trim() || !body.trim()) { toast.error('Subject and message are required'); return; }
-    if ((scope === 'individual' || scope === 'custom') && pickedContacts.length === 0) {
+    if ((scope === 'individual' || scope === 'custom') && recipientIds.length === 0) {
       toast.error('Please select at least one recipient'); return;
     }
     if (scope === 'programme' && !programmeId) { toast.error('Please select a programme'); return; }
@@ -110,7 +111,7 @@ export default function EmailPage() {
       const payload: any = {
         subject, body, recipientScope: scope,
         ...(scope === 'programme' && { programmeId }),
-        ...((scope === 'individual' || scope === 'custom') && { recipientIds: pickedContacts.map(c => c._id) }),
+        ...((scope === 'individual' || scope === 'custom') && { recipientIds: scope === 'individual' ? recipientIds.slice(0, 1) : recipientIds }),
       };
       const { data } = await api.post('/email/compose', payload);
       toast.success(data.message || 'Email sent successfully!');
@@ -123,9 +124,15 @@ export default function EmailPage() {
   };
 
   const toggleContact = (c: Contact) => {
-    setPickedContacts(prev =>
-      prev.find(p => p._id === c._id) ? prev.filter(p => p._id !== c._id) : [...prev, c]
-    );
+    setPickedContacts(prev => {
+      const alreadyPicked = prev.some(p => p._id === c._id);
+      if (scope === 'individual') {
+        const next = alreadyPicked ? [] : [c];
+        setShowContactPicker(false);
+        return next;
+      }
+      return alreadyPicked ? prev.filter(p => p._id !== c._id) : [...prev, c];
+    });
   };
 
   const filteredContacts = contacts.filter(c =>

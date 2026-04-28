@@ -50,8 +50,9 @@ export default function FeedbackPage() {
       setFeedbackList(data.feedback);
       setStats(data.stats || { open: 0, assigned: 0, closed: 0 });
       setSelected(current => {
-        if (!current) return current;
-        return data.feedback.find((f: any) => f._id === current._id) || current;
+        if (!data.feedback.length) return null;
+        if (!current) return data.feedback[0];
+        return data.feedback.find((f: any) => f._id === current._id) || data.feedback[0];
       });
     } catch { toast.error('Failed to load feedback'); }
     finally { setLoading(false); }

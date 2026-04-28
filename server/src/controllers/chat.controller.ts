@@ -103,10 +103,13 @@ export async function sendMessage(req: AuthRequest, res: Response): Promise<void
     const room = await Chat.findOne({ _id: roomId, participants: req.user!.id, tenant: req.user!.tenant });
     if (!room) { res.status(404).json({ error: 'Chat room not found' }); return; }
 
-    const message = { sender: req.user!.id as any, content: content.trim(), createdAt: new Date(), isRead: false };
+    const sentAt = new Date();
+    const message = { sender: req.user!.id as any, content: content.trim(), createdAt: sentAt, isRead: false };
     (room.messages as any[]).push(message);
-    room.lastMessage = message as any;
-    (room as any).updatedAt = new Date();
+    room.lastMessage = content.trim();
+    room.lastMessageAt = sentAt;
+    room.lastMessageBy = req.user!.id as any;
+    (room as any).updatedAt = sentAt;
     await room.save();
 
     // Notify other participants
