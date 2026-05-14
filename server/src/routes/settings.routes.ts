@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import { getSettings, updateSetting, updateMultipleSettings, getAuditLog, getAdminDashboard } from '../controllers/settings.controller';
+import { authenticate, authorize } from '../middleware/auth.middleware';
+const r = Router();
+r.use(authenticate);
+r.get('/', getSettings);
+r.get('/audit', authorize('admin'), getAuditLog);
+r.get('/admin-dashboard', authorize('admin','prog_coordinator', 'internship_coordinator'), getAdminDashboard);
+r.put('/single', authorize('admin'), updateSetting);
+r.put('/bulk', authorize('admin'), updateMultipleSettings);
+export default r;

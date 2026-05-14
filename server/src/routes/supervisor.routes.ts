@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { getSupervisorStudents, getPendingReviews, submitAssessment, getAllSupervisors, createSupervisor, sendMessage } from '../controllers/supervisor.controller';
+import { authenticate, authorize } from '../middleware/auth.middleware';
+const r = Router();
+r.use(authenticate);
+r.get('/', authorize('admin','prog_coordinator', 'internship_coordinator'), getAllSupervisors);
+r.get('/students', getSupervisorStudents);
+r.get('/pending-reviews', authorize('supervisor'), getPendingReviews);
+r.post('/', authorize('admin','prog_coordinator', 'internship_coordinator'), createSupervisor);
+r.post('/assess', authorize('supervisor'), submitAssessment);
+r.post('/message', sendMessage);
+export default r;
