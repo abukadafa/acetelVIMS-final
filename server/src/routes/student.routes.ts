@@ -13,15 +13,12 @@ r.get('/map',       authorize('admin', 'prog_coordinator', 'internship_coordinat
 r.get('/dashboard', getStudentDashboard);
 r.get('/programmes', getProgrammes);
 r.get('/:id',        getStudentById);
-r.post('/:id/allocate', authorize('admin'), requestAllocation);             // ADMIN ONLY: role allocation
+r.post('/:id/allocate', authorize('admin', 'internship_coordinator', 'prog_coordinator'), requestAllocation);             // Role-based allocation
 r.put('/location',   updateStudentLocation);
 r.put('/:id',        authorize(...STUDENT_EDITORS), updateStudent);
 r.delete('/:id',     authorize('admin'), deleteStudent);
 
-export default r;
-
-// Flag student for review
-r.post('/:id/flag', authenticate, authorize('admin', 'supervisor', 'prog_coordinator', 'internship_coordinator'), async (req: any, res: any) => {
+r.post('/:id/flag', authenticate, authorize('admin', 'supervisor', 'prog_coordinator', 'internship_coordinator'), async (req, res) => {
   try {
     const Student = (await import('../models/Student.model')).default;
     const student = await Student.findByIdAndUpdate(req.params.id, { riskLevel: 'High', riskScore: 80 }, { new: true });
@@ -32,13 +29,4 @@ r.post('/:id/flag', authenticate, authorize('admin', 'supervisor', 'prog_coordin
   }
 });
 
-// Auto-allocate single student
-r.post('/:id/allocate', authenticate, authorize('admin', 'internship_coordinator', 'prog_coordinator'), async (req: any, res: any) => {
-  try {
-    const { autoAllocateStudent } = await import('../utils/allocation.service');
-    const result = await autoAllocateStudent(req.params.id);
-    res.json(result);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+export default r;

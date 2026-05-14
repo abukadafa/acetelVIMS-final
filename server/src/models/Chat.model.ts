@@ -1,44 +1,39 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IChatMessage {
-  _id: mongoose.Types.ObjectId;
   sender: mongoose.Types.ObjectId;
   content: string;
-  type: 'text' | 'file' | 'image';
-  fileUrl?: string;
-  readBy: mongoose.Types.ObjectId[];
   createdAt: Date;
+  isRead: boolean;
 }
 
 export interface IChat extends Document {
   tenant: mongoose.Types.ObjectId;
+  name: string;
   participants: mongoose.Types.ObjectId[];
   messages: IChatMessage[];
   lastMessage?: string;
   lastMessageAt?: Date;
   lastMessageBy?: mongoose.Types.ObjectId;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
-const MessageSchema = new Schema({
+const ChatMessageSchema: Schema = new Schema({
   sender: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  content: { type: String, required: true, maxlength: 4000 },
-  type: { type: String, enum: ['text', 'file', 'image'], default: 'text' },
-  fileUrl: { type: String },
-  readBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-}, { timestamps: { createdAt: true, updatedAt: false } });
+  content: { type: String, required: true },
+  createdAt: { type: Date, default: () => new Date() },
+  isRead: { type: Boolean, default: false },
+}, { _id: false });
 
 const ChatSchema: Schema = new Schema({
   tenant: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  name: { type: String, required: true },
   participants: [{ type: Schema.Types.ObjectId, ref: 'User', required: true }],
-  messages: [MessageSchema],
+  messages: { type: [ChatMessageSchema], default: [] },
   lastMessage: { type: String },
   lastMessageAt: { type: Date },
   lastMessageBy: { type: Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
-ChatSchema.index({ participants: 1, tenant: 1 });
-ChatSchema.index({ lastMessageAt: -1 });
+ChatSchema.index({ tenant: 1, participants: 1 });
 
 export default mongoose.model<IChat>('Chat', ChatSchema);
