@@ -254,17 +254,6 @@ export async function register(req: Request, res: Response): Promise<void> {
               whatsappTemplates.welcomeStudent(studentName, cleanEmail, tempPassword, appUrl, companyName));
           }
 
-          // 6. Notify company if allocated
-          if (allocationResult.success) {
-            const company = await (await import('../models/Company.model')).default
-              .findOne({ name: companyName });
-            if (company?.contactEmail) {
-              await sendEmail(company.contactEmail,
-                `New Intern Assigned — ${studentName}`,
-                emailTemplates.companyPlacementNotice(companyName, studentName, matricNumber, cleanEmail, user.phone || 'N/A'));
-            }
-          }
-
         } catch (bgErr: any) {
           logger.error('Post-registration notifications error: %s', bgErr.message);
         }

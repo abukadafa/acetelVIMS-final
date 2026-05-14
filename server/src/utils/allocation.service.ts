@@ -1,10 +1,8 @@
 import Student from '../models/Student.model';
 import Company from '../models/Company.model';
 import User from '../models/User.model';
-import NotificationModel from '../models/notification.model';
 import { calculateDistance } from './geo.utils';
-import { sendEmail } from './mail.service';
-import { sendWhatsAppMessage, whatsappTemplates } from './whatsapp.service';
+import { notifyPlacement } from './placement.service';
 
 /**
  * Intelligent Allocation Engine
@@ -16,6 +14,13 @@ export async function autoAllocateStudent(studentId: string): Promise<any> {
   if (!student) throw new Error('Student not found');
   if (!student.stateOfOrigin) {
     return { success: false, message: 'Student state is required for auto-allocation' };
+  }
+  if (student.company) {
+    return {
+      success: false,
+      message: 'Student is already assigned to a company',
+      company: student.company.toString(),
+    };
   }
 
   const programme = student.programme as any;
@@ -66,47 +71,46 @@ export async function autoAllocateStudent(studentId: string): Promise<any> {
   bestMatch.company.currentStudents += 1;
   await bestMatch.company.save();
 
-  // Get User Details for notifications
   const user = await User.findById(student.user);
   if (user) {
-    const supervisor = (bestMatch.company as any).contactPerson || 'Departmental Supervisor';
-    const studentName = user.firstName || 'Student';
-    const message = `Congratulations! You have been placed at ${bestMatch.company.name} for your internship.`;
-    
-    // 1. Internal Notification
-    await NotificationModel.create({
-      user: user._id,
-      title: 'Internship Placement Successful',
-      message: message,
-      type: 'success'
+    const programme = student.programme as any;
+    const company = bestMatch.company as any;
+    const postingDate = new Date().toLocaleDateString('en-GB');
+    const reportingDate = process.env.INTERNSHIP_START_DATE
+      ? new Date(process.env.INTERNSHIP_START_DATE).toLocaleDateString('en-GB')
+      : postingDate;
+    const reportingInstructions = `Report to ${company.contactPerson || 'your assigned supervisor'} at ${company.name} on your first day. Bring your ID card and your ACETEL VIMS placement confirmation.`;
+
+    await notifyPlacement({
+      tenantId: student.tenant,
+      studentId: user._id,
+      studentName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Student',
+      studentEmail: user.email,
+      studentPhone: user.phone,
+      matricNumber: student.matricNumber,
+      programmeName: programme?.name || 'Programme',
+      programmeLevel: programme?.level || 'N/A',
+      programmeDurationMonths: programme?.durationMonths,
+      companyName: company.name,
+      companyAddress: company.address || 'N/A',
+      companyContactPerson: company.contactPerson,
+      companyContactEmail: company.contactEmail,
+      companyContactPhone: company.contactPhone,
+      postingDate,
+      reportingDate,
+      reportingInstructions,
+      appUrl: process.env.FRONTEND_URL || 'https://acetel.vims.nou.ng'
     });
-
-    // 2. Email Notification
-    await sendEmail(
-      user.email,
-      'Institutional Placement - ACETEL VIMS',
-      `<h2>Placement Successful</h2><p>Hello ${studentName}, you have been placed at <strong>${bestMatch.company.name}</strong>.</p>`
-    );
-
-    // 3. WhatsApp Notification
-    if (user.phone) {
-      const waMsg = whatsappTemplates.placementSuccessful(
-        studentName, 
-        bestMatch.company.name, 
-        bestMatch.company.address || 'Company Location', 
-        supervisor
-      );
-      await sendWhatsAppMessage(user.phone, waMsg);
-    }
   }
 
-  return { 
-    success: true, 
-    company: bestMatch.company.name, 
+  return {
+    success: true,
+    company: bestMatch.company.name,
     distance: bestMatch.distance.toFixed(2),
-    sectorMatch: bestMatch.sectorMatch
+    sectorMatch: bestMatch.sectorMatch,
   };
 }
+
 
 /**
  * Mapping ACETEL Programmes to Industry Sectors

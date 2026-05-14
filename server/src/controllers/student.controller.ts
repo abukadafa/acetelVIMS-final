@@ -10,8 +10,7 @@ import logger from '../utils/logger';
 import { z } from 'zod';
 import AuditLog from '../models/AuditLog.model';
 import Company from '../models/Company.model';
-import { sendEmail, emailTemplates } from '../utils/mail.service';
-import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
+import { notifyPlacement } from '../utils/placement.service';
 
 const STATE_COORDS: Record<string, { lat: number; lng: number }> = {
   fct: { lat: 9.0765, lng: 7.3986 },
@@ -214,40 +213,41 @@ export async function updateStudent(req: AuthRequest, res: Response): Promise<vo
       }).catch(() => {});
     }
 
-    // If posting changed, notify student automatically
+    // If posting changed, send the student and partner placement notification workflow.
     const newCompanyId = student.company?.toString() || null;
     const postingChanged = prevCompanyId !== newCompanyId && !!newCompanyId;
     if (postingChanged) {
       const u = await User.findById(student.user).select('firstName lastName email phone');
-      const c = await Company.findOne({ _id: newCompanyId, tenant: userTenant, isDeleted: false }).select('name address contactPerson');
+      const c = await Company.findOne({ _id: newCompanyId, tenant: userTenant, isDeleted: false }).select('name address contactPerson contactEmail contactPhone');
+      const programme = await Programme.findById(student.programme).select('name level durationMonths');
+
       if (u && c) {
-        const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
-        const studentName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Student';
-        await NotificationModel.create({
-          tenant: userTenant,
-          user: u._id,
-          title: 'New Posting / Placement Update',
-          message: `You have been posted to ${c.name}.`,
-          type: 'success',
-          channel: 'in-app',
-          link: '/dashboard',
-        }).catch(() => {});
+        const postingDate = new Date().toLocaleDateString('en-GB');
+        const reportingDate = process.env.INTERNSHIP_START_DATE
+          ? new Date(process.env.INTERNSHIP_START_DATE).toLocaleDateString('en-GB')
+          : postingDate;
+        const reportingInstructions = `Please report to ${c.contactPerson || 'your assigned supervisor'} at ${c.name} on your first day. Bring your matric ID and your ACETEL VIMS placement confirmation.`;
 
-        await sendEmail(
-          u.email,
-          'ACETEL IMS — New Posting / Placement Update',
-          emailTemplates.companyPlacementNotice(c.name, studentName, student.matricNumber, u.email, u.phone || 'N/A')
-        ).catch(() => false);
-
-        if (u.phone) {
-          const waMsg = whatsappTemplates.placementSuccessful(
-            studentName,
-            c.name,
-            c.address || 'Company Location',
-            c.contactPerson || 'Company Supervisor'
-          );
-          await sendWhatsAppMessage(u.phone, waMsg).catch(() => false);
-        }
+        await notifyPlacement({
+          tenantId: userTenant as string,
+          studentId: u._id,
+          studentName: `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Student',
+          studentEmail: u.email,
+          studentPhone: u.phone,
+          matricNumber: student.matricNumber,
+          programmeName: programme?.name || 'Programme',
+          programmeLevel: programme?.level || 'N/A',
+          programmeDurationMonths: programme?.durationMonths,
+          companyName: c.name,
+          companyAddress: c.address || 'N/A',
+          companyContactPerson: c.contactPerson,
+          companyContactEmail: c.contactEmail,
+          companyContactPhone: c.contactPhone,
+          postingDate,
+          reportingDate,
+          reportingInstructions,
+          appUrl: process.env.FRONTEND_URL || 'https://acetel.vims.nou.ng'
+        });
       }
     }
 

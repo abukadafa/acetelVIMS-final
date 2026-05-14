@@ -13,6 +13,10 @@ function normalizeToE164Like(input: string): string {
   return digits;
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function sendWhatsAppMessage(phone: string, message: string): Promise<boolean> {
   try {
     const toDigits = normalizeToE164Like(phone);
@@ -78,7 +82,19 @@ export async function sendWhatsAppMessage(phone: string, message: string): Promi
   }
 }
 
-const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
+export async function sendWhatsAppWithRetry(phone: string, message: string, retries = 2): Promise<boolean> {
+  let lastResult = false;
+  for (let attempt = 1; attempt <= retries; attempt += 1) {
+    lastResult = await sendWhatsAppMessage(phone, message);
+    if (lastResult) return true;
+    console.warn('WhatsApp retry %d/%d failed for %s', attempt, retries, phone);
+    await delay(400 * attempt);
+  }
+  console.error('WhatsApp failed after %d attempts for %s', retries, phone);
+  return false;
+}
+
+const appUrl = process.env.FRONTEND_URL || 'https://acetel.vims.nou.ng';
 
 export const whatsappTemplates = {
 
@@ -126,6 +142,69 @@ You have been placed at *${company}*.
 
 Log in to confirm your resumption and begin daily attendance.
 ${appUrl}
+
+_ACETEL VIMS_`,
+
+  placementSuccessfulStudent: (
+    name: string,
+    company: string,
+    address: string,
+    supervisor: string,
+    postingDate: string,
+    reportingInstructions: string,
+    url: string
+  ) =>
+`*ACETEL VIMS — Internship Placement Confirmed* 🎓
+
+Hello ${name}!
+
+Congratulations. You have been posted to *${company}*.
+📍 Location: ${address}
+👤 Supervisor: ${supervisor}
+🗓️ Posting Date: ${postingDate}
+
+${reportingInstructions}
+
+${url}
+
+_ACETEL VIMS_`,
+
+  partnerPlacementNotice: (
+    contactPerson: string,
+    studentName: string,
+    matricNumber: string,
+    programmeName: string,
+    programmeLevel: string,
+    durationMonths?: number,
+    studentEmail?: string,
+    studentPhone?: string,
+    postingDate?: string,
+    reportingDate?: string,
+    reportingInstructions?: string,
+    companyName?: string,
+    companyAddress?: string,
+    url?: string
+  ) =>
+`*ACETEL VIMS — New Intern Assigned* 🏢
+
+Hello ${contactPerson},
+
+A new intern has been assigned to your organisation.
+
+*Student:* ${studentName}
+*Matric:* ${matricNumber}
+*Programme:* ${programmeName} (${programmeLevel})
+*Duration:* ${durationMonths ? `${durationMonths} months` : 'Standard duration'}
+*Email:* ${studentEmail || 'N/A'}
+*Phone:* ${studentPhone || 'N/A'}
+*Assigned Company:* ${companyName || 'N/A'}
+*Location:* ${companyAddress || 'N/A'}
+*Posting Date:* ${postingDate || 'N/A'}
+*Expected Report Date:* ${reportingDate || 'N/A'}
+
+${reportingInstructions || 'Please confirm the reporting arrangements with the student and provide supervisor contact details.'}
+
+${url || ''}
 
 _ACETEL VIMS_`,
 

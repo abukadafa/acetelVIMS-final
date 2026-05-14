@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import logger from './logger';
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -15,9 +16,27 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     });
     return true;
   } catch (error) {
-    console.error('Email failed:', error);
+    logger.error('Email failed for %s: %o', to, error);
     return false;
   }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function sendEmailWithRetry(to: string, subject: string, html: string, retries = 2): Promise<boolean> {
+  let lastResult = false;
+
+  for (let attempt = 1; attempt <= retries; attempt += 1) {
+    lastResult = await sendEmail(to, subject, html);
+    if (lastResult) return true;
+    logger.warn('Email retry %d/%d failed for %s', attempt, retries, to);
+    await delay(500 * attempt);
+  }
+
+  logger.error('Email failed after %d attempts for %s', retries, to);
+  return false;
 }
 
 const base = (content: string) => `
@@ -86,6 +105,67 @@ export const emailTemplates = {
     </div>
     <p>Please log in and change your password immediately.</p>
     <a class="btn" href="${appUrl}">Access ACETEL VIMS Portal</a>
+  `),
+
+  studentPlacementNotice: (
+    studentName: string,
+    companyName: string,
+    companyAddress: string,
+    postingDate: string,
+    reportingDate: string,
+    reportingInstructions: string,
+    programmeName: string,
+    programmeLevel: string,
+    programmeDurationMonths?: number,
+    matricNumber?: string
+  ) => base(`
+    <h2>Internship Placement Confirmed</h2>
+    <p>Dear ${studentName},</p>
+    <p>Congratulations! You have been posted to <strong>${companyName}</strong> for your internship.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Matric Number</span><span class="info-value">${matricNumber || 'N/A'}</span></div>
+      <div class="info-row"><span class="info-label">Programme</span><span class="info-value">${programmeName} (${programmeLevel})</span></div>
+      <div class="info-row"><span class="info-label">Duration</span><span class="info-value">${programmeDurationMonths ? `${programmeDurationMonths} months` : 'Standard duration'}</span></div>
+      <div class="info-row"><span class="info-label">Company</span><span class="info-value">${companyName}</span></div>
+      <div class="info-row"><span class="info-label">Location</span><span class="info-value">${companyAddress}</span></div>
+      <div class="info-row"><span class="info-label">Posting Date</span><span class="info-value">${postingDate}</span></div>
+      <div class="info-row"><span class="info-label">Expected Report Date</span><span class="info-value">${reportingDate}</span></div>
+    </div>
+    <p>${reportingInstructions}</p>
+    <p>Please log in to ACETEL VIMS immediately to confirm your start date and begin daily logbook submissions.</p>
+  `),
+
+  partnerPlacementNotice: (
+    company: string,
+    studentName: string,
+    matric: string,
+    programmeName: string,
+    programmeLevel: string,
+    programmeDurationMonths?: number,
+    studentEmail?: string,
+    studentPhone?: string,
+    postingDate?: string,
+    reportingDate?: string,
+    reportingInstructions?: string,
+    companyAddress?: string,
+    contactPerson?: string
+  ) => base(`
+    <h2>New Intern Assigned to ${company}</h2>
+    <p>Dear ${contactPerson || 'Partner Supervisor'},</p>
+    <p>A new intern has been assigned to your organisation through the ACETEL Virtual Internship Management System.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Student Name</span><span class="info-value">${studentName}</span></div>
+      <div class="info-row"><span class="info-label">Matric Number</span><span class="info-value">${matric}</span></div>
+      <div class="info-row"><span class="info-label">Programme</span><span class="info-value">${programmeName} (${programmeLevel})</span></div>
+      <div class="info-row"><span class="info-label">Duration</span><span class="info-value">${programmeDurationMonths ? `${programmeDurationMonths} months` : 'Standard duration'}</span></div>
+      <div class="info-row"><span class="info-label">Student Email</span><span class="info-value">${studentEmail || 'N/A'}</span></div>
+      <div class="info-row"><span class="info-label">Student Phone</span><span class="info-value">${studentPhone || 'N/A'}</span></div>
+      <div class="info-row"><span class="info-label">Company Location</span><span class="info-value">${companyAddress || 'N/A'}</span></div>
+      <div class="info-row"><span class="info-label">Posting Date</span><span class="info-value">${postingDate || 'N/A'}</span></div>
+      <div class="info-row"><span class="info-label">Expected Report Date</span><span class="info-value">${reportingDate || 'N/A'}</span></div>
+    </div>
+    <p>${reportingInstructions || 'Please confirm the reporting details with the student and assign an internship supervisor.'}</p>
+    <p>Please respond with the supervisor name and contact details so the student can report on their first day.</p>
   `),
 
   companyPlacementNotice: (company: string, studentName: string, matric: string, email: string, phone: string) => base(`
