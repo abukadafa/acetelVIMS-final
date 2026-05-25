@@ -88,6 +88,26 @@ export const emailTemplates = {
     <a class="btn" href="${appUrl}">Access ACETEL VIMS Portal</a>
   `),
 
+  studentPostingConfirmed: (
+    studentName: string,
+    company: string,
+    address: string,
+    supervisor: string,
+    appUrl: string
+  ) => base(`
+    <h2>Your Internship Posting Is Confirmed</h2>
+    <p>Dear ${studentName},</p>
+    <p>Your internship coordinator has approved your placement. Full details are below:</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Organisation</span><span class="info-value"><strong>${company}</strong></span></div>
+      <div class="info-row"><span class="info-label">Location</span><span class="info-value">${address}</span></div>
+      <div class="info-row"><span class="info-label">Industry Supervisor</span><span class="info-value">${supervisor}</span></div>
+      <div class="info-row"><span class="info-label">Portal</span><span class="info-value"><a href="${appUrl}">${appUrl}</a></span></div>
+    </div>
+    <p>Please log in daily for attendance and logbook updates.</p>
+    <a class="btn" href="${appUrl}">Open ACETEL VIMS</a>
+  `),
+
   companyPlacementNotice: (company: string, studentName: string, matric: string, email: string, phone: string) => base(`
     <h2>New Intern Assigned to ${company}</h2>
     <p>A new intern has been assigned to your organisation through the ACETEL Virtual Internship Management System.</p>

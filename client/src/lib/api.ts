@@ -22,8 +22,13 @@ const api = axios.create({
  * On Render free tier the server sleeps after 15 min of inactivity; this
  * fires immediately on app load so the warm-up happens in the background.
  */
-export function warmUpBackend() {
-  axios.get(`${normalisedBase}health`).catch(() => {/* silent — just warming up */});
+/** Wake Render / cold backend before authenticated API calls */
+export async function warmUpBackend(): Promise<void> {
+  try {
+    await axios.get(`${normalisedBase}health`, { timeout: 45000 });
+  } catch {
+    /* silent — analytics/login will retry */
+  }
 }
 
 /**

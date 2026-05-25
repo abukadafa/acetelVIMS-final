@@ -84,7 +84,11 @@ export default function StudentList() {
       }
 
       if (posting?.success) {
-        toast.success(`Student posted to ${posting.company} (same state).`);
+        toast.success(
+          posting.pendingApproval
+            ? `Matched to ${posting.company}. Approve posting to email student and partner.`
+            : `Student posted to ${posting.company}.`
+        );
       } else if (posting?.message) {
         toast.error(`Posting not completed: ${posting.message}`);
       }
@@ -128,11 +132,40 @@ export default function StudentList() {
         break;
       case 'allocate':
         try {
-          await api.post(`/students/${student._id}/allocate`);
-          toast.success('Student auto-allocated to nearest partner');
+          const { data } = await api.post(`/students/${student._id}/allocate`);
+          const pending = data?.pendingApproval ?? data?.allocation?.pendingApproval;
+          const companyName = data?.company ?? data?.allocation?.company;
+          toast.success(
+            pending
+              ? `Assigned to ${companyName || 'partner'}. Use "Approve Posting" to email student and partner.`
+              : data?.message || 'Student auto-allocated'
+          );
           fetchData();
         } catch (err: any) {
           toast.error(err.response?.data?.error || 'Auto-allocation failed');
+        }
+        break;
+      case 'approve-posting':
+        try {
+          const { data } = await api.post(`/students/${student._id}/approve-posting`);
+          const n = data?.postingNotifications;
+          if (n?.sent) {
+            const parts = [];
+            if (n.studentEmail) parts.push('student');
+            if (n.partnerEmail) parts.push('partner');
+            toast.success(
+              parts.length
+                ? `Posting approved — ${parts.join(' and ')} emailed`
+                : 'Posting approved (check SMTP if emails were expected)'
+            );
+          } else if (n?.reason === 'email_delivery_failed') {
+            toast.error('Posting approved but emails failed — configure SMTP on the server');
+          } else {
+            toast.success(data?.message || 'Posting approved');
+          }
+          fetchData();
+        } catch (err: any) {
+          toast.error(err.response?.data?.error || 'Could not approve posting');
         }
         break;
       case 'flag':
@@ -250,7 +283,18 @@ export default function StudentList() {
                 </td>
                 <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{s.matricNumber}</td>
                 <td>{s.programme?.name || '—'}</td>
-                <td>{s.company?.name || <span style={{ color: '#f59e0b', fontWeight: 600 }}>Unassigned</span>}</td>
+                <td>
+                  {s.company?.name ? (
+                    <div>
+                      <div>{s.company.name}</div>
+                      {!s.postingApproved && (
+                        <span style={{ fontSize: '0.7rem', color: '#b45309', fontWeight: 700 }}>Awaiting approval</span>
+                      )}
+                    </div>
+                  ) : (
+                    <span style={{ color: '#f59e0b', fontWeight: 600 }}>Unassigned</span>
+                  )}
+                </td>
                 <td>
                   <span className={`badge badge-${s.status === 'active' ? 'green' : s.status === 'completed' ? 'blue' : 'amber'}`}>
                     {s.status || 'pending'}
@@ -273,6 +317,9 @@ export default function StudentList() {
                         { action: 'email',    icon: Mail,        label: 'Send Email' },
                         { action: 'whatsapp', icon: MessageSquare, label: 'Send WhatsApp' },
                         { action: 'allocate', icon: UserCheck,   label: 'Auto-Allocate' },
+                        ...(s.company && !s.postingApproved
+                          ? [{ action: 'approve-posting', icon: UserCheck, label: 'Approve Posting (email)' }]
+                          : []),
                         { action: 'flag',     icon: AlertTriangle, label: 'Flag for Review' },
                         { action: 'edit',     icon: Pencil,      label: 'Edit Student' },
                         { action: 'audit',    icon: History,     label: 'Audit Trail' },

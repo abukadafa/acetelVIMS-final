@@ -137,13 +137,18 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Programme Coordinator View */}
-      {isRole('prog_coordinator') && (
+      {/* Programme / Internship Coordinator View */}
+      {(isRole('prog_coordinator') || isRole('internship_coordinator')) && (
         <div style={{ marginTop: '24px' }}>
           <div className="card-header" style={{ marginBottom: '16px' }}>
-             <h2 className="card-title">Programme Oversight: {user.programme?.name || 'Assigned Programme'}</h2>
+             <h2 className="card-title">
+               {isRole('internship_coordinator') ? 'Internship Oversight' : `Programme Oversight: ${user.programme?.name || 'Assigned Programme'}`}
+             </h2>
+             <p style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginTop: 4 }}>
+               Approve postings from All Students before students and partners receive placement details by email.
+             </p>
           </div>
-          <AnalyticsDashboard key={`analytics-prog-${refresh}`} />
+          <AnalyticsDashboard key={`analytics-coord-${refresh}`} />
         </div>
       )}
 
@@ -253,6 +258,11 @@ export default function Dashboard() {
                   <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <MapPin size={16} /> {(student?.company as any)?.name || 'Allocation Pending'}
                   </div>
+                  {student?.company && !student?.postingApproved && (
+                    <p style={{ fontSize: '0.8rem', color: 'var(--warning)', marginTop: 8 }}>
+                      Placement details will be emailed after your internship coordinator approves the posting.
+                    </p>
+                  )}
                 </div>
                 <div className="info-row">
                    <div className="form-label" style={{ marginBottom: '2px' }}>Assigned Supervisor</div>

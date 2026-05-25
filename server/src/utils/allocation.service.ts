@@ -1,10 +1,7 @@
 import Student from '../models/Student.model';
 import Company from '../models/Company.model';
 import User from '../models/User.model';
-import NotificationModel from '../models/notification.model';
 import { calculateDistance } from './geo.utils';
-import { sendEmail } from './mail.service';
-import { sendWhatsAppMessage, whatsappTemplates } from './whatsapp.service';
 
 /**
  * Intelligent Allocation Engine
@@ -57,54 +54,39 @@ export async function autoAllocateStudent(studentId: string): Promise<any> {
 
   const bestMatch = scoredCompanies[0];
 
-  // Assign the company
+  // Assign the company — emails only after coordinator approves posting
   student.company = bestMatch.company._id as any;
-  student.status = 'active';
+  student.postingApproved = false;
+  student.postingApprovedAt = undefined;
+  student.postingApprovedBy = undefined;
+  student.status = 'pending';
   await student.save();
 
   // Increment company count
   bestMatch.company.currentStudents += 1;
   await bestMatch.company.save();
 
-  // Get User Details for notifications
-  const user = await User.findById(student.user);
+  const user = await User.findById(student.user).select('firstName lastName');
   if (user) {
-    const supervisor = (bestMatch.company as any).contactPerson || 'Departmental Supervisor';
-    const studentName = user.firstName || 'Student';
-    const message = `Congratulations! You have been placed at ${bestMatch.company.name} for your internship.`;
-    
-    // 1. Internal Notification
+    const { default: NotificationModel } = await import('../models/notification.model');
     await NotificationModel.create({
+      tenant: student.tenant,
       user: user._id,
-      title: 'Internship Placement Successful',
-      message: message,
-      type: 'success'
-    });
-
-    // 2. Email Notification
-    await sendEmail(
-      user.email,
-      'Institutional Placement - ACETEL VIMS',
-      `<h2>Placement Successful</h2><p>Hello ${studentName}, you have been placed at <strong>${bestMatch.company.name}</strong>.</p>`
-    );
-
-    // 3. WhatsApp Notification
-    if (user.phone) {
-      const waMsg = whatsappTemplates.placementSuccessful(
-        studentName, 
-        bestMatch.company.name, 
-        bestMatch.company.address || 'Company Location', 
-        supervisor
-      );
-      await sendWhatsAppMessage(user.phone, waMsg);
-    }
+      title: 'Placement Assigned — Pending Approval',
+      message: `You have been matched to ${bestMatch.company.name}. Your coordinator will confirm the posting; you will receive email with full details once approved.`,
+      type: 'info',
+      channel: 'in-app',
+      link: '/dashboard',
+    }).catch(() => {});
   }
 
-  return { 
-    success: true, 
-    company: bestMatch.company.name, 
+  return {
+    success: true,
+    company: bestMatch.company.name,
     distance: bestMatch.distance.toFixed(2),
-    sectorMatch: bestMatch.sectorMatch
+    sectorMatch: bestMatch.sectorMatch,
+    pendingApproval: true,
+    message: 'Placement assigned. Coordinator must approve before student and partner receive posting details by email.',
   };
 }
 

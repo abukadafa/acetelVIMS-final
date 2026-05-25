@@ -29,6 +29,10 @@ export interface IStudent extends Document {
   deletedBy?: mongoose.Types.ObjectId;
   deleteReason?: string;
   lastEditReason?: string;
+  /** Coordinator must approve before student/partner receive placement detail emails */
+  postingApproved: boolean;
+  postingApprovedAt?: Date;
+  postingApprovedBy?: mongoose.Types.ObjectId;
 }
 
 const StudentSchema: Schema = new Schema({
@@ -75,7 +79,10 @@ const StudentSchema: Schema = new Schema({
   deletedAt: { type: Date },
   deletedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   deleteReason: { type: String },
-  lastEditReason: { type: String }
+  lastEditReason: { type: String },
+  postingApproved: { type: Boolean, default: false },
+  postingApprovedAt: { type: Date },
+  postingApprovedBy: { type: Schema.Types.ObjectId, ref: 'User' },
 }, {
   timestamps: true
 });

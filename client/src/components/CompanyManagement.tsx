@@ -76,7 +76,11 @@ export default function CompanyManagement() {
     setAllocating(true);
     try {
       const { data } = await api.post(`/companies/${companyId}/auto-allocate`);
-      toast.success(data.message || 'Students allocated successfully');
+      toast.success(
+        data.pendingApproval
+          ? data.message || 'Students matched — approve each posting to send emails'
+          : data.message || 'Students allocated successfully'
+      );
       fetchData();
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Auto-allocation failed');

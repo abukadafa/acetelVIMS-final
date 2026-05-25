@@ -14,6 +14,7 @@ import * as authService from '../services/auth.service';
 import { sendEmail, emailTemplates } from '../utils/mail.service';
 import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
 import { autoAllocateStudent } from '../utils/allocation.service';
+import { maskCompanyForStudentView } from '../utils/studentView.util';
 import { z } from 'zod';
 
 const COOKIE_OPTIONS: CookieOptions = {
@@ -112,9 +113,10 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     let studentData = null;
     if (user.role === 'student') {
-      studentData = await Student.findOne({ user: user._id, tenant: user.tenant })
+      const raw = await Student.findOne({ user: user._id, tenant: user.tenant })
         .populate('programme').populate('company')
         .populate('supervisor', 'firstName lastName email phone');
+      studentData = raw ? maskCompanyForStudentView(raw, 'student') : null;
     }
 
     await AuditLog.create({ user: user._id, tenant: user.tenant, action: 'LOGIN_SUCCESS',
@@ -233,36 +235,32 @@ export async function register(req: Request, res: Response): Promise<void> {
             logger.warn('Auto-allocation skipped: %s', allocErr.message);
           }
 
-          const companyName  = allocationResult.success ? allocationResult.company : 'Pending Allocation';
-          const studentName  = `${user.firstName} ${user.lastName}`;
+          const placementLabel = allocationResult.success
+            ? 'Placement assigned — awaiting coordinator approval (details by email after approval)'
+            : 'Pending Allocation';
+          const studentName = `${user.firstName} ${user.lastName}`;
 
-          // 2. In-app notification
+          // 2. In-app notification (no placement details until coordinator approves)
           await NotificationModel.create({
             user: user._id,
             title: 'Welcome to ACETEL VIMS',
-            message: `Your account has been created. ${allocationResult.success ? `You have been placed at ${companyName}.` : 'Your company placement is pending.'}`,
-            type: 'success'
+            message: `Your account has been created. ${allocationResult.success ? placementLabel : 'Your company placement is pending.'}`,
+            type: 'success',
           });
 
-          // 3. Institutional email
-          await sendEmail(cleanEmail, 'Welcome to ACETEL VIMS — Your Login Details',
-            emailTemplates.welcomeStudent(studentName, cleanEmail, tempPassword, appUrl, companyName));
+          // 3. Welcome email — login only; placement details sent after coordinator approval
+          await sendEmail(
+            cleanEmail,
+            'Welcome to ACETEL VIMS — Your Login Details',
+            emailTemplates.welcomeStudent(studentName, cleanEmail, tempPassword, appUrl, placementLabel)
+          );
 
-          // 4. WhatsApp notification
+          // 4. WhatsApp welcome (no partner company details yet)
           if (user.phone) {
-            await sendWhatsAppMessage(user.phone,
-              whatsappTemplates.welcomeStudent(studentName, cleanEmail, tempPassword, appUrl, companyName));
-          }
-
-          // 6. Notify company if allocated
-          if (allocationResult.success) {
-            const company = await (await import('../models/Company.model')).default
-              .findOne({ name: companyName });
-            if (company?.contactEmail) {
-              await sendEmail(company.contactEmail,
-                `New Intern Assigned — ${studentName}`,
-                emailTemplates.companyPlacementNotice(companyName, studentName, matricNumber, cleanEmail, user.phone || 'N/A'));
-            }
+            await sendWhatsAppMessage(
+              user.phone,
+              whatsappTemplates.welcomeStudent(studentName, cleanEmail, tempPassword, appUrl, placementLabel)
+            );
           }
 
         } catch (bgErr: any) {
@@ -334,9 +332,10 @@ export async function getProfile(req: AuthRequest, res: Response): Promise<void>
 
     let studentData = null;
     if (user.role === 'student') {
-      studentData = await Student.findOne({ user: user._id, tenant: req.user.tenant })
+      const raw = await Student.findOne({ user: user._id, tenant: req.user.tenant })
         .populate('programme').populate('company')
         .populate('supervisor', 'firstName lastName email phone');
+      studentData = raw ? maskCompanyForStudentView(raw, 'student') : null;
     }
     res.json({ user, student: studentData });
   } catch (err) {

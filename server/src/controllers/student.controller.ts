@@ -10,8 +10,8 @@ import logger from '../utils/logger';
 import { z } from 'zod';
 import AuditLog from '../models/AuditLog.model';
 import Company from '../models/Company.model';
-import { sendEmail, emailTemplates } from '../utils/mail.service';
-import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
+import { sendApprovedPostingNotifications } from '../services/placementNotification.service';
+import { maskCompanyForStudentView } from '../utils/studentView.util';
 
 const STATE_COORDS: Record<string, { lat: number; lng: number }> = {
   fct: { lat: 9.0765, lng: 7.3986 },
@@ -77,6 +77,7 @@ const studentUpdateSchema = z.object({
   lga: z.string().optional(),
   address: z.string().optional(),
   company: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid company ID').optional(),
+  postingApproved: z.boolean().optional(),
 });
 
 const locationUpdateSchema = z.object({
@@ -176,7 +177,7 @@ export async function getStudentById(req: AuthRequest, res: Response): Promise<v
       pending: await Logbook.countDocuments({ student: student._id, tenant: userTenant, status: 'submitted' })
     };
 
-    res.json({ student, logbookSummary });
+    res.json({ student: maskCompanyForStudentView(student, userRole), logbookSummary });
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.errors });
@@ -207,7 +208,31 @@ export async function updateStudent(req: AuthRequest, res: Response): Promise<vo
     }
 
     const prevCompanyId = student.company?.toString() || null;
-    Object.assign(student, data);
+    const wasPostingApproved = student.postingApproved;
+
+    if (data.company !== undefined && data.company !== prevCompanyId) {
+      student.postingApproved = false;
+      student.postingApprovedAt = undefined;
+      student.postingApprovedBy = undefined;
+      if (data.company) student.status = 'pending';
+    }
+
+    if (data.postingApproved === true && !student.company) {
+      res.status(400).json({ error: 'Assign a company before approving the posting' });
+      return;
+    }
+
+    const { postingApproved, ...rest } = data;
+    Object.assign(student, rest);
+    if (postingApproved === true) {
+      student.postingApproved = true;
+      student.postingApprovedAt = new Date();
+      student.postingApprovedBy = userId as any;
+      student.status = 'active';
+    } else if (postingApproved === false) {
+      student.postingApproved = false;
+    }
+
     await student.save();
 
     // Audit (admin/coordinators updating student profile)
@@ -223,50 +248,71 @@ export async function updateStudent(req: AuthRequest, res: Response): Promise<vo
       }).catch(() => {});
     }
 
-    // If posting changed, notify student automatically
-    const newCompanyId = student.company?.toString() || null;
-    const postingChanged = prevCompanyId !== newCompanyId && !!newCompanyId;
-    if (postingChanged) {
-      const u = await User.findById(student.user).select('firstName lastName email phone');
-      const c = await Company.findOne({ _id: newCompanyId, tenant: userTenant, isDeleted: false }).select('name address contactPerson');
-      if (u && c) {
-        const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
-        const studentName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Student';
-        await NotificationModel.create({
-          tenant: userTenant,
-          user: u._id,
-          title: 'New Posting / Placement Update',
-          message: `You have been posted to ${c.name}.`,
-          type: 'success',
-          channel: 'in-app',
-          link: '/dashboard',
-        }).catch(() => {});
-
-        await sendEmail(
-          u.email,
-          'ACETEL IMS — New Posting / Placement Update',
-          emailTemplates.companyPlacementNotice(c.name, studentName, student.matricNumber, u.email, u.phone || 'N/A')
-        ).catch(() => false);
-
-        if (u.phone) {
-          const waMsg = whatsappTemplates.placementSuccessful(
-            studentName,
-            c.name,
-            c.address || 'Company Location',
-            c.contactPerson || 'Company Supervisor'
-          );
-          await sendWhatsAppMessage(u.phone, waMsg).catch(() => false);
-        }
-      }
+    let notifyResult = null;
+    if (student.postingApproved && student.company && (!wasPostingApproved || data.company !== undefined)) {
+      notifyResult = await sendApprovedPostingNotifications(student._id.toString(), userId);
     }
 
-    res.json({ message: 'Student updated successfully', student });
+    res.json({ message: 'Student updated successfully', student, postingNotifications: notifyResult });
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
     logger.error('Error in updateStudent: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+export async function approvePosting(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { id } = idParamSchema.parse(req.params);
+    const { tenant: userTenant, id: userId, role: userRole } = req.user!;
+    const approverRoles = ['admin', 'prog_coordinator', 'internship_coordinator'];
+    if (!approverRoles.includes(userRole)) {
+      res.status(403).json({ error: 'Only coordinators can approve postings' });
+      return;
+    }
+
+    const student = await Student.findOne({ _id: id, tenant: userTenant });
+    if (!student) {
+      res.status(404).json({ error: 'Student not found' });
+      return;
+    }
+    if (!student.company) {
+      res.status(400).json({ error: 'Student has no company assignment to approve' });
+      return;
+    }
+
+    student.postingApproved = true;
+    student.postingApprovedAt = new Date();
+    student.postingApprovedBy = userId as any;
+    student.status = 'active';
+    await student.save();
+
+    const notifyResult = await sendApprovedPostingNotifications(student._id.toString(), userId);
+
+    await AuditLog.create({
+      tenant: userTenant,
+      user: userId as any,
+      action: 'APPROVE_POSTING',
+      module: 'STUDENT_MANAGEMENT',
+      targetId: student._id,
+      details: `Approved internship posting for ${student.matricNumber}`,
+      ipAddress: (req as any).ip,
+    }).catch(() => {});
+
+    res.json({
+      message: 'Posting approved. Student and partner notified by email when delivery is configured.',
+      student,
+      postingNotifications: notifyResult,
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      return;
+    }
+    logger.error('approvePosting: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -287,7 +333,13 @@ export async function requestAllocation(req: AuthRequest, res: Response): Promis
       res.status(400).json({ error: result.message });
       return;
     }
-    res.json({ message: 'Student allocated successfully', allocation: result });
+    res.json({
+      message: result.message || 'Student allocated successfully',
+      allocation: result,
+      pendingApproval: result.pendingApproval,
+      company: result.company,
+      success: result.success,
+    });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.errors });
@@ -326,7 +378,12 @@ export async function getStudentDashboard(req: AuthRequest, res: Response): Prom
       .sort({ entryDate: -1 })
       .limit(5);
 
-    res.json({ student, stats, notifications, recentLogbook });
+    res.json({
+      student: maskCompanyForStudentView(student, 'student'),
+      stats,
+      notifications,
+      recentLogbook,
+    });
   } catch (err) {
     logger.error('Dashboard Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });

@@ -4,7 +4,7 @@ import {
   Title, Tooltip, Legend, ArcElement,
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
-import api from '../lib/api';
+import api, { warmUpBackend } from '../lib/api';
 import { Users, CheckCircle, Clock, AlertTriangle, Star, Activity, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -28,24 +28,61 @@ export default function AnalyticsDashboard({ visibleRoles = [] }: { visibleRoles
   void visibleRoles;
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAnalytics = async (attempt = 0) => {
+    try {
+      if (attempt === 0) await warmUpBackend();
+      const { data: body } = await api.get('/analytics/summary', { timeout: 90000 });
+      setData(body);
+      setError(null);
+    } catch (err: any) {
+      const status = err.response?.status;
+      const msg = err.response?.data?.error;
+      const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+      if (status === 403) {
+        setError('You do not have permission to view institutional analytics.');
+        toast.error(msg || 'Access denied for analytics');
+        return;
+      }
+      if (status === 401) {
+        setError('Session expired. Please sign in again.');
+        toast.error('Session expired');
+        return;
+      }
+      if (attempt < 3) {
+        await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)));
+        return loadAnalytics(attempt + 1);
+      }
+      setError(
+        msg ||
+          (isTimeout
+            ? 'Analytics timed out while the server was starting. Click Refresh — it is usually faster on the second try.'
+            : 'Could not reach the analytics API. Check network or wait for the server to finish waking up.')
+      );
+      if (attempt >= 3) {
+        toast.error('Failed to load analytics — check your connection or use Refresh');
+      }
+    }
+  };
 
   useEffect(() => {
-    api.get('/analytics/summary')
-      .then(({ data }) => { setData(data); setError(false); })
-      .catch(() => { setError(true); toast.error('Failed to load analytics — check your connection'); })
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      await loadAnalytics();
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   if (loading) return <div className="page-loader"><div className="spinner"></div></div>;
   if (error || !data) return (
     <div className="card" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)' }}>
       <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>📊</div>
-      <div style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--text)' }}>Dashboard Loading</div>
-      <div style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
-        Analytics data is being fetched. If this persists, the server may still be waking up.
-      </div>
-      <button className="btn btn-primary btn-sm" onClick={() => window.location.reload()}>
+      <div style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--text)' }}>Analytics unavailable</div>
+      <div style={{ fontSize: '0.9rem', marginBottom: '16px' }}>{error}</div>
+      <button className="btn btn-primary btn-sm" onClick={() => { setLoading(true); loadAnalytics().finally(() => setLoading(false)); }}>
         Refresh Dashboard
       </button>
     </div>
@@ -53,7 +90,6 @@ export default function AnalyticsDashboard({ visibleRoles = [] }: { visibleRoles
 
   const { summary, byProgramme } = data;
 
-  // Global KPIs
   const kpis = [
     { label: 'Total Enrollment', value: summary.totalStudents, icon: Users, color: 'var(--primary)', sub: 'Across 6 Tracks' },
     { label: 'Active Interns', value: summary.activeStudents, icon: Activity, color: 'var(--blue)', sub: `${Math.round((summary.activeStudents / summary.totalStudents) * 100) || 0}% Placement Rate` },
@@ -61,7 +97,6 @@ export default function AnalyticsDashboard({ visibleRoles = [] }: { visibleRoles
     { label: 'Pending Reviews', value: summary.pendingLogbooks, icon: Clock, color: 'var(--warning)', sub: 'Requires Supervisor Action' },
   ];
 
-  // Distribution Chart
   const distributionChart = {
     labels: byProgramme.map((p: ProgrammeStat) => p.code),
     datasets: [
@@ -95,7 +130,6 @@ export default function AnalyticsDashboard({ visibleRoles = [] }: { visibleRoles
 
   return (
     <div className="analytics-dashboard animate-fade">
-      {/* ── Institutional KPIs ── */}
       <div className="stats-grid" style={{ marginBottom: '32px' }}>
         {kpis.map((kpi, i) => (
           <div key={i} className="stat-card premium">
@@ -113,7 +147,6 @@ export default function AnalyticsDashboard({ visibleRoles = [] }: { visibleRoles
         ))}
       </div>
 
-      {/* ── Programme Performance Matrix ── */}
       <div className="grid-3" style={{ marginBottom: '32px' }}>
         {byProgramme.map((p: ProgrammeStat) => (
           <div key={p.code} className="card programme-card">
@@ -142,7 +175,6 @@ export default function AnalyticsDashboard({ visibleRoles = [] }: { visibleRoles
         ))}
       </div>
 
-      {/* ── Analytic Charts ── */}
       <div className="grid-2" style={{ marginBottom: '32px' }}>
         <div className="card shadow-sm">
           <div className="card-header">
@@ -180,7 +212,6 @@ export default function AnalyticsDashboard({ visibleRoles = [] }: { visibleRoles
         </div>
       </div>
 
-      {/* ── Quality Control & Risk ── */}
       <div className="card border-danger">
         <div className="card-header bg-danger-light">
           <h3 className="card-title text-danger" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

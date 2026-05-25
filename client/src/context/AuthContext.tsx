@@ -13,6 +13,7 @@ interface StudentProfile {
   id: string;
   matricNumber: string;
   status: string;
+  postingApproved?: boolean;
   programme?: { name: string; level: string; code: string; };
   company?: { name: string; address: string; state: string; lat: number; lng: number; };
   supervisor?: { firstName: string; lastName: string; email: string; phone?: string; };
