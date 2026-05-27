@@ -133,7 +133,8 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
 
         <div className="modal-body" style={{ minHeight: 400 }}>
           
-          {step === 1 && (\n            <div className="animate-fade" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, padding: '20px 0' }}>
+          {step === 1 && (
+            <div className="animate-fade" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, padding: '20px 0' }}>
               {(!allowedTypes || allowedTypes.includes('student')) && (
               <button 
                 className={`card onboarding-card ${type === 'student' ? 'active' : ''}`}
