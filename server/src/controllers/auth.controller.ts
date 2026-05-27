@@ -430,11 +430,13 @@ export async function logout(req: AuthRequest, res: Response): Promise<void> {
 // ─── COMMS STATUS ────────────────────────────────────────────────────────────
 export async function getCommsStatus(_req: Request, res: Response): Promise<void> {
   const emailActive    = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
-  const whatsappActive = !!(process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN);
+  const waMetaActive   = !!(process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN);
+  const waTwilioActive = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM);
+  const whatsappActive = waMetaActive || waTwilioActive;
   res.json({
-    email:    { active: emailActive,    provider: emailActive    ? (process.env.SMTP_HOST || 'smtp.gmail.com') : null },
-    whatsapp: { active: whatsappActive, provider: whatsappActive ? 'Meta WhatsApp Cloud API (Free)'           : null },
-    chat:     { active: true,           provider: 'ACETEL IMS Real-Time Chat (Socket.IO)'                          },
+    email:    { active: emailActive, provider: emailActive ? (process.env.SMTP_HOST || 'smtp.gmail.com') : null },
+    whatsapp: { active: whatsappActive, provider: whatsappActive ? (waMetaActive ? 'Meta WhatsApp Cloud API (Free)' : 'Twilio WhatsApp') : null },
+    chat:     { active: true, provider: 'ACETEL IMS Real-Time Chat (Socket.IO)' },
   });
 }
 
