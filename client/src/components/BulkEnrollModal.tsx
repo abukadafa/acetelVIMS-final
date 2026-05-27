@@ -4,7 +4,7 @@ import {
   Building2, Users, GraduationCap, ArrowRight, ShieldCheck, 
   Copy, Check
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
@@ -56,24 +56,23 @@ export default function BulkEnrollModal({ onClose, onSuccess }: BulkEnrollModalP
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws);
-        
-        if (data.length === 0) {
+        const csvText = evt.target?.result as string;
+        const result = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        const data = result.data as any[];
+
+        if (!data || data.length === 0) {
           toast.error('The uploaded file is empty');
           return;
         }
 
         setFileData(data);
         setStep(3); // Move to preview
-      } catch {
+      } catch (err) {
+        console.error(err);
         toast.error('Failed to parse file. Please use the provided CSV template.');
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsText(file);
   };
 
   /* ── Submit ── */
@@ -183,8 +182,8 @@ export default function BulkEnrollModal({ onClose, onSuccess }: BulkEnrollModalP
                 <div className="upload-zone" style={{ border: '2px dashed var(--border)', borderRadius: 12, padding: '40px 20px', textAlign: 'center', background: 'var(--surface-1)', position: 'relative' }}>
                   <Upload size={32} className="text-primary" style={{ marginBottom: 12, opacity: 0.5 }} />
                   <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>Click or Drag File Here</div>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>Supports .csv, .xls, .xlsx</p>
-                  <input type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" onChange={handleFileUpload} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>Supports .csv only</p>
+                  <input type="file" accept=".csv" onChange={handleFileUpload} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
                 </div>
               </div>
             </div>
