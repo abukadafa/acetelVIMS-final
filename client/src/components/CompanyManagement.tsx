@@ -387,7 +387,12 @@ export default function CompanyManagement() {
       )}
 
       {showBulkEnroll && (
-        <BulkEnrollModal onClose={() => setShowBulkEnroll(false)} onSuccess={fetchData} />
+        <BulkEnrollModal
+          defaultType="company"
+          allowedTypes={['company']}
+          onClose={() => setShowBulkEnroll(false)}
+          onSuccess={fetchData}
+        />
       )}
     </div>
   );

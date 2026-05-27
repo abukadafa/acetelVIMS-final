@@ -8,16 +8,23 @@ import Papa from 'papaparse';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
+type OnboardType = 'staff' | 'student' | 'company';
+
 interface BulkEnrollModalProps {
   onClose: () => void;
   onSuccess: () => void;
+  /** Pre-select the entity type (and optionally lock the choice) */
+  defaultType?: OnboardType;
+  /** If provided, only these entity types are shown in step 1.
+   *  Pass a single-element array to skip the type-selection step entirely. */
+  allowedTypes?: OnboardType[];
 }
 
-type OnboardType = 'staff' | 'student' | 'company';
-
-export default function BulkEnrollModal({ onClose, onSuccess }: BulkEnrollModalProps) {
-  const [step, setStep] = useState(1);
-  const [type, setType] = useState<OnboardType>('student');
+export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'student', allowedTypes }: BulkEnrollModalProps) {
+  // If caller locked to a single type, jump straight to step 2 (upload).
+  const singleType = allowedTypes?.length === 1;
+  const [step, setStep] = useState(singleType ? 2 : 1);
+  const [type, setType] = useState<OnboardType>(defaultType);
   const [fileData, setFileData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<{ success: any[], failed: any[] } | null>(null);
@@ -116,7 +123,9 @@ export default function BulkEnrollModal({ onClose, onSuccess }: BulkEnrollModalP
               Institutional Bulk {type === 'company' ? 'Partner Onboarding' : 'Enrollment'}
             </h2>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginTop: 2 }}>
-              Step {step} of 4: {step === 1 ? 'Choose Entity' : step === 2 ? 'Upload Data' : step === 3 ? 'Review' : 'Final Report'}
+              {singleType
+                ? `Step ${step - 1} of 3: ${step === 2 ? 'Upload Data' : step === 3 ? 'Review' : 'Final Report'}`
+                : `Step ${step} of 4: ${step === 1 ? 'Choose Entity' : step === 2 ? 'Upload Data' : step === 3 ? 'Review' : 'Final Report'}`}
             </p>
           </div>
           <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
@@ -124,8 +133,8 @@ export default function BulkEnrollModal({ onClose, onSuccess }: BulkEnrollModalP
 
         <div className="modal-body" style={{ minHeight: 400 }}>
           
-          {step === 1 && (
-            <div className="animate-fade" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, padding: '20px 0' }}>
+          {step === 1 && (\n            <div className="animate-fade" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, padding: '20px 0' }}>
+              {(!allowedTypes || allowedTypes.includes('student')) && (
               <button 
                 className={`card onboarding-card ${type === 'student' ? 'active' : ''}`}
                 onClick={() => setType('student')}
@@ -137,7 +146,9 @@ export default function BulkEnrollModal({ onClose, onSuccess }: BulkEnrollModalP
                 <h3 style={{ fontSize: '0.9rem', marginBottom: 4 }}>Student Cohort</h3>
                 <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Onboard Academic Intake Batches</p>
               </button>
+              )}
 
+              {(!allowedTypes || allowedTypes.includes('staff')) && (
               <button 
                 className={`card onboarding-card ${type === 'staff' ? 'active' : ''}`}
                 onClick={() => setType('staff')}
@@ -149,7 +160,9 @@ export default function BulkEnrollModal({ onClose, onSuccess }: BulkEnrollModalP
                 <h3 style={{ fontSize: '0.9rem', marginBottom: 4 }}>Institutional Staff</h3>
                 <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Enroll Faculty & Supervisors</p>
               </button>
+              )}
 
+              {(!allowedTypes || allowedTypes.includes('company')) && (
               <button 
                 className={`card onboarding-card ${type === 'company' ? 'active' : ''}`}
                 onClick={() => setType('company')}
@@ -161,6 +174,7 @@ export default function BulkEnrollModal({ onClose, onSuccess }: BulkEnrollModalP
                 <h3 style={{ fontSize: '0.9rem', marginBottom: 4 }}>Industry Partners</h3>
                 <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Mass-Onboard Companies</p>
               </button>
+              )}
             </div>
           )}
 
@@ -280,7 +294,8 @@ export default function BulkEnrollModal({ onClose, onSuccess }: BulkEnrollModalP
             <>
               <button className="btn btn-outline" onClick={onClose}>Cancel</button>
               <div style={{ flex: 1 }} />
-              {step > 1 && <button className="btn btn-ghost" onClick={() => setStep(step - 1)}>Back</button>}
+              {step > 1 && !singleType && <button className="btn btn-ghost" onClick={() => setStep(step - 1)}>Back</button>}
+              {step > 2 && singleType && <button className="btn btn-ghost" onClick={() => setStep(step - 1)}>Back</button>}
               {step === 1 && <button className="btn btn-primary" onClick={() => setStep(2)}>Set Enrollment Path <ArrowRight size={16} /></button>}
               {step === 3 && <button className="btn btn-primary" onClick={performUpload} disabled={loading}>{loading ? 'Onboarding...' : 'Execute Batch Upload'}</button>}
             </>

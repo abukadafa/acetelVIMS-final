@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Download, UserPlus, MoreVertical, Mail, MessageSquare, Eye, UserCheck, AlertTriangle, Pencil, Trash2, History } from 'lucide-react';
+import { Search, Download, UserPlus, Upload, MoreVertical, Mail, MessageSquare, Eye, UserCheck, AlertTriangle, Pencil, Trash2, History } from 'lucide-react';
 import api from '../lib/api';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import AuditTrailModal from './AuditTrailModal';
 import ReasonModal from './ReasonModal';
+import BulkEnrollModal from './BulkEnrollModal';
 
 export default function StudentList() {
   const [students, setStudents]       = useState<any[]>([]);
@@ -13,6 +14,7 @@ export default function StudentList() {
   const [programmes, setProgrammes]   = useState<any[]>([]);
   const [filterProgramme, setFilter]  = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBulkEnroll, setShowBulkEnroll] = useState(false);
   const [submitting, setSubmitting]   = useState(false);
   const [openMenu, setOpenMenu]       = useState<string | null>(null);
   const [editing, setEditing]         = useState<any | null>(null);
@@ -233,6 +235,9 @@ export default function StudentList() {
             onClick={handleExport}>
             <Download size={15} /> Export CSV
           </button>
+          <button className="btn btn-sm btn-outline" onClick={() => setShowBulkEnroll(true)}>
+            <Upload size={15} /> Bulk Import
+          </button>
           <button className="btn btn-sm btn-primary" onClick={() => setShowAddModal(true)}>
             <UserPlus size={15} /> Enroll Student
           </button>
@@ -352,17 +357,21 @@ export default function StudentList() {
       {showAddModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 32, width: '100%',
-            maxWidth: 500, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', position: 'relative' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%',
+            maxWidth: 500, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', position: 'relative',
+            maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <button onClick={() => setShowAddModal(false)} style={{ position: 'absolute',
               top: 14, right: 14, background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: '1.2rem', color: '#6b7280' }}>✕</button>
-            <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '1.3rem', fontWeight: 800,
-              color: '#111827', marginBottom: 6 }}>Enroll New Student</h2>
-            <p style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: 24 }}>
-              Student will receive login credentials via email and WhatsApp automatically
-            </p>
-            <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              fontSize: '1.2rem', color: '#6b7280', zIndex: 1 }}>✕</button>
+            <div style={{ padding: '32px 32px 0' }}>
+              <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '1.3rem', fontWeight: 800,
+                color: '#111827', marginBottom: 6 }}>Enroll New Student</h2>
+              <p style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: 24 }}>
+                Student will receive login credentials via email and WhatsApp automatically
+              </p>
+            </div>
+            <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 14,
+              overflowY: 'auto', padding: '0 32px 32px' }}>
               {[
                 { name: 'firstName', label: 'First Name', placeholder: 'Amina', required: true },
                 { name: 'lastName',  label: 'Last Name',  placeholder: 'Ibrahim', required: true },
@@ -543,6 +552,15 @@ export default function StudentList() {
               toast.error(err.response?.data?.error || 'Failed to deactivate student');
             }
           }}
+        />
+      )}
+
+      {showBulkEnroll && (
+        <BulkEnrollModal
+          defaultType="student"
+          allowedTypes={['student']}
+          onClose={() => setShowBulkEnroll(false)}
+          onSuccess={() => { setShowBulkEnroll(false); fetchData(); }}
         />
       )}
     </div>

@@ -372,7 +372,7 @@ export default function UserManagementPage() {
           )}
 
           <button className="btn btn-outline" onClick={() => setShowBulkEnroll(true)} id="bulk-enroll-btn">
-            <Upload size={16} /> Bulk Import
+            <Upload size={16} /> Bulk Staff Import
           </button>
           
           <button className="btn btn-secondary" onClick={() => setShowStudentModal(true)} id="add-student-btn">
@@ -889,9 +889,11 @@ export default function UserManagementPage() {
 
       {/* ══ Bulk Enroll Modal (NEW) ══ */}
       {showBulkEnroll && (
-        <BulkEnrollModal 
-          onClose={() => setShowBulkEnroll(false)} 
-          onSuccess={() => { setShowBulkEnroll(false); load(); }} 
+        <BulkEnrollModal
+          defaultType="staff"
+          allowedTypes={['staff']}
+          onClose={() => setShowBulkEnroll(false)}
+          onSuccess={() => { setShowBulkEnroll(false); load(); }}
         />
       )}
 

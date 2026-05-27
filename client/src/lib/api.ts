@@ -49,4 +49,23 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Auto-logout on 401 (session expired / cookie invalid).
+// Skip for the login and profile endpoints themselves to avoid redirect loops.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const url = error.config?.url ?? '';
+    const isAuthEndpoint =
+      url.includes('auth/login') ||
+      url.includes('auth/profile') ||
+      url.includes('auth/logout');
+    if (error.response?.status === 401 && !isAuthEndpoint) {
+      // Dispatch a global event; AuthProvider listens and calls logout() which
+      // clears state and redirects to /login, avoiding a hard page reload.
+      window.dispatchEvent(new CustomEvent('acetel:session-expired'));
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

@@ -87,6 +87,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadProfile();
   }, [loadProfile]);
 
+  // Listen for 401 events dispatched by the axios interceptor so that any
+  // page can trigger a graceful logout without coupling to AuthContext directly.
+  useEffect(() => {
+    const handler = () => { logout(); };
+    window.addEventListener('acetel:session-expired', handler);
+    return () => window.removeEventListener('acetel:session-expired', handler);
+  }, [logout]);
+
   const login = async (identifier: string, password: string) => {
     const { data } = await api.post('auth/login', { identifier, password });
     // Auth cookie is set by the server response automatically.
