@@ -37,7 +37,7 @@ export const getAnalytics = async (req: AuthRequest, res: Response) => {
       topSector: sectorStats[0]?.sector || 'N/A',
       sectorStats
     });
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch analytics" });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to fetch analytics", error: error.message });
   }
 };
