@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Download, UserPlus, Upload, MoreVertical, Mail, MessageSquare, Eye, UserCheck, AlertTriangle, Pencil, Trash2, History } from 'lucide-react';
+import { Search, Download, UserPlus, MoreVertical, Mail, MessageSquare, Eye, UserCheck, AlertTriangle, Pencil, Trash2, History, Upload } from 'lucide-react';
 import api from '../lib/api';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import AuditTrailModal from './AuditTrailModal';
-import ReasonModal from './ReasonModal';
 import BulkEnrollModal from './BulkEnrollModal';
+import ReasonModal from './ReasonModal';
 
 export default function StudentList() {
   const [students, setStudents]       = useState<any[]>([]);
@@ -235,7 +235,11 @@ export default function StudentList() {
             onClick={handleExport}>
             <Download size={15} /> Export CSV
           </button>
+<<<<<<< HEAD
           <button className="btn btn-sm btn-outline" onClick={() => setShowBulkEnroll(true)}>
+=======
+          <button className="btn btn-sm btn-ghost" onClick={() => setShowBulkEnroll(true)}>
+>>>>>>> 434d2ad (feat(bulk): restrict bulk enroll modal by entity and make modal scrollable; add bulk import buttons)
             <Upload size={15} /> Bulk Import
           </button>
           <button className="btn btn-sm btn-primary" onClick={() => setShowAddModal(true)}>
@@ -450,6 +454,10 @@ export default function StudentList() {
             </form>
           </div>
         </div>
+      )}
+
+      {showBulkEnroll && (
+        <BulkEnrollModal onClose={() => setShowBulkEnroll(false)} onSuccess={() => { setShowBulkEnroll(false); fetchData(); }} defaultType="student" allowedTypes={["student"]} />
       )}
 
       {/* Edit Student Modal */}

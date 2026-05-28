@@ -10,21 +10,16 @@ import toast from 'react-hot-toast';
 
 type OnboardType = 'staff' | 'student' | 'company';
 
-interface BulkEnrollModalProps {
-  onClose: () => void;
-  onSuccess: () => void;
-  /** Pre-select the entity type (and optionally lock the choice) */
   defaultType?: OnboardType;
-  /** If provided, only these entity types are shown in step 1.
-   *  Pass a single-element array to skip the type-selection step entirely. */
+  /** If provided, only these entity types are shown in step 1. */
   allowedTypes?: OnboardType[];
 }
 
 export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'student', allowedTypes }: BulkEnrollModalProps) {
-  // If caller locked to a single type, jump straight to step 2 (upload).
   const singleType = allowedTypes?.length === 1;
   const [step, setStep] = useState(singleType ? 2 : 1);
   const [type, setType] = useState<OnboardType>(defaultType);
+
   const [fileData, setFileData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<{ success: any[], failed: any[] } | null>(null);
@@ -114,7 +109,7 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 680, maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
         
         <div className="modal-header" style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
           <div>
@@ -146,7 +141,10 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
                 </div>
                 <h3 style={{ fontSize: '0.9rem', marginBottom: 4 }}>Student Cohort</h3>
                 <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Onboard Academic Intake Batches</p>
+<<<<<<< HEAD
               </button>
+=======
+>>>>>>> 434d2ad (feat(bulk): restrict bulk enroll modal by entity and make modal scrollable; add bulk import buttons)
               )}
 
               {(!allowedTypes || allowedTypes.includes('staff')) && (
@@ -160,7 +158,10 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
                 </div>
                 <h3 style={{ fontSize: '0.9rem', marginBottom: 4 }}>Institutional Staff</h3>
                 <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Enroll Faculty & Supervisors</p>
+<<<<<<< HEAD
               </button>
+=======
+>>>>>>> 434d2ad (feat(bulk): restrict bulk enroll modal by entity and make modal scrollable; add bulk import buttons)
               )}
 
               {(!allowedTypes || allowedTypes.includes('company')) && (
@@ -174,7 +175,10 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
                 </div>
                 <h3 style={{ fontSize: '0.9rem', marginBottom: 4 }}>Industry Partners</h3>
                 <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Mass-Onboard Companies</p>
+<<<<<<< HEAD
               </button>
+=======
+>>>>>>> 434d2ad (feat(bulk): restrict bulk enroll modal by entity and make modal scrollable; add bulk import buttons)
               )}
             </div>
           )}

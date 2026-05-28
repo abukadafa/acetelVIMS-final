@@ -389,7 +389,7 @@ export default function CompanyManagement() {
       {showBulkEnroll && (
         <BulkEnrollModal
           defaultType="company"
-          allowedTypes={['company']}
+          allowedTypes={["company"]}
           onClose={() => setShowBulkEnroll(false)}
           onSuccess={fetchData}
         />

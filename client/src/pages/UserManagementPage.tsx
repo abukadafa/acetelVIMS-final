@@ -891,7 +891,7 @@ export default function UserManagementPage() {
       {showBulkEnroll && (
         <BulkEnrollModal
           defaultType="staff"
-          allowedTypes={['staff']}
+          allowedTypes={["staff"]}
           onClose={() => setShowBulkEnroll(false)}
           onSuccess={() => { setShowBulkEnroll(false); load(); }}
         />
