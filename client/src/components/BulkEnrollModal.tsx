@@ -131,54 +131,45 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
           {step === 1 && (
             <div className="animate-fade" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, padding: '20px 0' }}>
               {(!allowedTypes || allowedTypes.includes('student')) && (
-              <button 
-                className={`card onboarding-card ${type === 'student' ? 'active' : ''}`}
-                onClick={() => setType('student')}
-                style={{ padding: 20, textAlign: 'center', cursor: 'pointer', border: type === 'student' ? '2px solid var(--primary)' : '1px solid var(--border)' }}
-              >
-                <div className="badge-icon" style={{ margin: '0 auto 12px', background: type === 'student' ? 'var(--primary-light)' : 'var(--surface-3)' }}>
-                  <GraduationCap size={24} />
-                </div>
-                <h3 style={{ fontSize: '0.9rem', marginBottom: 4 }}>Student Cohort</h3>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Onboard Academic Intake Batches</p>
-<<<<<<< HEAD
-              </button>
-=======
->>>>>>> 434d2ad (feat(bulk): restrict bulk enroll modal by entity and make modal scrollable; add bulk import buttons)
+                <button 
+                  className={`card onboarding-card ${type === 'student' ? 'active' : ''}`}
+                  onClick={() => setType('student')}
+                  style={{ padding: 20, textAlign: 'center', cursor: 'pointer', border: type === 'student' ? '2px solid var(--primary)' : '1px solid var(--border)' }}
+                >
+                  <div className="badge-icon" style={{ margin: '0 auto 12px', background: type === 'student' ? 'var(--primary-light)' : 'var(--surface-3)' }}>
+                    <GraduationCap size={24} />
+                  </div>
+                  <h3 style={{ fontSize: '0.9rem', marginBottom: 4 }}>Student Cohort</h3>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Onboard Academic Intake Batches</p>
+                </button>
               )}
 
               {(!allowedTypes || allowedTypes.includes('staff')) && (
-              <button 
-                className={`card onboarding-card ${type === 'staff' ? 'active' : ''}`}
-                onClick={() => setType('staff')}
-                style={{ padding: 20, textAlign: 'center', cursor: 'pointer', border: type === 'staff' ? '2px solid var(--primary)' : '1px solid var(--border)' }}
-              >
-                <div className="badge-icon" style={{ margin: '0 auto 12px', background: type === 'staff' ? 'var(--primary-light)' : 'var(--surface-3)' }}>
-                  <Users size={24} />
-                </div>
-                <h3 style={{ fontSize: '0.9rem', marginBottom: 4 }}>Institutional Staff</h3>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Enroll Faculty & Supervisors</p>
-<<<<<<< HEAD
-              </button>
-=======
->>>>>>> 434d2ad (feat(bulk): restrict bulk enroll modal by entity and make modal scrollable; add bulk import buttons)
+                <button 
+                  className={`card onboarding-card ${type === 'staff' ? 'active' : ''}`}
+                  onClick={() => setType('staff')}
+                  style={{ padding: 20, textAlign: 'center', cursor: 'pointer', border: type === 'staff' ? '2px solid var(--primary)' : '1px solid var(--border)' }}
+                >
+                  <div className="badge-icon" style={{ margin: '0 auto 12px', background: type === 'staff' ? 'var(--primary-light)' : 'var(--surface-3)' }}>
+                    <Users size={24} />
+                  </div>
+                  <h3 style={{ fontSize: '0.9rem', marginBottom: 4 }}>Institutional Staff</h3>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Enroll Faculty & Supervisors</p>
+                </button>
               )}
 
               {(!allowedTypes || allowedTypes.includes('company')) && (
-              <button 
-                className={`card onboarding-card ${type === 'company' ? 'active' : ''}`}
-                onClick={() => setType('company')}
-                style={{ padding: 20, textAlign: 'center', cursor: 'pointer', border: type === 'company' ? '2px solid var(--primary)' : '1px solid var(--border)' }}
-              >
-                <div className="badge-icon" style={{ margin: '0 auto 12px', background: type === 'company' ? 'var(--primary-light)' : 'var(--surface-3)' }}>
-                  <Building2 size={24} />
-                </div>
-                <h3 style={{ fontSize: '0.9rem', marginBottom: 4 }}>Industry Partners</h3>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Mass-Onboard Companies</p>
-<<<<<<< HEAD
-              </button>
-=======
->>>>>>> 434d2ad (feat(bulk): restrict bulk enroll modal by entity and make modal scrollable; add bulk import buttons)
+                <button 
+                  className={`card onboarding-card ${type === 'company' ? 'active' : ''}`}
+                  onClick={() => setType('company')}
+                  style={{ padding: 20, textAlign: 'center', cursor: 'pointer', border: type === 'company' ? '2px solid var(--primary)' : '1px solid var(--border)' }}
+                >
+                  <div className="badge-icon" style={{ margin: '0 auto 12px', background: type === 'company' ? 'var(--primary-light)' : 'var(--surface-3)' }}>
+                    <Building2 size={24} />
+                  </div>
+                  <h3 style={{ fontSize: '0.9rem', marginBottom: 4 }}>Industry Partners</h3>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Mass-Onboard Companies</p>
+                </button>
               )}
             </div>
           )}
