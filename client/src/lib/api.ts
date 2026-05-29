@@ -49,16 +49,32 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-logout on 401 (session expired / cookie invalid).
-// Skip for the login and profile endpoints themselves to avoid redirect loops.
+let isRefreshing = false;
+let failedQueue: { resolve: (value?: unknown) => void, reject: (reason?: any) => void }[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Auto-logout on 401 (session expired / cookie invalid), but attempt refresh first.
+// Skip for the login, profile, and refresh endpoints themselves to avoid redirect loops.
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const url = error.config?.url ?? '';
+    const originalRequest = error.config;
+    const url = originalRequest?.url ?? '';
     const isAuthEndpoint =
       url.includes('auth/login') ||
       url.includes('auth/profile') ||
-      url.includes('auth/logout');
+      url.includes('auth/logout') ||
+      url.includes('auth/refresh');
 
     // If we got a blob response (e.g. export) but server returned an error,
     // parse the blob as JSON so callers can read error.response.data.error
@@ -72,6 +88,33 @@ api.interceptors.response.use(
         error.response.data = JSON.parse(text);
       } catch {
         // leave as-is if parsing fails
+      }
+    }
+
+    if (error.response?.status === 401 && !isAuthEndpoint && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise(function(resolve, reject) {
+          failedQueue.push({ resolve, reject });
+        }).then(() => {
+          return api(originalRequest);
+        }).catch(err => {
+          return Promise.reject(err);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        await api.post('auth/refresh');
+        isRefreshing = false;
+        processQueue(null, 'refreshed');
+        return api(originalRequest);
+      } catch (refreshError) {
+        isRefreshing = false;
+        processQueue(refreshError, null);
+        window.dispatchEvent(new CustomEvent('acetel:session-expired'));
+        return Promise.reject(refreshError);
       }
     }
 

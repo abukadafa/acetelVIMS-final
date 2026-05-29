@@ -1,0 +1,1 @@
+{"level":"error","message":"❌ MongoDB connection error: connect ECONNREFUSED 127.0.0.1:27017","service":"acetel-vims-api","timestamp":"2026-05-29 10:16:19"}

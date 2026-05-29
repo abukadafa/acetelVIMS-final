@@ -59,12 +59,13 @@ export async function login(req: Request, res: Response): Promise<void> {
       // Ensure we always use a real tenant ObjectId in the token
       let adminTenantId = adminUser.tenant?.toString();
       if (!adminTenantId || adminTenantId === 'default') {
-        const defaultTenantDoc = await Tenant.findOne({ slug: 'acetel' });
-        adminTenantId = defaultTenantDoc?._id.toString() || '';
-        // Sync it back to the user record
-        if (defaultTenantDoc) {
-          await User.findByIdAndUpdate(adminUser._id, { tenant: defaultTenantDoc._id });
+        let defaultTenantDoc = await Tenant.findOne({ slug: 'acetel' });
+        if (!defaultTenantDoc) {
+          defaultTenantDoc = await Tenant.create({ name: 'ACETEL', slug: 'acetel', institutionType: 'University' });
         }
+        adminTenantId = defaultTenantDoc._id.toString();
+        // Sync it back to the user record
+        await User.findByIdAndUpdate(adminUser._id, { tenant: defaultTenantDoc._id });
       }
       const { access, refresh } = await authService.generateTokens({
         id: adminUser._id.toString(), role: 'admin',

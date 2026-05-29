@@ -1,0 +1,3 @@
+{"level":"warn","message":"ℹ️ Optional features disabled (missing ENV vars): TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM, WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN, META_WA_VERIFY_TOKEN","service":"acetel-vims-api","timestamp":"2026-05-29 10:16:14"}
+{"level":"info","message":"📧 Email notifications: ACTIVE | 📱 WhatsApp: SIMULATED","service":"acetel-vims-api","timestamp":"2026-05-29 10:16:14"}
+{"level":"error","message":"❌ MongoDB connection error: connect ECONNREFUSED 127.0.0.1:27017","service":"acetel-vims-api","timestamp":"2026-05-29 10:16:19"}

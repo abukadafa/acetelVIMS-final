@@ -371,7 +371,7 @@ export default function StudentList() {
               </p>
             </div>
             <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 14,
-              overflowY: 'auto', padding: '0 32px 32px' }}>
+              overflowY: 'auto', padding: '0 32px 32px', flex: 1, minHeight: 0 }}>
               {[
                 { name: 'firstName', label: 'First Name', placeholder: 'Amina', required: true },
                 { name: 'lastName',  label: 'Last Name',  placeholder: 'Ibrahim', required: true },
