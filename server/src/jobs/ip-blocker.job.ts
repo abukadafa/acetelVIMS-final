@@ -70,12 +70,20 @@ export async function runIPBlockerJob(): Promise<void> {
       }
     }
 
-    // ── 4. Reset sliding window counters (1m, 5m, 15m windows) ──────────────
-    // The 1h counter resets once per job run (every 5 minutes is not 1h — good enough)
-    await IPTracker.updateMany(
-      {},
-      { $set: { 'windows.1m': 0, 'windows.5m': 0, 'windows.15m': 0 } }
-    );
+    // ── 4. Reset sliding window counters ─────────────────────────────────────
+    // Reset short-window counters every 5 min run; reset 1h counter separately
+    // using a time-based check so it resets roughly every hour.
+    const now = new Date();
+    const shouldResetHour = now.getMinutes() < 5; // reset 1h window in first 5 min of each hour
+    const windowReset: Record<string, number> = {
+      'windows.1m': 0,
+      'windows.5m': 0,
+      'windows.15m': 0,
+    };
+    if (shouldResetHour) {
+      windowReset['windows.1h'] = 0;
+    }
+    await IPTracker.updateMany({}, { $set: windowReset });
 
     const duration = Date.now() - startTime;
     logger.info(
@@ -88,15 +96,30 @@ export async function runIPBlockerJob(): Promise<void> {
 }
 
 // ─── Schedule ─────────────────────────────────────────────────────────────────
+let _jobRunning = false;
+
+async function safeRunIPBlockerJob(): Promise<void> {
+  if (_jobRunning) {
+    logger.warn('🛡️  IP Blocker Job already running — skipping this cycle');
+    return;
+  }
+  _jobRunning = true;
+  try {
+    await runIPBlockerJob();
+  } finally {
+    _jobRunning = false;
+  }
+}
+
 export function startIPBlockerSchedule(): void {
   const INTERVAL_MS = 5 * 60 * 1000; // Every 5 minutes
 
   // Run once 30s after startup to let DB settle
   setTimeout(async () => {
     await loadBlockedIPsIntoCache();
-    await runIPBlockerJob();
+    await safeRunIPBlockerJob();
   }, 30000);
 
-  setInterval(runIPBlockerJob, INTERVAL_MS);
+  setInterval(safeRunIPBlockerJob, INTERVAL_MS);
   logger.info('🛡️  IP Blocker Job scheduled every 5 minutes');
 }

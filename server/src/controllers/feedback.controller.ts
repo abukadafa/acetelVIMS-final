@@ -105,7 +105,8 @@ export async function listFeedback(req: AuthRequest, res: Response): Promise<voi
     if (category) filter.category = category;
     if (priority) filter.priority = priority;
     if (search) {
-      const rx = new RegExp(search, 'i');
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rx = new RegExp(escaped, 'i');
       filter.$or = [{ subject: rx }, { message: rx }];
     }
 

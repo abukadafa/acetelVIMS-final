@@ -46,8 +46,9 @@ export default function AnalyticsDashboard({ visibleRoles = [] }: { visibleRoles
         return;
       }
       if (status === 401) {
+        // AuthContext will handle 401 globally (redirect to login).
+        // Don't show a redundant toast here.
         setError('Session expired. Please sign in again.');
-        toast.error('Session expired');
         return;
       }
       if (attempt < 3) {

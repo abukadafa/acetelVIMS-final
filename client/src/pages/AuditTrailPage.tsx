@@ -60,9 +60,11 @@ export default function AuditTrailPage() {
       if (moduleFilter) params.module = moduleFilter;
       if (actionFilter) params.action = actionFilter;
       const { data } = await api.get('/admin/audit-logs', { params });
-      setLogs(data.logs);
-    } catch {
-      toast.error('Failed to load audit trail');
+      setLogs(data.logs ?? []);
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.message || 'Failed to load audit trail';
+      toast.error(msg);
+      setLogs([]);
     } finally {
       setLoading(false);
     }

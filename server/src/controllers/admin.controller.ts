@@ -95,7 +95,9 @@ export async function listUsers(req: AuthRequest, res: Response): Promise<void> 
 
     if (role) filter.role = role;
     if (search) {
-      const rx = new RegExp(search, 'i');
+      // Escape special regex characters to prevent ReDoS attacks
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rx = new RegExp(escaped, 'i');
       filter.$or = [{ firstName: rx }, { lastName: rx }, { email: rx }];
     }
 

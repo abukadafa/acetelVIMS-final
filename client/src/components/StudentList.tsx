@@ -42,7 +42,7 @@ export default function StudentList() {
       ]);
       setStudents(studRes.data.students || []);
       setProgrammes(progRes.data.programmes || []);
-    } catch { toast.error('Failed to load students'); }
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed to load students'); }
     finally { setLoading(false); }
   }, [filterProgramme, search]);
 
@@ -461,7 +461,8 @@ export default function StudentList() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 320, padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: '100%',
-            maxWidth: 560, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', position: 'relative' }}>
+            maxWidth: 560, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', position: 'relative',
+            maxHeight: '90vh', overflowY: 'auto' }}>
             <button onClick={() => setEditing(null)} style={{ position: 'absolute',
               top: 14, right: 14, background: 'none', border: 'none', cursor: 'pointer',
               fontSize: '1.2rem', color: '#6b7280' }}>✕</button>

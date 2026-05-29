@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import api, { setAuthToken } from '../lib/api';
 
 interface User {
@@ -34,9 +34,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [student, setStudent] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  // Track whether we're still in the initial load phase so we don't
+  // misinterpret cold-start 401s as genuine session-expired events.
+  const initialLoadDone = useRef(false);
 
   const logout = useCallback(async () => {
-    // setAuthToken is now a no-op (cookie auth), kept for API compat
     setAuthToken(null);
     try {
       await api.post('auth/logout').catch(() => {});
@@ -48,12 +50,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loadProfile = useCallback(async () => {
-    // Auth is now purely cookie-based. We always try the profile endpoint;
-    // if no valid cookie exists the server returns 401 and we don't show the app.
-    // Retry up to 4 times with backoff — handles Render free-tier cold starts
-    // where the backend can take 10–30 s to wake up after inactivity.
-    const MAX_RETRIES = 4;
-    const BACKOFF_MS = [2000, 4000, 6000, 8000];
+    // Auth is cookie-based. Retry up to 5 times with backoff to handle
+    // Render free-tier cold starts (backend can take 30–60 s to wake up).
+    const MAX_RETRIES = 5;
+    const BACKOFF_MS = [2000, 4000, 6000, 8000, 10000];
+
+    // Give warmUpBackend a head start on the very first load
+    if (!initialLoadDone.current) {
+      await new Promise(res => setTimeout(res, 800));
+    }
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
@@ -61,23 +66,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         if (data.student) setStudent(data.student);
         setLoading(false);
-        return; // success — stop retrying
+        initialLoadDone.current = true;
+        return;
       } catch (err: any) {
-        if (err.response?.status === 401) {
-          // Genuine auth failure (no valid cookie) — don't retry
+        const status = err.response?.status;
+
+        if (status === 401) {
+          // On very first attempt, a 401 could be a cold-start race where the
+          // server just woke up but the cookie wasn't re-sent correctly yet.
+          // Retry once before giving up.
+          if (!initialLoadDone.current && attempt === 0) {
+            await new Promise(res => setTimeout(res, BACKOFF_MS[0]));
+            continue;
+          }
+          // Genuine auth failure — no valid cookie
           setUser(null);
           setStudent(null);
           setLoading(false);
+          initialLoadDone.current = true;
           return;
         }
+
         // Network error or 5xx — backend may be waking up
         if (attempt < MAX_RETRIES) {
           await new Promise(res => setTimeout(res, BACKOFF_MS[attempt]));
         } else {
-          // All retries exhausted — clear auth and let user log in again
+          // All retries exhausted
           setUser(null);
           setStudent(null);
           setLoading(false);
+          initialLoadDone.current = true;
         }
       }
     }
@@ -87,21 +105,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadProfile();
   }, [loadProfile]);
 
-  // Listen for 401 events dispatched by the axios interceptor so that any
-  // page can trigger a graceful logout without coupling to AuthContext directly.
+  // Listen for 401 events dispatched by the axios interceptor.
+  // Only handle after the initial load completes so cold-start races don't
+  // trigger premature logout.
   useEffect(() => {
-    const handler = () => { logout(); };
+    const handler = () => {
+      if (initialLoadDone.current) {
+        logout();
+      }
+    };
     window.addEventListener('acetel:session-expired', handler);
     return () => window.removeEventListener('acetel:session-expired', handler);
   }, [logout]);
 
   const login = async (identifier: string, password: string) => {
     const { data } = await api.post('auth/login', { identifier, password });
-    // Auth cookie is set by the server response automatically.
-    // setAuthToken is a no-op — kept for any legacy call sites.
     setAuthToken(data.accessToken || null);
     setUser(data.user);
     if (data.student) setStudent(data.student);
+    initialLoadDone.current = true;
   };
 
   const isRole = useCallback((...roles: string[]) => !!user && roles.includes(user.role), [user]);

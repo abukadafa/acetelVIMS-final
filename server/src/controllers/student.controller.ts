@@ -107,7 +107,9 @@ export async function getAllStudents(req: AuthRequest, res: Response): Promise<v
     }
 
     if (search) {
-      const rx = new RegExp(search, 'i');
+      // Escape special regex characters to prevent ReDoS attacks
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rx = new RegExp(escaped, 'i');
       // Search matching User fields (firstName, lastName, email) + Student fields
       const matchedUsers = await User.find({
         tenant: userTenant,
@@ -533,18 +535,32 @@ export async function exportStudents(req: AuthRequest, res: Response): Promise<v
       .populate('supervisor', 'firstName lastName')
       .sort({ createdAt: -1 });
 
+    const q = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+
     let csv = 'Matric,First Name,Last Name,Email,Phone,Programme,Level,Company,Supervisor,Progress,Status\n';
-    
+
     for (const s of students) {
       const u = s.user as any;
       const prog = s.programme as any;
       const comp = s.company as any;
       const sup = s.supervisor as any;
-      
+
       const logCount = await Logbook.countDocuments({ student: s._id, tenant: userTenant, status: 'approved' });
       const progress = `${logCount} logs approved`;
 
-      csv += `${s.matricNumber},${u?.firstName || ''},${u?.lastName || ''},${u?.email || ''},${u?.phone || ''},${prog?.name || ''},${prog?.level || ''},${comp?.name || 'Unassigned'},${sup ? `${sup.firstName} ${sup.lastName}` : 'N/A'},${progress},${s.status}\n`;
+      csv += [
+        q(s.matricNumber),
+        q(u?.firstName),
+        q(u?.lastName),
+        q(u?.email),
+        q(u?.phone),
+        q(prog?.name),
+        q(prog?.level),
+        q(comp?.name || 'Unassigned'),
+        q(sup ? `${sup.firstName} ${sup.lastName}` : 'N/A'),
+        q(progress),
+        q(s.status),
+      ].join(',') + '\n';
     }
 
     res.setHeader('Content-Type', 'text/csv');

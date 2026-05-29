@@ -21,8 +21,8 @@ interface BulkEnrollModalProps {
 export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'student', allowedTypes }: BulkEnrollModalProps) {
   const singleType = allowedTypes?.length === 1;
   const [step, setStep] = useState(singleType ? 2 : 1);
-  const [type, setType] = useState<OnboardType>(defaultType);
-
+  // When only one type is allowed, always use it regardless of defaultType prop
+  const [type, setType] = useState<OnboardType>(singleType ? allowedTypes![0] : defaultType);
   const [fileData, setFileData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<{ success: any[], failed: any[] } | null>(null);

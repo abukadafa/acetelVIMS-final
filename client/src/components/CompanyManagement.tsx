@@ -43,7 +43,7 @@ export default function CompanyManagement() {
     try {
       const { data } = await api.get('/companies', { params: { search } });
       setCompanies(data.companies || []);
-    } catch { toast.error('Failed to load partner organisations'); }
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed to load partner organisations'); }
     finally { setLoading(false); }
   }, [search]);
 
@@ -295,7 +295,8 @@ export default function CompanyManagement() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex',
           alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: 32, width: '100%', maxWidth: 480,
-            boxShadow: '0 20px 60px rgba(0,0,0,0.2)', position: 'relative' }}>
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)', position: 'relative',
+            maxHeight: '90vh', overflowY: 'auto' }}>
             <button onClick={() => setShowManageModal(null)} style={{ position: 'absolute', top: 16, right: 16,
               background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><X size={20} /></button>
             <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '1.2rem', fontWeight: 800,

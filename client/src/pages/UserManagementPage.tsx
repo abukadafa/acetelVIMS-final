@@ -112,7 +112,7 @@ export default function UserManagementPage() {
       if (roleFilter) params.role   = roleFilter;
       const { data } = await api.get('/admin/users', { params });
       setUsers(data.users);
-    } catch { toast.error('Failed to load users'); }
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed to load users'); }
     finally { setLoading(false); }
   }, [search, roleFilter]);
 
@@ -620,7 +620,7 @@ export default function UserManagementPage() {
               <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}><X size={18} /></button>
             </div>
             <form onSubmit={triggerUpdate}>
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', maxHeight: 'calc(90vh - 140px)' }}>
 
                 <div className="form-row">
                   <div className="form-group">
@@ -756,7 +756,7 @@ export default function UserManagementPage() {
               <button className="btn btn-ghost btn-icon" onClick={() => { setShowStudentModal(false); setActiveTab('staff'); }} style={{ color: '#fff' }}><X size={18} /></button>
             </div>
              <form onSubmit={handleStudentOnboard}>
-               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', maxHeight: 'calc(90vh - 140px)' }}>
  
                  <div className="form-row">
                    <div className="form-group">

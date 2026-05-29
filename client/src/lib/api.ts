@@ -53,12 +53,28 @@ api.interceptors.request.use((config) => {
 // Skip for the login and profile endpoints themselves to avoid redirect loops.
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const url = error.config?.url ?? '';
     const isAuthEndpoint =
       url.includes('auth/login') ||
       url.includes('auth/profile') ||
       url.includes('auth/logout');
+
+    // If we got a blob response (e.g. export) but server returned an error,
+    // parse the blob as JSON so callers can read error.response.data.error
+    if (
+      error.response &&
+      error.response.data instanceof Blob &&
+      error.response.data.type.includes('application/json')
+    ) {
+      try {
+        const text = await error.response.data.text();
+        error.response.data = JSON.parse(text);
+      } catch {
+        // leave as-is if parsing fails
+      }
+    }
+
     if (error.response?.status === 401 && !isAuthEndpoint) {
       // Dispatch a global event; AuthProvider listens and calls logout() which
       // clears state and redirects to /login, avoiding a hard page reload.

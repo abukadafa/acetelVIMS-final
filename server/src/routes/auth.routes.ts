@@ -26,7 +26,7 @@ r.put('/profile',          authenticate, updateProfile);
 r.put('/change-password',  authenticate, changePassword);
 
 // Communications & WhatsApp
-r.get('/comms-status',        authenticate, authorize('admin', 'ict_support'), getCommsStatus);
+r.get('/comms-status',        authenticate, getCommsStatus);
 r.post('/test-whatsapp',      authenticate, authorize('admin', 'ict_support'), testWhatsApp);
 r.get('/whatsapp/webhook',    whatsappWebhookVerify);
 r.post('/whatsapp/webhook',   whatsappWebhookReceive);

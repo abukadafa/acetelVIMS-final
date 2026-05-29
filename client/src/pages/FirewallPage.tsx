@@ -25,14 +25,16 @@ export default function FirewallPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, b, sp] = await Promise.all([
+      const [s, b, sp] = await Promise.allSettled([
         api.get('/firewall/stats'),
         api.get(`/firewall/blocked?status=${statusFilter}`),
         api.get('/firewall/suspects'),
       ]);
-      setStats(s.data);
-      setBlocked(b.data.blocked);
-      setSuspects(sp.data.suspects);
+      if (s.status === 'fulfilled') setStats(s.value.data);
+      if (b.status === 'fulfilled') setBlocked(b.value.data.blocked ?? []);
+      if (sp.status === 'fulfilled') setSuspects(sp.value.data.suspects ?? []);
+      const anyFailed = [s, b, sp].some(r => r.status === 'rejected');
+      if (anyFailed) toast.error('Some firewall data could not be loaded');
     } catch { toast.error('Failed to load firewall data'); }
     finally { setLoading(false); }
   }, [statusFilter]);
