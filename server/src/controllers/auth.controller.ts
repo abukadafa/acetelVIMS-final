@@ -17,10 +17,12 @@ import { autoAllocateStudent } from '../utils/allocation.service';
 import { maskCompanyForStudentView } from '../utils/studentView.util';
 import { z } from 'zod';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const COOKIE_OPTIONS: CookieOptions = {
   httpOnly: true,
-  secure: true,
-  sameSite: 'none',
+  secure: isProd,
+  sameSite: isProd ? 'none' : 'lax',
   maxAge: 8 * 60 * 60 * 1000,
   path: '/',
 };
@@ -418,7 +420,7 @@ export async function logout(req: AuthRequest, res: Response): Promise<void> {
       await AuditLog.create({ user: req.user.id as any, tenant: req.user.tenant as any,
         action: 'LOGOUT', module: 'AUTH', details: `Logout: ${req.user.email}`, ipAddress: req.ip }).catch(() => {});
     }
-    const clearOpts: CookieOptions = { httpOnly: true, secure: true, sameSite: 'none', path: '/' };
+    const clearOpts: CookieOptions = { httpOnly: true, secure: isProd, sameSite: isProd ? 'none' : 'lax', path: '/' };
     res.clearCookie('token', clearOpts);
     res.clearCookie('refresh_token', clearOpts);
     res.json({ message: 'Logged out successfully' });
