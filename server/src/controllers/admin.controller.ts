@@ -1060,3 +1060,142 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
     res.status(500).json({ error: 'Server error during bulk processing' });
   }
 }
+
+// ─── BULK RECYCLE BIN ACTIONS ───────────────────────────────────────────────
+
+const bulkActionSchema = z.object({
+  ids: z.union([z.string(), z.array(z.string())]).transform((val) => Array.isArray(val) ? val : val.split(',')),
+  reason: z.string().min(1, 'Reason is required')
+});
+
+export async function bulkRestoreUsers(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { ids, reason } = bulkActionSchema.parse(req.body);
+    const approvalMemo = req.file?.filename;
+    const tenantId = req.user!.tenant;
+    if (!approvalMemo) { res.status(400).json({ error: 'Approval memo is required' }); return; }
+
+    const updated = await User.updateMany(
+      { _id: { $in: ids }, tenant: tenantId },
+      { isDeleted: false, isActive: true, lastEditReason: `Bulk Restore: ${reason}` }
+    );
+
+    await AuditLog.create({
+      tenant: tenantId, user: req.user!.id, action: 'BULK_RESTORE_USERS', module: 'RECYCLE_BIN',
+      reason, details: `Bulk restored ${updated.modifiedCount} users. Memo: ${approvalMemo}`, ipAddress: req.ip,
+    });
+    res.json({ message: `Successfully restored ${updated.modifiedCount} users` });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: 'Validation failed', details: err.errors }); return; }
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+export async function bulkPermanentDeleteUsers(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { ids, reason } = bulkActionSchema.parse(req.body);
+    const approvalMemo = req.file?.filename;
+    const tenantId = req.user!.tenant;
+    if (!approvalMemo) { res.status(400).json({ error: 'Approval memo is required' }); return; }
+
+    const deleted = await User.deleteMany({ _id: { $in: ids }, tenant: tenantId });
+    await AuditLog.create({
+      tenant: tenantId, user: req.user!.id, action: 'BULK_PERMANENT_DELETE_USERS', module: 'RECYCLE_BIN',
+      reason, details: `Bulk permanently deleted ${deleted.deletedCount} users. Memo: ${approvalMemo}`, ipAddress: req.ip,
+    });
+    res.json({ message: `Successfully deleted ${deleted.deletedCount} users` });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: 'Validation failed', details: err.errors }); return; }
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+export async function bulkRestoreStudents(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { ids, reason } = bulkActionSchema.parse(req.body);
+    const approvalMemo = req.file?.filename;
+    const tenantId = req.user!.tenant;
+    if (!approvalMemo) { res.status(400).json({ error: 'Approval memo is required' }); return; }
+
+    const students = await Student.find({ _id: { $in: ids }, tenant: tenantId }).select('user');
+    const userIds = students.map(s => s.user);
+
+    await Student.updateMany({ _id: { $in: ids }, tenant: tenantId }, { isDeleted: false });
+    await User.updateMany({ _id: { $in: userIds } }, { isDeleted: false, isActive: true });
+
+    await AuditLog.create({
+      tenant: tenantId, user: req.user!.id, action: 'BULK_RESTORE_STUDENTS', module: 'RECYCLE_BIN',
+      reason, details: `Bulk restored ${students.length} students. Memo: ${approvalMemo}`, ipAddress: req.ip,
+    });
+    res.json({ message: `Successfully restored ${students.length} students` });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: 'Validation failed', details: err.errors }); return; }
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+export async function bulkPermanentDeleteStudents(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { ids, reason } = bulkActionSchema.parse(req.body);
+    const approvalMemo = req.file?.filename;
+    const tenantId = req.user!.tenant;
+    if (!approvalMemo) { res.status(400).json({ error: 'Approval memo is required' }); return; }
+
+    const students = await Student.find({ _id: { $in: ids }, tenant: tenantId }).select('user');
+    const userIds = students.map(s => s.user);
+
+    await Student.deleteMany({ _id: { $in: ids }, tenant: tenantId });
+    await User.deleteMany({ _id: { $in: userIds } });
+
+    await AuditLog.create({
+      tenant: tenantId, user: req.user!.id, action: 'BULK_PERMANENT_DELETE_STUDENTS', module: 'RECYCLE_BIN',
+      reason, details: `Bulk permanently deleted ${students.length} students. Memo: ${approvalMemo}`, ipAddress: req.ip,
+    });
+    res.json({ message: `Successfully deleted ${students.length} students` });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: 'Validation failed', details: err.errors }); return; }
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+export async function bulkRestoreCompanies(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { ids, reason } = bulkActionSchema.parse(req.body);
+    const approvalMemo = req.file?.filename;
+    const tenantId = req.user!.tenant;
+    if (!approvalMemo) { res.status(400).json({ error: 'Approval memo is required' }); return; }
+
+    const updated = await Company.updateMany(
+      { _id: { $in: ids }, tenant: tenantId },
+      { isDeleted: false, $unset: { deletedAt: 1, deletedBy: 1, deleteReason: 1 } }
+    );
+
+    await AuditLog.create({
+      tenant: tenantId, user: req.user!.id, action: 'BULK_RESTORE_COMPANIES', module: 'RECYCLE_BIN',
+      reason, details: `Bulk restored ${updated.modifiedCount} companies. Memo: ${approvalMemo}`, ipAddress: req.ip,
+    });
+    res.json({ message: `Successfully restored ${updated.modifiedCount} companies` });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: 'Validation failed', details: err.errors }); return; }
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+export async function bulkPermanentDeleteCompanies(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { ids, reason } = bulkActionSchema.parse(req.body);
+    const approvalMemo = req.file?.filename;
+    const tenantId = req.user!.tenant;
+    if (!approvalMemo) { res.status(400).json({ error: 'Approval memo is required' }); return; }
+
+    const deleted = await Company.deleteMany({ _id: { $in: ids }, tenant: tenantId });
+    await AuditLog.create({
+      tenant: tenantId, user: req.user!.id, action: 'BULK_PERMANENT_DELETE_COMPANIES', module: 'RECYCLE_BIN',
+      reason, details: `Bulk permanently deleted ${deleted.deletedCount} companies. Memo: ${approvalMemo}`, ipAddress: req.ip,
+    });
+    res.json({ message: `Successfully deleted ${deleted.deletedCount} companies` });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: 'Validation failed', details: err.errors }); return; }
+    res.status(500).json({ error: 'Server error' });
+  }
+}

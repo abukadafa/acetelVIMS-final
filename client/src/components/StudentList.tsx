@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Download, UserPlus, MoreVertical, Mail, MessageSquare, Eye, UserCheck, AlertTriangle, Pencil, Trash2, History, Upload } from 'lucide-react';
+import { Search, Download, UserPlus, MoreVertical, Mail, MessageSquare, Eye, UserCheck, AlertTriangle, Pencil, Trash2, History, Upload, FileText, ShieldAlert, X } from 'lucide-react';
 import api from '../lib/api';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -21,6 +21,11 @@ export default function StudentList() {
   const [auditTarget, setAuditTarget] = useState<{ targetId?: string; title: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [showPurgeModal, setShowPurgeModal] = useState(false);
+  const [purgeReason, setPurgeReason] = useState('');
+  const [purgeMemoFile, setPurgeMemoFile] = useState<File | null>(null);
+  const [purging, setPurging] = useState(false);
+  const purgeMemoRef = useRef<HTMLInputElement>(null);
   const [newStudent, setNewStudent]   = useState({
     firstName: '', lastName: '', email: '', matricNumber: '',
     phone: '', programme: '',
@@ -234,10 +239,17 @@ export default function StudentList() {
         <h3 className="card-title"><UserPlus size={20} /> Active Students</h3>
         <div style={{ display: 'flex', gap: 10 }}>
           {selectedStudents.length > 0 && (
-            <button className="btn btn-sm btn-outline" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}
-              onClick={() => setDeleteTarget({ bulk: true, ids: selectedStudents })}>
-              <Trash2 size={15} /> Delete Selected ({selectedStudents.length})
-            </button>
+            <>
+              <button className="btn btn-sm btn-outline" style={{ borderColor: 'var(--danger,#ef4444)', color: 'var(--danger,#ef4444)' }}
+                onClick={() => setDeleteTarget({ bulk: true, ids: selectedStudents })}>
+                <Trash2 size={15} /> Deactivate Selected ({selectedStudents.length})
+              </button>
+              <button className="btn btn-sm btn-danger"
+                onClick={() => { setPurgeReason(''); setPurgeMemoFile(null); setShowPurgeModal(true); }}
+                style={{ background: '#7f1d1d', color: '#fff', border: 'none' }}>
+                <ShieldAlert size={15} /> Purge Selected ({selectedStudents.length})
+              </button>
+            </>
           )}
           <button className="btn btn-sm btn-ghost"
             onClick={handleExport}>
@@ -591,6 +603,129 @@ export default function StudentList() {
             }
           }}
         />
+      )}
+
+      {/* ── Bulk Purge Modal (permanent hard-delete) ── */}
+      {showPurgeModal && (
+        <div className="modal-overlay" onClick={() => !purging && setShowPurgeModal(false)}>
+          <div className="modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{
+              background: 'linear-gradient(135deg,#7f1d1d 0%,#b91c1c 100%)',
+              color: '#fff', borderRadius: '16px 16px 0 0', padding: '20px 24px',
+            }}>
+              <div>
+                <h2 className="modal-title" style={{ color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ShieldAlert size={19} /> ⚠️ Permanent Deletion
+                </h2>
+                <p style={{ margin: 0, fontSize: '.8rem', opacity: 0.88, marginTop: 4 }}>
+                  {selectedStudents.length} student{selectedStudents.length !== 1 ? 's' : ''} will be permanently wiped
+                </p>
+              </div>
+              <button className="btn btn-ghost btn-icon" style={{ color: '#fff' }}
+                onClick={() => setShowPurgeModal(false)} disabled={purging}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div style={{
+                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)',
+                borderRadius: 10, padding: '14px 16px',
+              }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <AlertTriangle size={18} style={{ color: '#ef4444', flexShrink: 0, marginTop: 1 }} />
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#ef4444', fontSize: '.85rem' }}>This action is irreversible</div>
+                    <div style={{ fontSize: '.8rem', marginTop: 4, color: 'var(--text-2)', lineHeight: 1.5 }}>
+                      Permanently deleting these students will remove their accounts and all associated records from the database.
+                      This <strong>cannot be undone</strong>. An approved institutional memo is required.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Justification / Reason <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  placeholder="Provide a detailed reason for permanently deleting these student records..."
+                  value={purgeReason}
+                  onChange={e => setPurgeReason(e.target.value)}
+                  style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: '.875rem' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  Approval Memo <span style={{ color: 'var(--danger)' }}>*</span>
+                  <span className="form-hint" style={{ marginLeft: 8, display: 'inline' }}>(PDF or image, max 5MB)</span>
+                </label>
+                <input ref={purgeMemoRef} type="file" accept=".pdf,.jpg,.jpeg,.png"
+                  style={{ display: 'none' }}
+                  onChange={e => setPurgeMemoFile(e.target.files?.[0] || null)} />
+                {purgeMemoFile ? (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                    background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10,
+                  }}>
+                    <FileText size={18} style={{ color: '#ef4444', flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '.85rem' }}>{purgeMemoFile.name}</div>
+                      <div style={{ fontSize: '.72rem', color: 'var(--text-3)' }}>{(purgeMemoFile.size / 1024).toFixed(1)} KB</div>
+                    </div>
+                    <button type="button" className="btn btn-ghost btn-icon btn-sm"
+                      onClick={() => { setPurgeMemoFile(null); if (purgeMemoRef.current) purgeMemoRef.current.value = ''; }}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => purgeMemoRef.current?.click()}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      gap: 6, width: '100%', padding: '24px 16px', border: '2px dashed rgba(239,68,68,0.4)',
+                      borderRadius: 12, background: 'rgba(239,68,68,0.04)', color: '#ef4444',
+                      fontSize: '.875rem', cursor: 'pointer', transition: 'all 0.18s',
+                    }}>
+                    <Upload size={18} />
+                    <span>Click to upload approval memo</span>
+                    <span style={{ fontSize: '.72rem', opacity: 0.7 }}>PDF, JPG or PNG</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowPurgeModal(false)} disabled={purging}>Cancel</button>
+              <button
+                className="btn btn-danger"
+                style={{ background: '#7f1d1d' }}
+                disabled={purging || !purgeReason.trim() || !purgeMemoFile}
+                onClick={async () => {
+                  if (!purgeReason.trim() || !purgeMemoFile) return;
+                  setPurging(true);
+                  try {
+                    const fd = new FormData();
+                    fd.append('ids', selectedStudents.join(','));
+                    fd.append('reason', purgeReason);
+                    fd.append('approvalMemo', purgeMemoFile);
+                    await api.post('/admin/students/bulk-permanent-delete', fd, {
+                      headers: { 'Content-Type': 'multipart/form-data' },
+                    });
+                    toast.success(`🗑️ ${selectedStudents.length} student(s) permanently deleted`);
+                    setShowPurgeModal(false);
+                    setSelectedStudents([]);
+                    fetchData();
+                  } catch (err: any) {
+                    toast.error(err.response?.data?.error || 'Purge failed');
+                  } finally { setPurging(false); }
+                }}
+              >
+                {purging ? <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Purging…</> : <><Trash2 size={14} /> Confirm Permanent Delete</>}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showBulkEnroll && (

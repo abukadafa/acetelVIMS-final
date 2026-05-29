@@ -7,6 +7,9 @@ import {
   permanentDeleteUser, bulkOnboard,
   restoreStudent, permanentDeleteStudent,
   restoreCompany, permanentDeleteCompany,
+  bulkRestoreUsers, bulkPermanentDeleteUsers,
+  bulkRestoreStudents, bulkPermanentDeleteStudents,
+  bulkRestoreCompanies, bulkPermanentDeleteCompanies,
 } from '../controllers/admin.controller';
 
 const r = Router();
@@ -45,5 +48,13 @@ r.post('/students/permanent-delete/:id', authorize('admin'), memoUpload, permane
 // Company restore / permanent delete
 r.post('/companies/restore/:id',          authorize('admin'), memoUpload, restoreCompany);
 r.post('/companies/permanent-delete/:id', authorize('admin'), memoUpload, permanentDeleteCompany);
+
+// Bulk Recycle Bin Actions
+r.post('/users/bulk-restore',             authorize('admin'), memoUpload, bulkRestoreUsers);
+r.post('/users/bulk-permanent-delete',    authorize('admin'), memoUpload, bulkPermanentDeleteUsers);
+r.post('/students/bulk-restore',          authorize('admin'), memoUpload, bulkRestoreStudents);
+r.post('/students/bulk-permanent-delete', authorize('admin'), memoUpload, bulkPermanentDeleteStudents);
+r.post('/companies/bulk-restore',         authorize('admin'), memoUpload, bulkRestoreCompanies);
+r.post('/companies/bulk-permanent-delete', authorize('admin'), memoUpload, bulkPermanentDeleteCompanies);
 
 export default r;

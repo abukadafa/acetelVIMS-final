@@ -28,6 +28,7 @@ export default function RecycleBinPage() {
   const [loading,  setLoading]  = useState(true);
   const [binTab,   setBinTab]   = useState<BinTab>('staff');
   const [search,   setSearch]   = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   /* ── Action Modal State ── */
   const [showActionModal,  setShowActionModal]  = useState(false);
@@ -64,6 +65,29 @@ export default function RecycleBinPage() {
     setShowActionModal(true);
   };
 
+  const openBulkAction = (action: BinAction) => {
+    if (selectedIds.length === 0) return;
+    setBinTarget({
+      _id: selectedIds.join(','),
+      type: binTab,
+      label: `${selectedIds.length} Selected ${binTab === 'companies' ? 'Partners' : binTab === 'staff' ? 'Staff' : 'Students'}`,
+      subtitle: 'Bulk Action'
+    });
+    setBinAction(action);
+    setReason('');
+    setMemoFile(null);
+    setShowActionModal(true);
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = (ids: string[]) => {
+    if (selectedIds.length === ids.length) setSelectedIds([]);
+    else setSelectedIds(ids);
+  };
+
   /* ── Submit action ── */
   const handleSubmit = async () => {
     if (!binTarget) return;
@@ -77,19 +101,20 @@ export default function RecycleBinPage() {
       formData.append('approvalMemo', memoFile);
 
       let endpoint = '';
+      const isBulk = binTarget._id.includes(',');
+
       if (binTarget.type === 'staff') {
-        endpoint = binAction === 'restore'
-          ? `/admin/users/restore/${binTarget._id}`
-          : `/admin/users/permanent-delete/${binTarget._id}`;
+        endpoint = isBulk ? (binAction === 'restore' ? '/admin/users/bulk-restore' : '/admin/users/bulk-permanent-delete')
+                 : (binAction === 'restore' ? `/admin/users/restore/${binTarget._id}` : `/admin/users/permanent-delete/${binTarget._id}`);
       } else if (binTarget.type === 'students') {
-        endpoint = binAction === 'restore'
-          ? `/admin/students/restore/${binTarget._id}`
-          : `/admin/students/permanent-delete/${binTarget._id}`;
+        endpoint = isBulk ? (binAction === 'restore' ? '/admin/students/bulk-restore' : '/admin/students/bulk-permanent-delete')
+                 : (binAction === 'restore' ? `/admin/students/restore/${binTarget._id}` : `/admin/students/permanent-delete/${binTarget._id}`);
       } else {
-        endpoint = binAction === 'restore'
-          ? `/admin/companies/restore/${binTarget._id}`
-          : `/admin/companies/permanent-delete/${binTarget._id}`;
+        endpoint = isBulk ? (binAction === 'restore' ? '/admin/companies/bulk-restore' : '/admin/companies/bulk-permanent-delete')
+                 : (binAction === 'restore' ? `/admin/companies/restore/${binTarget._id}` : `/admin/companies/permanent-delete/${binTarget._id}`);
       }
+
+      if (isBulk) formData.append('ids', binTarget._id);
 
       await api.post(endpoint, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -97,10 +122,11 @@ export default function RecycleBinPage() {
 
       toast.success(
         binAction === 'restore'
-          ? `✅ Record successfully restored to the system`
-          : `🗑️ Record permanently deleted from the system`
+          ? `✅ Record(s) successfully restored to the system`
+          : `🗑️ Record(s) permanently deleted from the system`
       );
       setShowActionModal(false);
+      setSelectedIds([]);
       loadRecycleBin();
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Action failed');
@@ -159,7 +185,7 @@ export default function RecycleBinPage() {
           <button
             key={key}
             className={`bin-tab-btn ${binTab === key ? 'active' : ''}`}
-            onClick={() => { setBinTab(key); setSearch(''); }}
+            onClick={() => { setBinTab(key); setSearch(''); setSelectedIds([]); }}
             id={`bin-tab-${key}`}
           >
             <Icon size={15} /> {label}
@@ -180,6 +206,15 @@ export default function RecycleBinPage() {
             id="bin-search"
           />
         </div>
+        {selectedIds.length > 0 && (
+          <div style={{ display: 'flex', gap: 10, marginTop: 15, padding: '10px 15px', background: 'var(--surface-2)', borderRadius: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: '.85rem', fontWeight: 600 }}>{selectedIds.length} selected</span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+              <button className="btn btn-sm btn-success" onClick={() => openBulkAction('restore')}><RotateCcw size={14}/> Restore Selected</button>
+              <button className="btn btn-sm btn-danger" onClick={() => openBulkAction('permanent_delete')}><Trash2 size={14}/> Purge Selected</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ══ Data Table ══ */}
@@ -197,6 +232,11 @@ export default function RecycleBinPage() {
             <table>
               <thead>
                 <tr>
+                  <th style={{ width: 40, paddingRight: 0 }}>
+                    <input type="checkbox" className="table-checkbox"
+                           checked={currentList.length > 0 && selectedIds.length === currentList.length}
+                           onChange={() => toggleSelectAll(currentList.map(i => i._id))} />
+                  </th>
                   <th>Record</th>
                   <th>Details</th>
                   <th>Deleted On</th>
@@ -208,7 +248,10 @@ export default function RecycleBinPage() {
 
                 {/* ── Staff ── */}
                 {binTab === 'staff' && currentList.map(u => (
-                  <tr key={u._id}>
+                  <tr key={u._id} className={selectedIds.includes(u._id) ? 'selected' : ''}>
+                    <td style={{ paddingRight: 0 }}>
+                      <input type="checkbox" className="table-checkbox" checked={selectedIds.includes(u._id)} onChange={() => toggleSelect(u._id)} />
+                    </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div className="sidebar-avatar" style={{ width: 36, height: 36, opacity: 0.6 }}>
@@ -250,7 +293,10 @@ export default function RecycleBinPage() {
 
                 {/* ── Students ── */}
                 {binTab === 'students' && currentList.map(s => (
-                  <tr key={s._id}>
+                  <tr key={s._id} className={selectedIds.includes(s._id) ? 'selected' : ''}>
+                    <td style={{ paddingRight: 0 }}>
+                      <input type="checkbox" className="table-checkbox" checked={selectedIds.includes(s._id)} onChange={() => toggleSelect(s._id)} />
+                    </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div className="sidebar-avatar" style={{ width: 36, height: 36, opacity: 0.6 }}>
@@ -290,7 +336,10 @@ export default function RecycleBinPage() {
 
                 {/* ── Companies ── */}
                 {binTab === 'companies' && currentList.map(c => (
-                  <tr key={c._id}>
+                  <tr key={c._id} className={selectedIds.includes(c._id) ? 'selected' : ''}>
+                    <td style={{ paddingRight: 0 }}>
+                      <input type="checkbox" className="table-checkbox" checked={selectedIds.includes(c._id)} onChange={() => toggleSelect(c._id)} />
+                    </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div className="sidebar-avatar" style={{ width: 36, height: 36, background: 'var(--surface-3)', opacity: 0.7, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
