@@ -78,7 +78,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
       res.json({ user: { id: adminUser._id, email: adminUser.email, role: 'admin',
         firstName: adminUser.firstName, lastName: adminUser.lastName, tenant: adminUser.tenant },
-        accessToken: access });
+        accessToken: access, refreshToken: refresh });
       return;
     }
 
@@ -128,7 +128,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     res.json({ user: { id: user._id, email: user.email, role: user.role,
       firstName: user.firstName, lastName: user.lastName, phone: user.phone,
-      avatar: user.avatar, tenant: user.tenant }, student: studentData, accessToken: access });
+      avatar: user.avatar, tenant: user.tenant }, student: studentData, accessToken: access, refreshToken: refresh });
   } catch (err) {
     logger.error('Login Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
@@ -321,7 +321,7 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
 
     res.cookie('token', access, COOKIE_OPTIONS);
     res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
-    res.json({ message: 'Token refreshed' });
+    res.json({ message: 'Token refreshed', accessToken: access, refreshToken: refresh });
   } catch (err) {
     res.status(401).json({ error: 'Invalid refresh token' });
   }

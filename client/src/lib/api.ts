@@ -32,13 +32,30 @@ export async function warmUpBackend(): Promise<void> {
 }
 
 /**
- * Kept for API compatibility — no-op now that auth is cookie-based.
- * The server sets httpOnly cookies on login; the browser sends them
- * automatically on every credentialed request. Storing tokens in
- * sessionStorage/localStorage would expose them to XSS attacks.
+ * Hybrid Auth: Uses httpOnly cookies by default, but stores a fallback token
+ * in localStorage for cross-domain deployments (e.g. Render) where modern
+ * browsers (Safari ITP, Brave) block third-party cookies.
  */
-export function setAuthToken(_token: string | null) {
-  // Intentionally empty: auth is via httpOnly cookie, not JS-accessible token.
+export function setAuthToken(token: string | null, refresh: string | null = null) {
+  if (token) {
+    localStorage.setItem('acetel_token', token);
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    localStorage.removeItem('acetel_token');
+    delete api.defaults.headers.common['Authorization'];
+  }
+  
+  if (refresh) {
+    localStorage.setItem('acetel_refresh_token', refresh);
+  } else if (token === null) {
+    localStorage.removeItem('acetel_refresh_token');
+  }
+}
+
+// Restore token on load
+const storedToken = localStorage.getItem('acetel_token');
+if (storedToken) {
+  api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
 }
 
 api.interceptors.request.use((config) => {
@@ -106,9 +123,21 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await api.post('auth/refresh');
+        const storedRefresh = localStorage.getItem('acetel_refresh_token');
+        const res = await api.post('auth/refresh', { refreshToken: storedRefresh });
+        const newToken = res.data.accessToken;
+        const newRefresh = res.data.refreshToken;
+        
+        if (newToken) {
+          setAuthToken(newToken, newRefresh);
+        }
+
         isRefreshing = false;
         processQueue(null, 'refreshed');
+        
+        if (newToken && originalRequest.headers) {
+          originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+        }
         return api(originalRequest);
       } catch (refreshError) {
         isRefreshing = false;

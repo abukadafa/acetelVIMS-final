@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (identifier: string, password: string) => {
     const { data } = await api.post('auth/login', { identifier, password });
-    setAuthToken(data.accessToken || null);
+    setAuthToken(data.accessToken || null, data.refreshToken || null);
     setUser(data.user);
     if (data.student) setStudent(data.student);
     initialLoadDone.current = true;
