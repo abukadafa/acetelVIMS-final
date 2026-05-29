@@ -1199,3 +1199,93 @@ export async function bulkPermanentDeleteCompanies(req: AuthRequest, res: Respon
     res.status(500).json({ error: 'Server error' });
   }
 }
+
+// ─── TESTING RESET (Admin only) ──────────────────────────────────────────────
+/** POST /api/admin/reset-for-testing
+ *  ⚠️  Wipes ALL dynamic data for the tenant and reseeds fresh baseline.
+ *  Requires: Bearer token (admin role) + JSON body { confirm: "RESET" }
+ */
+export async function resetForTesting(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    if (req.body?.confirm !== 'RESET') {
+      res.status(400).json({ error: 'Send { "confirm": "RESET" } to execute reset' });
+      return;
+    }
+
+    const tenantId = req.user!.tenant;
+    const adminUserId = req.user!.id;
+
+    // 1 ── Wipe dynamic collections for this tenant ──────────────────────────
+    const Student   = (await import('../models/Student.model')).default;
+    const Logbook   = (await import('../models/Logbook.model')).default;
+    const Attendance = (await import('../models/Attendance.model')).default;
+    const EmailRecord = (await import('../models/EmailRecord.model')).default;
+    const Chat = (await import('../models/Chat.model')).default;
+    const Notification = (await import('../models/notification.model')).default;
+    const Feedback = (await import('../models/Feedback.model')).default;
+    const Assessment = (await import('../models/Assessment.model')).default;
+    const Application = (await import('../models/Application.model')).default;
+    const RefreshToken = (await import('../models/RefreshToken.model')).default;
+
+    // Delete all non-admin users
+    const nonAdminUsers = await User.find({ tenant: tenantId, _id: { $ne: adminUserId } }).distinct('_id');
+    await User.deleteMany({ tenant: tenantId, _id: { $ne: adminUserId } });
+    await Student.deleteMany({ tenant: tenantId });
+    await Company.deleteMany({ tenant: tenantId });
+    await Logbook.deleteMany({ tenant: tenantId });
+    await Attendance.deleteMany({ tenant: tenantId });
+    await EmailRecord.deleteMany({ tenant: tenantId });
+    await Chat.deleteMany({ tenant: tenantId });
+    await Notification.deleteMany({ tenant: tenantId });
+    await Feedback.deleteMany({ tenant: tenantId });
+    await Assessment.deleteMany({ tenant: tenantId });
+    await Application.deleteMany({ tenant: tenantId });
+    await AuditLog.deleteMany({ tenant: tenantId });
+    await RefreshToken.deleteMany({ user: { $in: nonAdminUsers } });
+
+    // 2 ── Reseed Programmes ─────────────────────────────────────────────────
+    const progList = [
+      { code: 'MSC-AI',  name: 'MSc Artificial Intelligence',        level: 'MSc' },
+      { code: 'MSC-CYB', name: 'MSc Cybersecurity',                  level: 'MSc' },
+      { code: 'MSC-MIS', name: 'MSc Management Information Systems', level: 'MSc' },
+      { code: 'PHD-AI',  name: 'PhD Artificial Intelligence',        level: 'PhD' },
+      { code: 'PHD-CYB', name: 'PhD Cybersecurity',                  level: 'PhD' },
+      { code: 'PHD-MIS', name: 'PhD Management Information Systems', level: 'PhD' },
+    ];
+    for (const p of progList) {
+      await Programme.findOneAndUpdate(
+        { code: p.code, tenant: tenantId },
+        { $set: { ...p, tenant: tenantId, isActive: true } },
+        { upsert: true }
+      );
+    }
+
+    // 3 ── Reseed Settings ───────────────────────────────────────────────────
+    const Setting = (await import('../models/Setting.model')).default;
+    const settingsList = [
+      { key: 'academic_session', value: '2024/2025' },
+      { key: 'system_name',      value: 'ACETEL Internship Management System' },
+      { key: 'institution',      value: 'National Open University of Nigeria (NOUN)' },
+    ];
+    for (const s of settingsList) {
+      await Setting.findOneAndUpdate(
+        { key: s.key, tenant: tenantId },
+        { $set: { ...s, tenant: tenantId } },
+        { upsert: true }
+      );
+    }
+
+    logger.info('🔄 Testing reset executed by admin %s for tenant %s', adminUserId, tenantId);
+
+    res.json({
+      message: '✅ Database reset complete. All test data cleared. Programmes re-seeded.',
+      cleared: ['users (non-admin)', 'students', 'companies', 'logbooks', 'attendance',
+                'emails', 'chats', 'notifications', 'feedback', 'assessments',
+                'applications', 'auditlogs', 'refreshtokens'],
+      reseeded: ['programmes', 'settings'],
+    });
+  } catch (err) {
+    logger.error('resetForTesting error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Reset failed: ' + (err as Error).message });
+  }
+}

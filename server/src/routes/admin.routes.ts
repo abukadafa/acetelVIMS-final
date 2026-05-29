@@ -10,6 +10,7 @@ import {
   bulkRestoreUsers, bulkPermanentDeleteUsers,
   bulkRestoreStudents, bulkPermanentDeleteStudents,
   bulkRestoreCompanies, bulkPermanentDeleteCompanies,
+  resetForTesting,
 } from '../controllers/admin.controller';
 
 const r = Router();
@@ -56,5 +57,8 @@ r.post('/students/bulk-restore',          authorize('admin'), memoUpload, bulkRe
 r.post('/students/bulk-permanent-delete', authorize('admin'), memoUpload, bulkPermanentDeleteStudents);
 r.post('/companies/bulk-restore',         authorize('admin'), memoUpload, bulkRestoreCompanies);
 r.post('/companies/bulk-permanent-delete', authorize('admin'), memoUpload, bulkPermanentDeleteCompanies);
+
+// ⚠️  Testing-only reset — wipes all dynamic data and reseeds baseline
+r.post('/reset-for-testing', authorize('admin'), resetForTesting);
 
 export default r;
