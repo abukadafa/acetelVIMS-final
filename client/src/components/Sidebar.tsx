@@ -138,6 +138,7 @@ export default function Sidebar() {
           {isRole('supervisor') && (
             <>
               <NavLink to="/students" icon={Users}    label="My Students" />
+              <NavLink to="/all-attendance" icon={History} label="Attendance Logs" />
               <NavLink to="/reviews"  icon={Activity} label="Pending Reviews" />
             </>
           )}
@@ -146,6 +147,7 @@ export default function Sidebar() {
           {isRole('prog_coordinator') && (
             <>
               <NavLink to="/all-students" icon={Users}    label="Student Progress" />
+              <NavLink to="/all-attendance" icon={History} label="Attendance Logs" />
               <NavLink to="/analytics"    icon={Activity} label="Programme Analytics" />
             </>
           )}
@@ -154,6 +156,7 @@ export default function Sidebar() {
           {isRole('internship_coordinator') && (
             <>
               <NavLink to="/all-students" icon={Users}      label="Student Progress" />
+              <NavLink to="/all-attendance" icon={History} label="Attendance Logs" />
               <NavLink to="/companies"    icon={Building2}  label="Partner Companies" />
             </>
           )}
@@ -162,6 +165,7 @@ export default function Sidebar() {
           {isRole('ict_support') && (
             <>
               <NavLink to="/all-students" icon={Users}    label="Student Registry" />
+              <NavLink to="/all-attendance" icon={History} label="Attendance Logs" />
               <NavLink to="/analytics"    icon={Activity} label="Technical Monitoring" />
             </>
           )}
@@ -171,6 +175,7 @@ export default function Sidebar() {
             <>
               <NavLink to="/map"          icon={Map}        label="Live Tracking" />
               <NavLink to="/all-students" icon={Users}      label="All Students" />
+              <NavLink to="/all-attendance" icon={History} label="Attendance Logs" />
               <NavLink to="/companies"    icon={Building2}  label="Partner Companies" />
               <NavLink to="/analytics"    icon={Activity}   label="Analytics" />
             </>

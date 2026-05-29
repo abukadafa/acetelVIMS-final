@@ -22,6 +22,7 @@ import FeedbackPage from './pages/FeedbackPage';
 import AuditTrailPage from './pages/AuditTrailPage';
 import RecycleBinPage from './pages/RecycleBinPage';
 import LogbookPage from './pages/LogbookPage';
+import AttendanceRecordsPage from './pages/coordinator/AttendanceRecordsPage';
 import { Toaster, toast } from 'react-hot-toast';
 import OfflineIndicator from './components/OfflineIndicator';
 import { setupOfflineAutoSync } from './lib/offline';
@@ -92,6 +93,7 @@ export default function App() {
               <Route path="/attendance" element={<ProtectedRoute roles={['student']}><Dashboard /></ProtectedRoute>} />
               <Route path="/map" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator']}><LiveTrackingPage /></ProtectedRoute>} />
               <Route path="/all-students" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><StudentList /></ProtectedRoute>} />
+              <Route path="/all-attendance" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor']}><AttendanceRecordsPage /></ProtectedRoute>} />
               <Route path="/all-students/:id" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor']}><StudentProfilePage /></ProtectedRoute>} />
               <Route path="/companies" element={<ProtectedRoute roles={['admin', 'internship_coordinator']}><CompanyManagement /></ProtectedRoute>} />
               <Route path="/users" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><UserManagementPage /></ProtectedRoute>} />
