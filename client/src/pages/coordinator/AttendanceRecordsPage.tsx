@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { Camera, CheckCircle, XCircle, Search, Filter, Download, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { drawLetterhead } from '../../lib/pdfUtils';
 
 export default function AttendanceRecordsPage() {
   const [records, setRecords] = useState<any[]>([]);
@@ -34,9 +35,10 @@ export default function AttendanceRecordsPage() {
     return name.includes(term) || r.student?.user?.email?.toLowerCase().includes(term);
   });
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
     const doc = new jsPDF();
-    doc.text('ACETEL Attendance Records', 14, 15);
+    
+    // Initial letterhead for first page is handled by didDrawPage
     
     const tableData = filtered.map(r => {
       const d = new Date(r.checkInTime);
@@ -53,10 +55,23 @@ export default function AttendanceRecordsPage() {
     autoTable(doc, {
       head: [['Student Name', 'Email', 'Date', 'Time In', 'Status', 'Deviation']],
       body: tableData,
-      startY: 20,
+      startY: 42,
+      margin: { top: 42 },
       styles: { fontSize: 9 },
       headStyles: { fillColor: [10, 92, 54] }, // Using VITE_THEME_PRIMARY #0a5c36
+      didDrawPage: async (data) => {
+        // We can't await inside didDrawPage synchronously, so we must draw the letterhead FIRST on page 1, 
+        // but for autoTable, it's safer to pre-draw it or handle it carefully. 
+        // Let's actually not use didDrawPage for async calls.
+      }
     });
+
+    // Instead, since autoTable doesn't support async didDrawPage easily, we loop over pages
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      await drawLetterhead(doc, 'ACETEL Attendance Records');
+    }
 
     doc.save(`ACETEL_Attendance_${new Date().toISOString().split('T')[0]}.pdf`);
   };

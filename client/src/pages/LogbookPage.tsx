@@ -9,6 +9,9 @@ import {
 import { toast } from 'react-hot-toast';
 import LogbookForm from '../components/LogbookForm';
 import LogbookReviewModal from '../components/LogbookReviewModal';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { drawLetterhead } from '../lib/pdfUtils';
 
 /* ── Types ────────────────────────────────────────────────────── */
 interface LogbookEntry {
@@ -95,6 +98,64 @@ export default function LogbookPage() {
     }
   };
 
+  const exportPerformancePDF = async () => {
+    const doc = new jsPDF();
+    const tableData = performance.map(p => [
+      p.studentName,
+      p.matric,
+      `${p.entriesThisWeek} / 7`,
+      p.avgRating ? p.avgRating.toFixed(1) : 'N/A',
+      p.status
+    ]);
+
+    autoTable(doc, {
+      head: [['Student Name', 'Matric Number', 'Weekly Entries', 'Avg. Rating', 'Status']],
+      body: tableData,
+      startY: 42,
+      margin: { top: 42 },
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [10, 92, 54] },
+    });
+
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      await drawLetterhead(doc, 'Weekly Performance Report');
+    }
+
+    doc.save(`ACETEL_Performance_Report.pdf`);
+  };
+
+  const exportStudentLogbookPDF = async () => {
+    const doc = new jsPDF();
+    const tableData = entries.map(e => [
+      new Date(e.entryDate).toLocaleDateString(),
+      e.weekNumber,
+      e.activities,
+      e.supervisorComment || '',
+      e.supervisorRating ? `${e.supervisorRating}/5` : '-',
+      e.status
+    ]);
+
+    autoTable(doc, {
+      head: [['Date', 'Week', 'Activities', 'Supervisor Comment', 'Rating', 'Status']],
+      body: tableData,
+      startY: 42,
+      margin: { top: 42 },
+      styles: { fontSize: 9 },
+      columnStyles: { 2: { cellWidth: 60 }, 3: { cellWidth: 40 } },
+      headStyles: { fillColor: [10, 92, 54] },
+    });
+
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      await drawLetterhead(doc, 'Student Internship Logbook');
+    }
+
+    doc.save(`My_Logbook.pdf`);
+  };
+
   return (
     <div className="page-container animate-fade">
       {/* ── Header ── */}
@@ -113,12 +174,17 @@ export default function LogbookPage() {
             <RefreshCw size={18} />
           </button>
           {isRole('student') && (
-            <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
-              <Edit3 size={18} /> New Entry
-            </button>
+            <>
+              <button className="btn btn-outline" onClick={exportStudentLogbookPDF}>
+                <Download size={18} /> Export PDF
+              </button>
+              <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
+                <Edit3 size={18} /> New Entry
+              </button>
+            </>
           )}
           {isRole('internship_coordinator', 'admin') && (
-            <button className="btn btn-primary" onClick={() => window.print()}>
+            <button className="btn btn-primary" onClick={exportPerformancePDF}>
               <Download size={18} /> Export Performance Report
             </button>
           )}
