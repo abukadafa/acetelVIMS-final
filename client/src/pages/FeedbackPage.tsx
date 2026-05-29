@@ -107,7 +107,8 @@ export default function FeedbackPage() {
 
   const filtered = feedbackList.filter(f => {
     if (!search) return true;
-    return `${f.subject} ${f.category} ${f.message} ${f.user.firstName} ${f.user.lastName}`.toLowerCase().includes(search.toLowerCase());
+    const userStr = f.user ? `${f.user.firstName} ${f.user.lastName}` : 'Unknown User';
+    return `${f.subject} ${f.category} ${f.message} ${userStr}`.toLowerCase().includes(search.toLowerCase());
   });
 
   if (loading) return <div className="page-loader"><div className="spinner"></div></div>;
@@ -207,7 +208,7 @@ export default function FeedbackPage() {
                     <span style={{ fontSize: '11px', color: 'var(--text-3)', marginLeft: 'auto' }}>{new Date(f.updatedAt).toLocaleDateString()}</span>
                   </div>
                   {!isRole('student') && (
-                    <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '4px' }}>{f.user.firstName} {f.user.lastName} · {f.responses.length} repl{f.responses.length === 1 ? 'y' : 'ies'}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '4px' }}>{f.user?.firstName || 'Unknown'} {f.user?.lastName || 'User'} · {f.responses.length} repl{f.responses.length === 1 ? 'y' : 'ies'}</div>
                   )}
                 </div>
               );
@@ -226,7 +227,7 @@ export default function FeedbackPage() {
                     <span style={{ fontSize: '11px', padding: '2px 10px', borderRadius: '12px', fontWeight: 700, background: PRIORITY_COLOR[selected.priority] + '22', color: PRIORITY_COLOR[selected.priority] }}>{selected.priority}</span>
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>
-                    {selected.category} · {selected.user.firstName} {selected.user.lastName} · {new Date(selected.createdAt).toLocaleString()}
+                    {selected.category} · {selected.user?.firstName || 'Unknown'} {selected.user?.lastName || 'User'} · {new Date(selected.createdAt).toLocaleString()}
                     {selected.assignedTo && <span> · Assigned to <strong>{selected.assignedTo.firstName} {selected.assignedTo.lastName}</strong></span>}
                   </div>
                 </div>
@@ -241,7 +242,7 @@ export default function FeedbackPage() {
                 {/* Original message */}
                 <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px 20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px', color: 'var(--text-3)' }}>
-                    <strong style={{ color: 'var(--text)' }}>{selected.user.firstName} {selected.user.lastName} <span style={{ fontWeight: 400 }}>({selected.user.role})</span></strong>
+                    <strong style={{ color: 'var(--text)' }}>{selected.user?.firstName || 'Unknown'} {selected.user?.lastName || 'User'} <span style={{ fontWeight: 400 }}>({selected.user?.role || 'Deleted'})</span></strong>
                     <span>{new Date(selected.createdAt).toLocaleString()}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{selected.message}</p>
@@ -253,7 +254,7 @@ export default function FeedbackPage() {
                   return (
                     <div key={i} style={{ background: isStaff ? 'var(--primary)' : '#fff', border: isStaff ? 'none' : '1px solid var(--border)', borderRadius: '12px', padding: '16px 20px', alignSelf: isStaff ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px', color: isStaff ? 'rgba(255,255,255,0.7)' : 'var(--text-3)', gap: '20px' }}>
-                        <strong style={{ color: isStaff ? '#fff' : 'var(--text)' }}>{r.user.firstName} {r.user.lastName} <span style={{ fontWeight: 400 }}>({r.user.role})</span></strong>
+                        <strong style={{ color: isStaff ? '#fff' : 'var(--text)' }}>{r.user?.firstName || 'Unknown'} {r.user?.lastName || 'User'} <span style={{ fontWeight: 400 }}>({r.user?.role || 'Deleted'})</span></strong>
                         <span>{new Date(r.createdAt).toLocaleString()}</span>
                       </div>
                       <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.6', color: isStaff ? '#fff' : 'var(--text)', whiteSpace: 'pre-wrap' }}>{r.message}</p>
