@@ -10,6 +10,9 @@ import toast from 'react-hot-toast';
 
 type OnboardType = 'staff' | 'student' | 'company';
 
+interface BulkEnrollModalProps {
+  onClose: () => void;
+  onSuccess: () => void;
   defaultType?: OnboardType;
   /** If provided, only these entity types are shown in step 1. */
   allowedTypes?: OnboardType[];

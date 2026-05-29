@@ -235,11 +235,7 @@ export default function StudentList() {
             onClick={handleExport}>
             <Download size={15} /> Export CSV
           </button>
-<<<<<<< HEAD
-          <button className="btn btn-sm btn-outline" onClick={() => setShowBulkEnroll(true)}>
-=======
           <button className="btn btn-sm btn-ghost" onClick={() => setShowBulkEnroll(true)}>
->>>>>>> 434d2ad (feat(bulk): restrict bulk enroll modal by entity and make modal scrollable; add bulk import buttons)
             <Upload size={15} /> Bulk Import
           </button>
           <button className="btn btn-sm btn-primary" onClick={() => setShowAddModal(true)}>
