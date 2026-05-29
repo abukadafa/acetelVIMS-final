@@ -19,7 +19,7 @@ const StudentInternships = () => {
       });
       const data = await res.json();
       setInternships(data);
-    } catch (err) {
+    } catch {
       toast.error("Failed to load opportunities");
     } finally {
       setLoading(false);
@@ -49,7 +49,7 @@ const StudentInternships = () => {
       } else {
         toast.error("Failed to submit application");
       }
-    } catch (err) {
+    } catch {
       toast.error("Something went wrong");
     } finally {
       setApplyingId(null);

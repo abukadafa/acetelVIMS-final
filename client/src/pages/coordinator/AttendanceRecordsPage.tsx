@@ -58,12 +58,7 @@ export default function AttendanceRecordsPage() {
       startY: 42,
       margin: { top: 42 },
       styles: { fontSize: 9 },
-      headStyles: { fillColor: [10, 92, 54] }, // Using VITE_THEME_PRIMARY #0a5c36
-      didDrawPage: async (data) => {
-        // We can't await inside didDrawPage synchronously, so we must draw the letterhead FIRST on page 1, 
-        // but for autoTable, it's safer to pre-draw it or handle it carefully. 
-        // Let's actually not use didDrawPage for async calls.
-      }
+      headStyles: { fillColor: [10, 92, 54] },
     });
 
     // Instead, since autoTable doesn't support async didDrawPage easily, we loop over pages

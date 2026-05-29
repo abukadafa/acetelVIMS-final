@@ -15,7 +15,7 @@ const CoordinatorApplications = () => {
       const res = await fetch('/api/applications', { credentials: 'include' });
       const data = await res.json();
       setApplications(data);
-    } catch (err) {
+    } catch {
       toast.error("Failed to load applications");
     } finally {
       setLoading(false);
@@ -40,7 +40,7 @@ const CoordinatorApplications = () => {
         toast.success(`Application ${status}`);
         fetchApplications();
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to update status");
     } finally {
       setActionLoading(null);

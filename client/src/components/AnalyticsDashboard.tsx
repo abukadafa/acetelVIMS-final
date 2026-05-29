@@ -75,6 +75,7 @@ export default function AnalyticsDashboard({ visibleRoles = [] }: { visibleRoles
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) return <div className="page-loader"><div className="spinner"></div></div>;

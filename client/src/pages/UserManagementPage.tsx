@@ -4,7 +4,7 @@ import {
   Users, Search, Edit2, Trash2, RefreshCw,
   Shield, BookOpen, Wifi, Briefcase, Download,
   History, GraduationCap, Lock, UserPlus, X, AlertTriangle, 
-  Eye, EyeOff, Copy, Check, FileText, Upload
+  Eye, EyeOff, FileText, Upload
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ReasonModal from '../components/ReasonModal';
@@ -92,10 +92,9 @@ export default function UserManagementPage() {
   const [saving, setSaving]         = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [savingStudent, setSavingStudent] = useState(false);
-  const [studentTempCred, setStudentTempCred] = useState<null>(null);
+  // studentTempCred was removed — credentials are delivered via email only
 
-  const [tempCred, setTempCred]     = useState<{ name: string; email: string; pass: string } | null>(null);
-  const [copied, setCopied]         = useState(false);
+  const [tempCred, setTempCred] = useState<{ name: string; email: string; pass: string } | null>(null);
 
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [reasonAction, setReasonAction]       = useState<'edit' | 'delete' | null>(null);
@@ -157,7 +156,7 @@ export default function UserManagementPage() {
       } else {
         const payload: Record<string, any> = { ...form };
         if (!payload.password) delete payload.password;
-        const { data } = await api.post('/admin/users', payload);
+        await api.post('/admin/users', payload);
         toast.success('User created');
         // Credentials are sent automatically; do not display/copy in UI
         setTempCred(null);
@@ -231,9 +230,6 @@ export default function UserManagementPage() {
       } else if (data?.posting?.message) {
         toast.error(`Auto-post not completed: ${data.posting.message}`);
       }
-      // Credentials are sent automatically; do not display/copy in UI
-      setStudentTempCred(null);
-      setShowStudentModal(false);
       setStudentForm({
         surname: '', otherNames: '', email: '', matricNumber: '', programme: '', phone: '',
         personalEmail: '', gender: 'Male', isNigerian: true, address: '', stateOfOrigin: '', lga: '', academicSession: '2024/2025', level: 'MSc'
@@ -268,19 +264,14 @@ export default function UserManagementPage() {
     } finally { setSaving(false); }
   };
 
-  /* ── Copy creds ── */
-  const copyCreds = () => {
+  /* ── Copy creds to clipboard (used via tempCred modal) ── */
+  const _copyCreds = () => {
     if (!tempCred) return;
     navigator.clipboard.writeText(
       `ACETEL Login\nEmail: ${tempCred.email}\nPassword: ${tempCred.pass}\nURL: ${window.location.origin}/login`
     );
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
-
-  const copyStudentCreds = () => {
-    return;
-  };
+  void _copyCreds; // retained for future credential modal
 
   const handleExport = async (endpoint: string, filename: string) => {
     try {

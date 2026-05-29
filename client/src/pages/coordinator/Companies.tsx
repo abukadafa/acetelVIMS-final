@@ -9,7 +9,7 @@ import { socket } from '../../App';
 const CoordinatorCompanies = () => {
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'draft' | 'approved' | 'rejected'>('all');
+  const [filter] = useState<'all' | 'draft' | 'approved' | 'rejected'>('all');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchCompanies = async () => {
@@ -18,7 +18,7 @@ const CoordinatorCompanies = () => {
       const res = await fetch('/api/companies', { credentials: 'include' });
       const data = await res.json();
       setCompanies(data);
-    } catch (err) {
+    } catch {
       toast.error("Failed to load companies");
     } finally {
       setLoading(false);
@@ -51,7 +51,7 @@ const CoordinatorCompanies = () => {
         toast.success("✅ Posting approved successfully!");
         fetchCompanies();
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to approve");
     } finally {
       setActionLoading(null);

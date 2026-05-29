@@ -13,7 +13,7 @@ const StudentApplications = () => {
       const res = await fetch('/api/applications/my', { credentials: 'include' });
       const data = await res.json();
       setApplications(data);
-    } catch (err) {
+    } catch {
       toast.error("Failed to load applications");
     } finally {
       setLoading(false);

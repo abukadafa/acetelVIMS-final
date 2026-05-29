@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { Fingerprint, MapPin, AlertCircle, Camera as CameraIcon } from 'lucide-react';
+import { MapPin, AlertCircle, Camera as CameraIcon } from 'lucide-react';
 import { getCurrentPosition, haversineDistance } from '../lib/geolocation';
 import { Device } from '@capacitor/device';
 import { Capacitor } from '@capacitor/core';
@@ -60,7 +60,7 @@ export default function AttendanceBiometric({ onComplete }: { onComplete: () => 
           source: CameraSource.Camera
         });
         photoBase64 = `data:image/jpeg;base64,${image.base64String}`;
-      } catch (err: any) {
+      } catch {
         throw new Error('Camera access denied or cancelled. You must take a selfie to check in.');
       }
 
@@ -74,7 +74,7 @@ export default function AttendanceBiometric({ onComplete }: { onComplete: () => 
       toast.success('Identity Verified & Checked In!');
       onComplete();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Check-in failed');
+      toast.error(err.response?.data?.error || err.message || 'Check-in failed');
     } finally {
       setLoading(false);
     }

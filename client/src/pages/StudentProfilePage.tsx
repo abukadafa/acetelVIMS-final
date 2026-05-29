@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../lib/api';
-import { ArrowLeft, User, Building2, BookOpen, Shield, Pencil, Trash2, MapPin, Camera as CameraIcon, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, User, Building2, BookOpen, Shield, Pencil, Trash2, Camera as CameraIcon, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import ReasonModal from '../components/ReasonModal';

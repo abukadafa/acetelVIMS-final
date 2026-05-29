@@ -46,7 +46,7 @@ export default function AttendanceCheck({ onComplete }: { onComplete: () => void
           source: CameraSource.Camera
         });
         photoBase64 = `data:image/jpeg;base64,${image.base64String}`;
-      } catch (err: any) {
+      } catch {
         throw new Error('Camera access denied or cancelled. You must take a selfie to check in.');
       }
 
