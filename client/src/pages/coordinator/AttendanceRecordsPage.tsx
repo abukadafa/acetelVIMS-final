@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import api from '../../lib/api';
 import { toast } from 'react-hot-toast';
-import { Camera, CheckCircle, XCircle, Search, Filter, Download } from 'lucide-react';
+import { Camera, CheckCircle, XCircle, Search, Filter, Download, FileText } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function AttendanceRecordsPage() {
   const [records, setRecords] = useState<any[]>([]);
@@ -32,6 +34,33 @@ export default function AttendanceRecordsPage() {
     return name.includes(term) || r.student?.user?.email?.toLowerCase().includes(term);
   });
 
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.text('ACETEL Attendance Records', 14, 15);
+    
+    const tableData = filtered.map(r => {
+      const d = new Date(r.checkInTime);
+      return [
+        `${r.student?.user?.firstName || ''} ${r.student?.user?.lastName || ''}`,
+        r.student?.user?.email || '',
+        d.toLocaleDateString(),
+        d.toLocaleTimeString(),
+        r.isValid ? 'Verified' : 'Out of Range',
+        r.distanceFromCompany ? `${(r.distanceFromCompany * 1000).toFixed(0)}m` : '-'
+      ];
+    });
+
+    autoTable(doc, {
+      head: [['Student Name', 'Email', 'Date', 'Time In', 'Status', 'Deviation']],
+      body: tableData,
+      startY: 20,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [10, 92, 54] }, // Using VITE_THEME_PRIMARY #0a5c36
+    });
+
+    doc.save(`ACETEL_Attendance_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div className="page-container animate-fade">
       <div className="page-header">
@@ -55,6 +84,9 @@ export default function AttendanceRecordsPage() {
           </div>
           <button className="btn btn-outline" onClick={fetchRecords}>
             <Filter size={14} /> Refresh
+          </button>
+          <button className="btn btn-primary" style={{ background: '#ea580c', borderColor: '#ea580c' }} onClick={exportPDF}>
+            <FileText size={14} /> Export PDF
           </button>
           <button className="btn btn-primary" onClick={() => window.open(`${api.defaults.baseURL}attendance/export`, '_blank')}>
             <Download size={14} /> Export CSV
