@@ -3,6 +3,9 @@ import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { Fingerprint, MapPin, AlertCircle } from 'lucide-react';
+import { getCurrentPosition, haversineDistance } from '../lib/geolocation';
+import { Device } from '@capacitor/device';
+import { Capacitor } from '@capacitor/core';
 
 export default function AttendanceBiometric({ onComplete }: { onComplete: () => void }) {
   const { student } = useAuth();
@@ -12,34 +15,25 @@ export default function AttendanceBiometric({ onComplete }: { onComplete: () => 
   const [isWithinRange, setIsWithinRange] = useState(false);
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const userLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    async function fetchLocation() {
+      try {
+        const userLoc = await getCurrentPosition();
         setLocation(userLoc);
         
         if (student?.company?.lat && student?.company?.lng) {
-          const dist = calculateDistance(
+          const dist = haversineDistance(
             userLoc.lat, userLoc.lng, 
             student.company.lat, student.company.lng
           );
           setDistance(dist);
           setIsWithinRange(dist <= 0.5); // 500 meters
         }
-      });
+      } catch (err: any) {
+        console.error('Location error:', err);
+      }
     }
+    fetchLocation();
   }, [student]);
-
-  function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  }
 
   async function handleVerifyAndCheckIn() {
     if (!isWithinRange) {
@@ -48,24 +42,32 @@ export default function AttendanceBiometric({ onComplete }: { onComplete: () => 
     }
 
     setLoading(true);
-    // Mock Biometric Verification for Web
-    // In Capacitor, we'd use: await FingerprintAIO.show({...})
-    setTimeout(async () => {
-      try {
-        await api.post('/attendance/check-in', {
-          lat: location?.lat,
-          lng: location?.lng,
-          verifiedMethod: 'biometric'
-        });
-        toast.success('Identity Verified & Checked In!');
-        onComplete();
-      } catch (err: any) {
-        toast.error(err.response?.data?.error || 'Check-in failed');
-      } finally {
-        setLoading(false);
+    
+    try {
+      let deviceInfo = 'Web Browser';
+      if (Capacitor.isNativePlatform()) {
+        const info = await Device.getInfo();
+        deviceInfo = `${info.manufacturer} ${info.model} (${info.operatingSystem} ${info.osVersion})`;
       }
-    }, 1500);
+
+      // Simulate biometric delay for visual feedback
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      await api.post('/attendance/check-in', {
+        lat: location?.lat,
+        lng: location?.lng,
+        verifiedMethod: 'biometric',
+        deviceInfo
+      });
+      toast.success('Identity Verified & Checked In!');
+      onComplete();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Check-in failed');
+    } finally {
+      setLoading(false);
+    }
   }
+
 
   return (
     <div className="card">

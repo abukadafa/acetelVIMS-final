@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { saveLogbookOffline, isOnline } from '../lib/offline';
 import { toast } from 'react-hot-toast';
-import { Send, Save, CloudOff, CloudCheck, X, RefreshCw } from 'lucide-react';
+import { Send, Save, CloudOff, CloudCheck, X, RefreshCw, Camera as CameraIcon } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
 
 interface Props {
   onComplete: () => void;
@@ -19,6 +21,7 @@ export default function LogbookForm({ onComplete, editEntry, onCancel }: Props) 
   const [solutions, setSolutions] = useState('');
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
   const [attachments, setAttachments] = useState<FileList | null>(null);
+  const [nativePhotos, setNativePhotos] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -49,6 +52,15 @@ export default function LogbookForm({ onComplete, editEntry, onCancel }: Props) 
       Array.from(attachments).forEach(file => {
         formData.append('attachments', file);
       });
+    }
+
+    if (nativePhotos.length > 0) {
+      // Convert native base64 photos to Blob and append
+      for (let i = 0; i < nativePhotos.length; i++) {
+        const response = await fetch(nativePhotos[i]);
+        const blob = await response.blob();
+        formData.append('attachments', blob, `photo_${Date.now()}_${i}.jpeg`);
+      }
     }
 
     if (isOnline()) {
@@ -98,6 +110,24 @@ export default function LogbookForm({ onComplete, editEntry, onCancel }: Props) 
   function resetForm() {
     setActivities(''); setToolsUsed(''); setSkills(''); setChallenges(''); setSolutions('');
     setAttachments(null);
+    setNativePhotos([]);
+  }
+
+  async function handleTakePhoto() {
+    try {
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.Uri,
+        source: CameraSource.Camera
+      });
+      if (image.webPath) {
+        setNativePhotos(prev => [...prev, image.webPath!]);
+      }
+    } catch (error) {
+      console.error('Camera error', error);
+      toast.error('Could not capture photo');
+    }
   }
 
   return (
@@ -182,14 +212,35 @@ export default function LogbookForm({ onComplete, editEntry, onCancel }: Props) 
         </div>
 
         <div className="form-group">
-          <label className="form-label">Evidence / Attachments (Max 5)</label>
-          <input 
-            type="file" 
-            multiple 
-            accept="image/*,application/pdf"
-            className="form-control"
-            onChange={e => setAttachments(e.target.files)}
-          />
+          <label className="form-label">Evidence / Attachments</label>
+          {Capacitor.isNativePlatform() ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button type="button" className="btn btn-outline" onClick={handleTakePhoto} style={{ width: 'fit-content' }}>
+                <CameraIcon size={18} /> Take Photo ({nativePhotos.length}/5)
+              </button>
+              {nativePhotos.length > 0 && (
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {nativePhotos.map((photo, idx) => (
+                    <div key={idx} style={{ position: 'relative' }}>
+                      <img src={photo} alt={`Attached ${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                      <button type="button" onClick={() => setNativePhotos(prev => prev.filter((_, i) => i !== idx))}
+                        style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', borderRadius: '50%', border: 'none', cursor: 'pointer', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        &times;
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <input 
+              type="file" 
+              multiple 
+              accept="image/*,application/pdf"
+              className="form-control"
+              onChange={e => setAttachments(e.target.files)}
+            />
+          )}
           {editEntry && editEntry.attachments?.length > 0 && (
             <p className="form-hint" style={{ marginTop: '8px' }}>
               Note: Uploading new files will replace current attachments.
