@@ -5,6 +5,18 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   build: {
     chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-router')) return 'vendor-react';
+            if (id.includes('lucide-react') || id.includes('recharts') || id.includes('react-hot-toast')) return 'vendor-ui';
+            if (id.includes('axios') || id.includes('socket.io') || id.includes('jspdf') || id.includes('xlsx')) return 'vendor-utils';
+            return 'vendor-core';
+          }
+        },
+      },
+    },
   },
   server: {
     host: true,
