@@ -27,6 +27,7 @@ import OfflineIndicator from './components/OfflineIndicator';
 import { setupOfflineAutoSync } from './lib/offline';
 import { socket, connectSocket, disconnectSocket } from './lib/socket';
 import api from './lib/api';
+import InstallAppPrompt from './components/InstallAppPrompt';
 
 // SyncWrapper must be INSIDE BrowserRouter so routing context is available
 function SyncWrapper({ children }: { children: React.ReactNode }) {
@@ -108,6 +109,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
 
+          <InstallAppPrompt />
           <OfflineIndicator />
           <Toaster
             position="top-right"
