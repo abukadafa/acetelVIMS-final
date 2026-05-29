@@ -13,8 +13,8 @@ export async function getBase64ImageFromUrl(imageUrl: string): Promise<string> {
 
 export async function drawLetterhead(doc: jsPDF, title: string) {
   try {
-    const nounLogo = await getBase64ImageFromUrl('/logo-noun.png');
-    const acetelLogo = await getBase64ImageFromUrl('/logo-acetel.png');
+    const nounLogo = await getBase64ImageFromUrl('/assets/noun-logo.png');
+    const acetelLogo = await getBase64ImageFromUrl('/assets/acetel-logo.png');
 
     // Add NOUN Logo (Left)
     doc.addImage(nounLogo, 'PNG', 14, 10, 24, 24);

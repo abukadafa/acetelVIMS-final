@@ -76,6 +76,22 @@ export default function AttendanceRecordsPage() {
     doc.save(`ACETEL_Attendance_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
+  const exportCSV = async () => {
+    try {
+      const response = await api.get('/attendance/export', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `ACETEL_Attendance_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to export CSV');
+    }
+  };
+
   return (
     <div className="page-container animate-fade">
       <div className="page-header">
@@ -103,7 +119,7 @@ export default function AttendanceRecordsPage() {
           <button className="btn btn-primary" style={{ background: '#ea580c', borderColor: '#ea580c' }} onClick={exportPDF}>
             <FileText size={14} /> Export PDF
           </button>
-          <button className="btn btn-primary" onClick={() => window.open(`${api.defaults.baseURL}attendance/export`, '_blank')}>
+          <button className="btn btn-primary" onClick={exportCSV}>
             <Download size={14} /> Export CSV
           </button>
         </div>
