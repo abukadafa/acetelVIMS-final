@@ -434,6 +434,53 @@ export async function deleteStudent(req: AuthRequest, res: Response): Promise<vo
   }
 }
 
+export async function bulkDeleteStudents(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { tenant: userTenant } = req.user!;
+    const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+    const reason = String(req.body.reason || '').trim();
+    
+    if (ids.length === 0) {
+      res.status(400).json({ error: 'No students selected for deletion' });
+      return;
+    }
+    
+    if (!reason || reason.length < 5) {
+      res.status(400).json({ error: 'A reason is required' });
+      return;
+    }
+
+    const students = await Student.find({ _id: { $in: ids }, tenant: userTenant });
+    if (students.length === 0) {
+      res.status(404).json({ error: 'No matching students found' });
+      return;
+    }
+
+    const userIds = students.map(s => s.user);
+    const studentIds = students.map(s => s._id);
+
+    // Soft delete linked users and students
+    await User.updateMany({ _id: { $in: userIds }, tenant: userTenant }, { $set: { isDeleted: true, isActive: false } });
+    await Student.updateMany({ _id: { $in: studentIds }, tenant: userTenant }, { $set: { isDeleted: true, status: 'withdrawn' } });
+
+    await AuditLog.create({
+      tenant: userTenant,
+      user: req.user!.id as any,
+      action: 'BULK_DELETE_STUDENTS',
+      module: 'STUDENT_MANAGEMENT',
+      reason,
+      details: `Deactivated ${students.length} student(s)`,
+      ipAddress: req.ip,
+    }).catch(() => {});
+    
+    res.json({ message: `${students.length} student record(s) deactivated` });
+  } catch (err) {
+    logger.error('Bulk Delete Error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+
 export async function getProgrammes(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { tenant: userTenant } = req.user!;

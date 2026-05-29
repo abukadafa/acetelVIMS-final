@@ -20,6 +20,7 @@ export default function StudentList() {
   const [editing, setEditing]         = useState<any | null>(null);
   const [auditTarget, setAuditTarget] = useState<{ targetId?: string; title: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [newStudent, setNewStudent]   = useState({
     firstName: '', lastName: '', email: '', matricNumber: '',
     phone: '', programme: '',
@@ -42,6 +43,7 @@ export default function StudentList() {
       ]);
       setStudents(studRes.data.students || []);
       setProgrammes(progRes.data.programmes || []);
+      setSelectedStudents([]); // Reset selection on new fetch
     } catch (err: any) { toast.error(err.response?.data?.error || 'Failed to load students'); }
     finally { setLoading(false); }
   }, [filterProgramme, search]);
@@ -231,6 +233,12 @@ export default function StudentList() {
       <div className="card-header" style={{ marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <h3 className="card-title"><UserPlus size={20} /> Active Students</h3>
         <div style={{ display: 'flex', gap: 10 }}>
+          {selectedStudents.length > 0 && (
+            <button className="btn btn-sm btn-outline" style={{ borderColor: 'var(--red)', color: 'var(--red)' }}
+              onClick={() => setDeleteTarget({ bulk: true, ids: selectedStudents })}>
+              <Trash2 size={15} /> Delete Selected ({selectedStudents.length})
+            </button>
+          )}
           <button className="btn btn-sm btn-ghost"
             onClick={handleExport}>
             <Download size={15} /> Export CSV
@@ -269,17 +277,35 @@ export default function StudentList() {
         <table className="table">
           <thead>
             <tr>
+              <th style={{ width: 40 }}>
+                <input type="checkbox"
+                  checked={students.length > 0 && selectedStudents.length === students.length}
+                  onChange={(e) => {
+                    if (e.target.checked) setSelectedStudents(students.map(s => s._id));
+                    else setSelectedStudents([]);
+                  }}
+                />
+              </th>
               <th>Student</th><th>Matric No.</th><th>Programme</th>
               <th>Company</th><th>Status</th><th>Risk</th><th>Action</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40 }}><div className="spinner" /></td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40 }}><div className="spinner" /></td></tr>
             ) : students.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: '#6b7280' }}>No students found</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40, color: '#6b7280' }}>No students found</td></tr>
             ) : students.map(s => (
-              <tr key={s._id}>
+              <tr key={s._id} style={{ background: selectedStudents.includes(s._id) ? 'var(--bg-2)' : 'transparent' }}>
+                <td>
+                  <input type="checkbox"
+                    checked={selectedStudents.includes(s._id)}
+                    onChange={() => {
+                      if (selectedStudents.includes(s._id)) setSelectedStudents(prev => prev.filter(id => id !== s._id));
+                      else setSelectedStudents(prev => [...prev, s._id]);
+                    }}
+                  />
+                </td>
                 <td>
                   <div style={{ fontWeight: 700, color: '#111827' }}>
                     {s.user?.firstName} {s.user?.lastName}
@@ -543,18 +569,25 @@ export default function StudentList() {
 
       {deleteTarget && (
         <ReasonModal
-          title="Deactivate student account?"
-          message={`Provide a reason for deactivating ${deleteTarget.user?.firstName || 'this student'}. This will be logged in the audit trail.`}
+          title={deleteTarget.bulk ? `Deactivate ${deleteTarget.ids.length} students?` : "Deactivate student account?"}
+          message={deleteTarget.bulk 
+            ? "Provide a reason for deactivating these students. This will be logged in the audit trail." 
+            : `Provide a reason for deactivating ${deleteTarget.user?.firstName || 'this student'}. This will be logged in the audit trail.`}
           confirmText="Deactivate"
           onCancel={() => setDeleteTarget(null)}
           onConfirm={async (reason) => {
             try {
-              await api.delete(`/students/${deleteTarget._id}`, { data: { reason } });
-              toast.success('Student deactivated');
+              if (deleteTarget.bulk) {
+                await api.post('/students/bulk-delete', { ids: deleteTarget.ids, reason });
+              } else {
+                await api.delete(`/students/${deleteTarget._id}`, { data: { reason } });
+              }
+              toast.success('Student(s) deactivated');
               setDeleteTarget(null);
+              setSelectedStudents([]);
               fetchData();
             } catch (err: any) {
-              toast.error(err.response?.data?.error || 'Failed to deactivate student');
+              toast.error(err.response?.data?.error || 'Failed to deactivate student(s)');
             }
           }}
         />

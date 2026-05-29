@@ -12,6 +12,7 @@ import {
   requestAllocation,
   exportStudents,
   approvePosting,
+  bulkDeleteStudents,
 } from '../controllers/student.controller';
 
 const r = Router();
@@ -32,6 +33,7 @@ r.post('/:id/approve-posting', authorize(...POSTING_MANAGERS), approvePosting);
 r.put('/location', updateStudentLocation);
 r.put('/:id', authorize(...STUDENT_EDITORS), updateStudent);
 r.delete('/:id', authorize('admin'), deleteStudent);
+r.post('/bulk-delete', authorize('admin'), bulkDeleteStudents);
 
 r.post('/:id/flag', authorize('admin', 'supervisor', 'prog_coordinator', 'internship_coordinator'), async (req: any, res: any) => {
   try {
