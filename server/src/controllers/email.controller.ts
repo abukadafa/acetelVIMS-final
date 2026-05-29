@@ -43,13 +43,7 @@ export async function composeEmail(req: AuthRequest, res: Response): Promise<voi
     const senderName = `${sender.firstName} ${sender.lastName}`;
     const html = buildHtml(senderName, body);
 
-    // Students can ONLY send to individual contacts (their supervisor/coordinator)
-    // They cannot broadcast to all_students / all_staff / programme
-    if (!isStaff && ['all_students', 'all_staff', 'programme'].includes(recipientScope)) {
-      res.status(403).json({ error: 'Students can only send emails to individual contacts' });
-      return;
-    }
-
+    // All users can send to broadcast scopes if they choose (per approved plan)
     let recipientUsers: { _id: any; email: string; firstName: string; lastName: string; }[] = [];
 
     if (recipientScope === 'all_students') {
@@ -62,26 +56,8 @@ export async function composeEmail(req: AuthRequest, res: Response): Promise<voi
       const students = await Student.find({ programme: programmeId, tenant: tenantId }).populate('user', 'email firstName lastName');
       recipientUsers = students.map(s => s.user as any).filter(Boolean);
     } else if ((recipientScope === 'individual' || recipientScope === 'custom') && recipientIds?.length) {
-      // For students: validate they can only email staff or their own supervisor
-      let allowedIds = recipientIds;
-      if (!isStaff) {
-        const studentRecord = await Student.findOne({ user: req.user!.id, tenant: tenantId });
-        const allowedUsers = await User.find({
-          tenant: tenantId,
-          isActive: true,
-          $or: [
-            { role: { $in: ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support'] } },
-            { _id: studentRecord?.supervisor },
-          ],
-        }).select('_id');
-        const allowedSet = new Set(allowedUsers.map(u => u._id.toString()));
-        allowedIds = recipientIds.filter(id => allowedSet.has(id));
-        if (allowedIds.length === 0) {
-          res.status(403).json({ error: 'You can only email your supervisor or institutional coordinators' });
-          return;
-        }
-      }
-      const users = await User.find({ _id: { $in: allowedIds }, tenant: tenantId, isActive: true }).select('email firstName lastName');
+      // Allow sending to any user in the tenant
+      const users = await User.find({ _id: { $in: recipientIds }, tenant: tenantId, isActive: true }).select('email firstName lastName');
       recipientUsers = users as any[];
     }
 
@@ -171,15 +147,7 @@ export async function getEmailContacts(req: AuthRequest, res: Response): Promise
     const isStaff = STAFF_ROLES.includes(userRole);
 
     let userFilter: any = { tenant: tenantId, isActive: true, _id: { $ne: req.user!.id } };
-
-    if (!isStaff) {
-      // Students can only contact staff + their own supervisor
-      const studentRecord = await Student.findOne({ user: req.user!.id, tenant: tenantId });
-      userFilter.$or = [
-        { role: { $in: ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor'] } },
-        ...(studentRecord?.supervisor ? [{ _id: studentRecord.supervisor }] : []),
-      ];
-    }
+    // All users can see everyone else in the directory
 
     const users = await User.find(userFilter)
       .select('firstName lastName email role')
