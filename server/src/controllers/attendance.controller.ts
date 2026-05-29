@@ -1,4 +1,6 @@
 import mongoose from 'mongoose';
+import fs from 'fs';
+import path from 'path';
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import Attendance from '../models/Attendance.model';
@@ -13,6 +15,7 @@ const checkInSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   method: z.enum(['gps', 'biometric', 'manual', 'qr', 'offline']).optional().default('gps'),
+  photoBase64: z.string().optional(),
 });
 
 const attendanceQuerySchema = z.object({
@@ -29,7 +32,7 @@ const manualAttendanceSchema = z.object({
 
 export async function checkIn(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { lat, lng, method } = checkInSchema.parse(req.body);
+    const { lat, lng, method, photoBase64 } = checkInSchema.parse(req.body);
     const { id: userId, tenant: userTenant } = req.user!;
     
     const student = await Student.findOne({ user: userId, tenant: userTenant }).populate('company');
@@ -67,6 +70,16 @@ export async function checkIn(req: AuthRequest, res: Response): Promise<void> {
       isValid = distance <= radiusKm;
     }
 
+    let photoUrl = undefined;
+    if (photoBase64) {
+      const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      const filename = `selfie_${student._id}_${Date.now()}.jpg`;
+      const filepath = path.join(process.cwd(), 'uploads', filename);
+      fs.writeFileSync(filepath, buffer);
+      photoUrl = `/uploads/${filename}`;
+    }
+
     const attendance = new Attendance({
       student: student._id,
       tenant: userTenant,
@@ -75,7 +88,8 @@ export async function checkIn(req: AuthRequest, res: Response): Promise<void> {
       lng,
       distanceFromCompany: distance,
       isValid,
-      method
+      method,
+      photoUrl,
     });
 
     await attendance.save();

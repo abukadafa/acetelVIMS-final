@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
 import { getCurrentPosition, formatDistance } from '../lib/geolocation';
 import { toast } from 'react-hot-toast';
-import { MapPin, CheckCircle2, AlertCircle, Clock, MapIcon } from 'lucide-react';
+import { MapPin, CheckCircle2, AlertCircle, Clock, MapIcon, Camera as CameraIcon } from 'lucide-react';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 export default function AttendanceCheck({ onComplete }: { onComplete: () => void }) {
   const { user, student } = useAuth();
@@ -35,10 +36,28 @@ export default function AttendanceCheck({ onComplete }: { onComplete: () => void
     setLocationError(null);
 
     try {
+      // 1. Take Selfie
+      let photoBase64 = '';
+      try {
+        const image = await Camera.getPhoto({
+          quality: 60,
+          allowEditing: false,
+          resultType: CameraResultType.Base64,
+          source: CameraSource.Camera
+        });
+        photoBase64 = `data:image/jpeg;base64,${image.base64String}`;
+      } catch (err: any) {
+        throw new Error('Camera access denied or cancelled. You must take a selfie to check in.');
+      }
+
+      // 2. Get GPS Location
       const position = await getCurrentPosition();
+
+      // 3. Send to Backend
       const { data } = await api.post('/attendance/checkin', {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
+        photoBase64,
       });
 
       if (data.isValid) {
@@ -53,8 +72,10 @@ export default function AttendanceCheck({ onComplete }: { onComplete: () => void
     } catch (err: any) {
       if (err.message === 'Geolocation not supported' || err.code === 1) {
         setLocationError('GPS access denied. Please enable location to check in.');
+      } else if (err.message?.includes('Camera')) {
+        setLocationError(err.message);
       } else {
-        toast.error(err.response?.data?.error || 'Failed to check in');
+        toast.error(err.response?.data?.error || err.message || 'Failed to check in');
       }
     } finally {
       setLoading(false);
@@ -89,12 +110,12 @@ export default function AttendanceCheck({ onComplete }: { onComplete: () => void
     <div className="card">
       <div className="card-header">
         <h3 className="card-title">Daily Attendance Check-In</h3>
-        <div className="badge badge-blue"><MapIcon size={14} /> Biometric GPS</div>
+        <div className="badge badge-blue"><MapIcon size={14} /> GPS + Selfie</div>
       </div>
       
       <div style={{ textAlign: 'center', padding: '10px 0' }}>
         <div style={{ color: 'var(--text-2)', fontSize: '0.9rem', marginBottom: '20px' }}>
-          Please ensure you are at your assigned workplace (<strong>{student?.company?.name}</strong>) before checking in.
+          Please ensure you are at your assigned workplace (<strong>{student?.company?.name}</strong>) before checking in. You will be prompted to take a selfie.
         </div>
 
         {locationError && (
@@ -110,9 +131,9 @@ export default function AttendanceCheck({ onComplete }: { onComplete: () => void
           style={{ padding: '16px 32px', fontSize: '1.1rem', borderRadius: '50px' }}
         >
           {loading ? (
-            <><div className="spinner" /> Accessing GPS...</>
+            <><div className="spinner" /> Verifying...</>
           ) : (
-            <><MapPin size={22} /> Check In Now</>
+            <><CameraIcon size={22} /> Take Selfie & Check In</>
           )}
         </button>
       </div>

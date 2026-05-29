@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../lib/api';
-import { ArrowLeft, User, Building2, BookOpen, Shield, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, User, Building2, BookOpen, Shield, Pencil, Trash2, MapPin, Camera as CameraIcon, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import ReasonModal from '../components/ReasonModal';
@@ -16,6 +16,16 @@ export default function StudentProfilePage() {
   const [editing, setEditing] = useState<any | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (student?._id) {
+      api.get(`/attendance?studentId=${student._id}`)
+        .then(({ data }) => setAttendanceRecords(data.records))
+        .catch(() => toast.error('Failed to load attendance'));
+    }
+  }, [student?._id]);
 
   useEffect(() => {
     if (!id) return;
@@ -124,6 +134,77 @@ export default function StudentProfilePage() {
           </div>
         </div>
       </div>
+
+      <div className="card" style={{ marginTop: 18 }}>
+        <div className="card-header">
+          <h3 className="card-title">Attendance & Identity Verification History</h3>
+        </div>
+        <div className="card-body" style={{ padding: 0 }}>
+          {attendanceRecords.length === 0 ? (
+            <div style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>No attendance records found.</div>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Time In</th>
+                  <th>Method</th>
+                  <th>Verification</th>
+                  <th>Selfie</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attendanceRecords.map((record, i) => {
+                  const d = new Date(record.checkInTime);
+                  return (
+                    <tr key={i}>
+                      <td>{d.toLocaleDateString()}</td>
+                      <td>{d.toLocaleTimeString()}</td>
+                      <td>{record.method?.toUpperCase()}</td>
+                      <td>
+                        {record.isValid ? (
+                          <span className="badge badge-green" style={{ display: 'flex', gap: 4, width: 'fit-content' }}>
+                            <CheckCircle size={12}/> Verified
+                          </span>
+                        ) : (
+                          <span className="badge badge-amber" style={{ display: 'flex', gap: 4, width: 'fit-content' }}>
+                            <XCircle size={12}/> Out of Range
+                          </span>
+                        )}
+                        {record.distanceFromCompany && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>Dev: {(record.distanceFromCompany * 1000).toFixed(0)}m</div>}
+                      </td>
+                      <td>
+                        {record.photoUrl ? (
+                          <button className="btn btn-sm btn-outline" onClick={() => setSelectedPhoto(record.photoUrl)}>
+                            <CameraIcon size={14} /> View Selfie
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: 12, color: '#9ca3af' }}>No Photo</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {selectedPhoto && (
+        <div className="modal-overlay" onClick={() => setSelectedPhoto(null)}>
+          <div className="modal" style={{ maxWidth: 400, padding: 0, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ borderBottom: 'none', position: 'absolute', right: 0, zIndex: 10 }}>
+              <button className="btn btn-ghost btn-icon" onClick={() => setSelectedPhoto(null)} style={{ background: 'rgba(0,0,0,0.5)', color: '#fff' }}>✕</button>
+            </div>
+            <img src={api.defaults.baseURL?.replace('/api', '') + selectedPhoto} alt="Verification Selfie" style={{ width: '100%', display: 'block' }} />
+            <div style={{ padding: 16, background: '#fff', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+              <div style={{ fontWeight: 600 }}>Biometric Verification</div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Captured securely via mobile device</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal (reuse fields supported by /students/:id update) */}
       {editing && (

@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { Fingerprint, MapPin, AlertCircle } from 'lucide-react';
+import { Fingerprint, MapPin, AlertCircle, Camera as CameraIcon } from 'lucide-react';
 import { getCurrentPosition, haversineDistance } from '../lib/geolocation';
 import { Device } from '@capacitor/device';
 import { Capacitor } from '@capacitor/core';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 export default function AttendanceBiometric({ onComplete }: { onComplete: () => void }) {
   const { student } = useAuth();
@@ -50,13 +51,24 @@ export default function AttendanceBiometric({ onComplete }: { onComplete: () => 
         deviceInfo = `${info.manufacturer} ${info.model} (${info.operatingSystem} ${info.osVersion})`;
       }
 
-      // Simulate biometric delay for visual feedback
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      let photoBase64 = '';
+      try {
+        const image = await Camera.getPhoto({
+          quality: 60,
+          allowEditing: false,
+          resultType: CameraResultType.Base64,
+          source: CameraSource.Camera
+        });
+        photoBase64 = `data:image/jpeg;base64,${image.base64String}`;
+      } catch (err: any) {
+        throw new Error('Camera access denied or cancelled. You must take a selfie to check in.');
+      }
 
-      await api.post('/attendance/check-in', {
+      await api.post('/attendance/checkin', {
         lat: location?.lat,
         lng: location?.lng,
-        verifiedMethod: 'biometric',
+        method: 'gps',
+        photoBase64,
         deviceInfo
       });
       toast.success('Identity Verified & Checked In!');
@@ -107,12 +119,12 @@ export default function AttendanceBiometric({ onComplete }: { onComplete: () => 
           style={{ height: '56px', fontSize: '1.1rem' }}
         >
           {loading ? <div className="spinner" /> : (
-            <><Fingerprint size={24} /> Verify & Sign In</>
+            <><CameraIcon size={24} /> Verify via Selfie & Sign In</>
           )}
         </button>
 
         <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-3)' }}>
-          Identity verification required via device biometrics.
+          Identity verification required via Selfie. Ensure your face is clearly visible.
         </div>
       </div>
     </div>

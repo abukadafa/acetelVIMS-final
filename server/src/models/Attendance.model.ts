@@ -10,6 +10,7 @@ export interface IAttendance extends Document {
   distanceFromCompany?: number;
   isValid: boolean;
   method: 'gps' | 'qr' | 'manual' | 'offline' | 'biometric';
+  photoUrl?: string;
   notes?: string;
 }
 
@@ -27,6 +28,7 @@ const AttendanceSchema: Schema = new Schema({
     enum: ['gps', 'qr', 'manual', 'offline', 'biometric'], 
     default: 'gps' 
   },
+  photoUrl: { type: String },
   notes: { type: String }
 }, {
   timestamps: true
