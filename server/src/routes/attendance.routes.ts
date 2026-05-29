@@ -1,11 +1,12 @@
 import { Router } from 'express';
-import { checkIn, checkOut, getAttendanceRecords, getAttendanceAnalytics, manualAttendance } from '../controllers/attendance.controller';
+import { checkIn, checkOut, getAttendanceRecords, getAttendanceAnalytics, manualAttendance, exportAttendanceRecords } from '../controllers/attendance.controller';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 const r = Router();
 r.use(authenticate);
 r.post('/checkin', authorize('student'), checkIn);
 r.post('/checkout', authorize('student'), checkOut);
 r.get('/', getAttendanceRecords);
+r.get('/export', authorize('admin', 'prog_coordinator', 'internship_coordinator', 'supervisor'), exportAttendanceRecords);
 r.get('/analytics', authorize('admin','prog_coordinator', 'internship_coordinator'), getAttendanceAnalytics);
 r.post('/manual', authorize('admin','prog_coordinator', 'internship_coordinator'), manualAttendance);
 export default r;

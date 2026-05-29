@@ -321,3 +321,52 @@ export async function getAttendanceAnalytics(req: AuthRequest, res: Response): P
     res.status(500).json({ error: 'Server error' });
   }
 }
+
+export async function exportAttendanceRecords(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { tenant: userTenant, role: userRole, id: userId } = req.user!;
+    
+    let filter: any = { tenant: userTenant };
+    
+    // Scoping for supervisors
+    if (userRole === 'supervisor') {
+      const students = await Student.find({ supervisor: userId, tenant: userTenant });
+      filter.student = { $in: students.map(s => s._id) };
+    } else if (userRole === 'prog_coordinator') {
+      const coord = await mongoose.model('User').findById(userId);
+      if (coord?.programme) {
+        const students = await Student.find({ programme: coord.programme, tenant: userTenant });
+        filter.student = { $in: students.map(s => s._id) };
+      }
+    }
+
+    const records = await Attendance.find(filter)
+      .populate({
+        path: 'student',
+        populate: { path: 'user', select: 'firstName lastName email' }
+      })
+      .sort({ checkInTime: -1 });
+
+    let csv = 'Student Name,Student Email,Date,Time In,Method,Verification Status,Distance Deviation (km),Has Selfie\n';
+    
+    for (const r of records) {
+      const student = r.student as any;
+      const user = student?.user;
+      const d = new Date(r.checkInTime);
+      const dateStr = d.toLocaleDateString();
+      const timeStr = d.toLocaleTimeString();
+      const verificationStatus = r.isValid ? 'Verified' : 'Out of Range';
+      const deviation = r.distanceFromCompany ? r.distanceFromCompany.toFixed(3) : '';
+      const hasSelfie = r.photoUrl ? 'Yes' : 'No';
+      
+      csv += `"${user?.firstName} ${user?.lastName}","${user?.email}",${dateStr},${timeStr},${r.method},${verificationStatus},${deviation},${hasSelfie}\n`;
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=ACETEL_Attendance_${new Date().toISOString().split('T')[0]}.csv`);
+    res.status(200).send(csv);
+  } catch (err) {
+    logger.error('Error in exportAttendanceRecords: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}

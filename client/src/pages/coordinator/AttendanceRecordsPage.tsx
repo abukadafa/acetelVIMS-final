@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../lib/api';
 import { toast } from 'react-hot-toast';
-import { Camera, CheckCircle, XCircle, Search, Filter } from 'lucide-react';
+import { Camera, CheckCircle, XCircle, Search, Filter, Download } from 'lucide-react';
 
 export default function AttendanceRecordsPage() {
   const [records, setRecords] = useState<any[]>([]);
@@ -55,6 +55,9 @@ export default function AttendanceRecordsPage() {
           </div>
           <button className="btn btn-outline" onClick={fetchRecords}>
             <Filter size={14} /> Refresh
+          </button>
+          <button className="btn btn-primary" onClick={() => window.open(`${api.defaults.baseURL}attendance/export`, '_blank')}>
+            <Download size={14} /> Export CSV
           </button>
         </div>
 
