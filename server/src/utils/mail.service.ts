@@ -1,18 +1,45 @@
 import nodemailer from 'nodemailer';
+import logger from './logger';
 
-const transporter = nodemailer.createTransport({
+let transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
   secure: false,
   auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
 });
 
+// Auto-configure ethereal for local testing if dummy credentials are provided
+if (process.env.SMTP_PASS === 'your_institutional_password' || !process.env.SMTP_USER) {
+  nodemailer.createTestAccount((err, account) => {
+    if (err) {
+      console.error('Failed to create a testing account. ' + err.message);
+      return;
+    }
+    transporter = nodemailer.createTransport({
+      host: account.smtp.host,
+      port: account.smtp.port,
+      secure: account.smtp.secure,
+      auth: {
+        user: account.user,
+        pass: account.pass,
+      },
+    });
+    logger.info('Ethereal Mail configured for local email testing.');
+  });
+}
+
 export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   try {
-    await transporter.sendMail({
-      from: `"ACETEL VIMS" <${process.env.SMTP_USER}>`,
+    const info = await transporter.sendMail({
+      from: `"ACETEL VIMS" <${process.env.SMTP_USER || 'no-reply@acetel.org'}>`,
       to, subject, html,
     });
+    
+    // Log ethereal link if using test account
+    if (info.messageId && transporter.options.host?.includes('ethereal')) {
+      logger.info('Email sent to %s. Preview URL: %s', to, nodemailer.getTestMessageUrl(info));
+    }
+    
     return true;
   } catch (error) {
     console.error('Email failed:', error);
@@ -106,6 +133,14 @@ export const emailTemplates = {
     </div>
     <p>Please log in daily for attendance and logbook updates.</p>
     <a class="btn" href="${appUrl}">Open ACETEL VIMS</a>
+  `),
+
+  welcomeCompany: (companyName: string, contactPerson: string, appUrl: string) => base(`
+    <h2>Welcome to ACETEL VIMS, ${companyName}!</h2>
+    <p>Dear ${contactPerson},</p>
+    <p>Your organisation has been successfully registered as a partner on the ACETEL Virtual Internship Management System.</p>
+    <p>You can access your partner portal to manage interns, review logbooks, and monitor performance.</p>
+    <a class="btn" href="${appUrl}">Access Partner Portal</a>
   `),
 
   companyPlacementNotice: (company: string, studentName: string, matric: string, email: string, phone: string) => base(`

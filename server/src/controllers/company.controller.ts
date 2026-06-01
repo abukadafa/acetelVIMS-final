@@ -97,12 +97,10 @@ export async function createCompany(req: AuthRequest, res: Response): Promise<vo
     // Auto-send onboarding to partner contact (email + WhatsApp if provided)
     const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
     if (company.contactEmail) {
-      const html = emailTemplates.companyPlacementNotice(
+      const html = emailTemplates.welcomeCompany(
         company.name,
         company.contactPerson || 'Partner Contact',
-        'N/A',
-        company.contactEmail,
-        company.contactPhone || 'N/A'
+        appUrl
       );
       await sendEmail(company.contactEmail, 'ACETEL IMS — Partner Registration Confirmed', html).catch((e) => {
         logger.warn('Partner welcome email failed: %s', (e as Error).message);
