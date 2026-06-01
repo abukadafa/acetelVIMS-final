@@ -66,17 +66,17 @@ const studentQuerySchema = z.object({
 });
 
 const studentUpdateSchema = z.object({
-  matricNumber: z.string().min(5).optional(),
-  programme: z.string().optional(),
-  academicSession: z.string().optional(),
-  level: z.string().optional(),
+  matricNumber: z.string().min(5).optional().or(z.literal('')),
+  programme: z.string().optional().or(z.literal('')),
+  academicSession: z.string().optional().or(z.literal('')),
+  level: z.string().optional().or(z.literal('')),
   status: z.enum(['pending', 'active', 'completed', 'withdrawn', 'suspended']).optional(),
-  personalEmail: z.string().email().optional(),
+  personalEmail: z.string().email().optional().or(z.literal('')),
   gender: z.enum(['Male', 'Female', 'Other']).optional(),
-  stateOfOrigin: z.string().optional(),
-  lga: z.string().optional(),
-  address: z.string().optional(),
-  company: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid company ID').optional(),
+  stateOfOrigin: z.string().optional().or(z.literal('')),
+  lga: z.string().optional().or(z.literal('')),
+  address: z.string().optional().or(z.literal('')),
+  company: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid company ID').optional().or(z.literal('')),
   postingApproved: z.boolean().optional(),
 });
 
