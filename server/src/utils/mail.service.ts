@@ -36,7 +36,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     });
     
     // Log ethereal link if using test account
-    if (info.messageId && transporter.options.host?.includes('ethereal')) {
+    if (info.messageId && (transporter.options as any).host?.includes('ethereal')) {
       logger.info('Email sent to %s. Preview URL: %s', to, nodemailer.getTestMessageUrl(info));
     }
     
