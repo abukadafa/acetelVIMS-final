@@ -279,7 +279,7 @@ export async function register(req: Request, res: Response): Promise<void> {
         try {
           const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
           await sendEmail(cleanEmail, 'Welcome to ACETEL VIMS — Staff Account Created',
-            emailTemplates.welcomeStaff(`${firstName} ${lastName}`, cleanEmail, password, role, appUrl));
+            emailTemplates.welcomeStaff(`${firstName} ${lastName}`, cleanEmail, cleanEmail, password, role, appUrl));
           if (phone) {
             await sendWhatsAppMessage(phone,
               whatsappTemplates.welcomeStaff(`${firstName} ${lastName}`, cleanEmail, password, role, appUrl));

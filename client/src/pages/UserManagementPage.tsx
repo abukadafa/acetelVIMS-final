@@ -143,6 +143,14 @@ export default function UserManagementPage() {
   };
 
   const performSave = async (reason?: string) => {
+    if (!editing && !form.role) {
+      toast.error('Please select a role');
+      return;
+    }
+    if (!editing && ROLE_META[form.role]?.needsProgramme && !form.programme && !isGovRole) {
+      toast.error('Please select a programme for this role');
+      return;
+    }
     setSaving(true);
     try {
       if (editing) {
@@ -156,15 +164,36 @@ export default function UserManagementPage() {
       } else {
         const payload: Record<string, any> = { ...form };
         if (!payload.password) delete payload.password;
-        await api.post('/admin/users', payload);
+        if (!payload.programme) delete payload.programme;
+        if (!payload.phone) delete payload.phone;
+        const { data } = await api.post('/admin/users', payload);
         toast.success('User created');
-        // Credentials are sent automatically; do not display/copy in UI
+        if (data?.delivery) {
+          if (data?.deliveryDetails && !data.deliveryDetails.emailConfigured) {
+            toast.error('Email is not configured on backend (set SMTP_USER and SMTP_PASS on Render).');
+          } else if (data.delivery.email) {
+            toast.success('Welcome email sent with login link, username, and password.');
+          } else {
+            toast.error('Welcome email was not sent (SMTP missing or delivery failed).');
+          }
+          if (form.phone) {
+            if (data.delivery.whatsapp) toast.success('WhatsApp credentials message sent.');
+            else if (data.deliveryDetails?.whatsappConfigured === false) {
+              toast.error('WhatsApp is not configured on backend.');
+            }
+          }
+        }
         setTempCred(null);
         setShowModal(false);
       }
       load();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to save user');
+      const msg = err.response?.data?.error || 'Failed to save user';
+      const details = err.response?.data?.details;
+      toast.error(Array.isArray(details) ? `${msg}: ${details.map((d: any) => d.message || d).join(', ')}` : msg);
+      if (err.response?.status === 409 && err.response?.data?.recycleBinUserId && isAdmin) {
+        toast('Tip: Admin can release this email under Recycle Bin → Release Email.', { icon: 'ℹ️', duration: 6000 });
+      }
     } finally { setSaving(false); }
   };
 

@@ -23,8 +23,8 @@ export interface IUser extends Document {
 }
 
 const UserSchema: Schema = new Schema({
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  username: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  email: { type: String, required: true, lowercase: true, trim: true },
+  username: { type: String, required: true, lowercase: true, trim: true },
   password: { type: String, required: true },
   role: { 
     type: String, 
@@ -48,6 +48,16 @@ const UserSchema: Schema = new Schema({
 }, {
   timestamps: true
 });
+
+// Active users only — soft-deleted records do not block email/username reuse
+UserSchema.index(
+  { email: 1, tenant: 1 },
+  { unique: true, partialFilterExpression: { isDeleted: { $ne: true } } }
+);
+UserSchema.index(
+  { username: 1, tenant: 1 },
+  { unique: true, partialFilterExpression: { isDeleted: { $ne: true } } }
+);
 
 // Hash password before saving
 UserSchema.pre<IUser>('save', async function() {

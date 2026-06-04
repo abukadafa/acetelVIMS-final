@@ -9,7 +9,7 @@ import Student from '../models/Student.model';
 import Company from '../models/Company.model';
 import { z } from 'zod';
 import logger from '../utils/logger';
-import { sendEmail, emailTemplates } from '../utils/mail.service';
+import { sendEmail, emailTemplates, isEmailConfigured } from '../utils/mail.service';
 import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
 import Notification from '../models/notification.model';
 import { autoAllocateStudent } from '../utils/allocation.service';
@@ -28,10 +28,18 @@ const createUserSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
   email: z.string().email(),
-  role: z.enum(['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor']),
+  role: z.enum(['prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor']),
   programme: z.string().optional().or(z.literal('')),
   phone: z.string().optional().or(z.literal('')),
-  password: z.string().min(8).optional().or(z.literal('')),
+  password: z.preprocess(
+    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+    z.string().min(8).optional()
+  ),
+});
+
+const releaseEmailSchema = z.object({
+  email: z.string().email(),
+  reason: z.string().min(3).optional(),
 });
 
 const createStudentSchema = z.object({
@@ -41,7 +49,10 @@ const createStudentSchema = z.object({
   matricNumber: z.string().min(5),
   programme: z.string().optional().or(z.literal('')),
   phone: z.string().optional().or(z.literal('')),
-  password: z.string().min(8).optional().or(z.literal('')),
+  password: z.preprocess(
+    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+    z.string().min(8).optional()
+  ),
   personalEmail: z.string().email().optional().or(z.literal('')),
   gender: z.enum(['Male', 'Female', 'Other']).optional(),
   isNigerian: z.boolean().optional(),
@@ -129,18 +140,37 @@ export async function listUsers(req: AuthRequest, res: Response): Promise<void> 
   }
 }
 
+function formatRoleLabel(role: string): string {
+  return role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /** POST /api/admin/users  — create a new staff user */
 export async function createUser(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { firstName, lastName, email, role, programme, phone, password } = createUserSchema.parse(req.body);
     const tenantId = req.user!.tenant;
+    const normalizedEmail = email.toLowerCase().trim();
 
-    const existing = await User.findOne({ 
+    const existing = await User.findOne({
       tenant: tenantId,
-      email: email.toLowerCase() 
+      email: normalizedEmail,
+      isDeleted: { $ne: true },
     });
     if (existing) {
       res.status(409).json({ error: 'Email already in use in this institution' });
+      return;
+    }
+
+    const recycled = await User.findOne({
+      tenant: tenantId,
+      email: normalizedEmail,
+      isDeleted: true,
+    });
+    if (recycled) {
+      res.status(409).json({
+        error: 'This email belongs to a deleted account in the recycle bin. Permanently delete it (Recycle Bin) or use Release Email before reusing.',
+        recycleBinUserId: recycled._id,
+      });
       return;
     }
 
@@ -171,8 +201,8 @@ export async function createUser(req: AuthRequest, res: Response): Promise<void>
     const user = new User({
       firstName,
       lastName,
-      email: email.toLowerCase(),
-      username: email.toLowerCase(),
+      email: normalizedEmail,
+      username: normalizedEmail,
       password: tempPassword,
       role,
       phone,
@@ -187,32 +217,66 @@ export async function createUser(req: AuthRequest, res: Response): Promise<void>
       .select('-password')
       .populate('programme', 'code name level');
 
-    // Welcome notifications — email + WhatsApp
-    const roleLabel = role.replace(/_/g, ' ').replace(/\w/g, (c: string) => c.toUpperCase());
+    await AuditLog.create({
+      tenant: tenantId,
+      user: req.user!.id,
+      action: 'CREATE_USER',
+      module: 'USER_MANAGEMENT',
+      targetId: user._id,
+      details: `Created staff user ${normalizedEmail} (${role})`,
+      ipAddress: req.ip,
+    });
+
+    const appUrl = process.env.FRONTEND_URL || 'https://acetel-frontend.onrender.com';
+    const roleLabel = formatRoleLabel(role);
+    const delivery = { email: false, whatsapp: false };
+    const deliveryDetails = {
+      emailConfigured: isEmailConfigured(),
+      whatsappConfigured: !!(
+        (process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN) ||
+        (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM)
+      ),
+      phoneProvided: !!phone,
+    };
+
     try {
-      await sendEmail(
-        email.toLowerCase(),
+      delivery.email = await sendEmail(
+        normalizedEmail,
         'Welcome to ACETEL IMS — Your Account is Ready',
-        emailTemplates.welcomeStaff(`${firstName} ${lastName}`, email, tempPassword, roleLabel, process.env.FRONTEND_URL || '')
+        emailTemplates.welcomeStaff(
+          `${firstName} ${lastName}`,
+          normalizedEmail,
+          normalizedEmail,
+          tempPassword,
+          roleLabel,
+          appUrl
+        )
       );
+      if (!delivery.email) {
+        logger.warn('Staff welcome email not sent for %s (SMTP missing or send failed)', normalizedEmail);
+      }
     } catch (mailErr) {
-      logger.warn('Welcome email failed for %s: %s', email, (mailErr as Error).message);
+      logger.warn('Welcome email failed for %s: %s', normalizedEmail, (mailErr as Error).message);
     }
     if (phone) {
       try {
-        await sendWhatsAppMessage(phone, `*ACETEL IMS — Account Created* 🎓
+        delivery.whatsapp = await sendWhatsAppMessage(phone, `*ACETEL IMS — Account Created* 🎓
 
 Hello ${firstName},
 
 Your staff account has been created.
 
 *Role:* ${roleLabel}
-*Login Email:* ${email}
+*Login Email:* ${normalizedEmail}
+*Username:* ${normalizedEmail}
 *Temporary Password:* ${tempPassword}
 
-Login here: ${process.env.FRONTEND_URL}
+Login here: ${appUrl}
 
 _Please change your password after first login._`);
+        if (!delivery.whatsapp) {
+          logger.warn('Staff welcome WhatsApp not sent for %s', phone);
+        }
       } catch (waErr) {
         logger.warn('Welcome WhatsApp failed for %s: %s', phone, (waErr as Error).message);
       }
@@ -227,15 +291,80 @@ _Please change your password after first login._`);
     res.status(201).json({
       user: saved,
       tempPassword,
+      delivery,
+      deliveryDetails,
       message: 'Staff user created successfully',
+    });
+  } catch (err: any) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      return;
+    }
+    if (err?.code === 11000) {
+      const field = Object.keys(err.keyValue || {})[0] || 'email';
+      res.status(409).json({
+        error: `A user with this ${field} already exists. If it was deleted, release the email from Recycle Bin first.`,
+        field,
+      });
+      return;
+    }
+    logger.error('Create user error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Failed to save user. Please check required fields and try again.' });
+  }
+}
+
+/** POST /api/admin/users/release-email — permanently remove soft-deleted user so email can be reused */
+export async function releaseEmail(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { email, reason } = releaseEmailSchema.parse(req.body);
+    const tenantId = req.user!.tenant;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const active = await User.findOne({
+      tenant: tenantId,
+      email: normalizedEmail,
+      isDeleted: { $ne: true },
+    });
+    if (active) {
+      res.status(400).json({ error: 'This email is still assigned to an active user. Deactivate the account first.' });
+      return;
+    }
+
+    const deletedUsers = await User.find({
+      tenant: tenantId,
+      email: normalizedEmail,
+      isDeleted: true,
+    });
+
+    if (deletedUsers.length === 0) {
+      res.status(404).json({ error: 'No deleted account found with this email in the recycle bin' });
+      return;
+    }
+
+    const ids = deletedUsers.map((u) => u._id);
+    await User.deleteMany({ _id: { $in: ids } });
+
+    await AuditLog.create({
+      tenant: tenantId,
+      user: req.user!.id,
+      action: 'RELEASE_EMAIL',
+      module: 'RECYCLE_BIN',
+      reason: reason || 'Email released for reuse',
+      details: `Permanently purged ${deletedUsers.length} soft-deleted record(s) for ${normalizedEmail}`,
+      ipAddress: req.ip,
+    });
+
+    res.json({
+      message: `Email ${normalizedEmail} is now free to use for a new account`,
+      releasedCount: deletedUsers.length,
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    logger.error('Error: %s', (err as Error).message);
-    res.status(500).json({ error: 'Server error' });
+    logger.error('Release email error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Failed to release email' });
   }
 }
 

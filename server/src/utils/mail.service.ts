@@ -1,6 +1,10 @@
 import nodemailer from 'nodemailer';
 import logger from './logger';
 
+export function isEmailConfigured(): boolean {
+  return !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+}
+
 let transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
@@ -29,6 +33,10 @@ if (process.env.SMTP_PASS === 'your_institutional_password' || !process.env.SMTP
 }
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+  if (!isEmailConfigured()) {
+    console.warn('Email skipped: SMTP_USER/SMTP_PASS not configured');
+    return false;
+  }
   try {
     const info = await transporter.sendMail({
       from: `"ACETEL VIMS" <${process.env.SMTP_USER || 'no-reply@acetel.org'}>`,
@@ -101,13 +109,14 @@ export const emailTemplates = {
     <p style="margin-top:24px; color: #6b7280; font-size: 0.85rem;">If you have any issues, contact your Programme Coordinator or the ICT Support desk.</p>
   `),
 
-  welcomeStaff: (name: string, email: string, password: string, role: string, appUrl: string) => base(`
+  welcomeStaff: (name: string, email: string, username: string, password: string, role: string, appUrl: string) => base(`
     <h2>Welcome to ACETEL VIMS, ${name}!</h2>
     <p>A staff account has been created for you on the ACETEL Virtual Internship Management System.</p>
     <div class="info-box">
       <div class="info-row"><span class="info-label">Name</span><span class="info-value">${name}</span></div>
-      <div class="info-row"><span class="info-label">Email</span><span class="info-value">${email}</span></div>
-      <div class="info-row"><span class="info-label">Password</span><span class="info-value"><strong>${password}</strong></span></div>
+      <div class="info-row"><span class="info-label">Login Email</span><span class="info-value">${email}</span></div>
+      <div class="info-row"><span class="info-label">Username</span><span class="info-value">${username}</span></div>
+      <div class="info-row"><span class="info-label">Temporary Password</span><span class="info-value"><strong>${password}</strong></span></div>
       <div class="info-row"><span class="info-label">Role</span><span class="info-value">${role.replace(/_/g, ' ').toUpperCase()}</span></div>
       <div class="info-row"><span class="info-label">Portal URL</span><span class="info-value"><a href="${appUrl}">${appUrl}</a></span></div>
     </div>

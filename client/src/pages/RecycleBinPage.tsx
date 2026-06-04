@@ -6,6 +6,7 @@ import {
   Upload, FileText, ShieldAlert, Info,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 
 /* ─── Types ───────────────────────────────────────────── */
 type BinTab = 'staff' | 'students' | 'companies';
@@ -22,6 +23,10 @@ interface BinTarget {
 
 /* ═══════════════════════════════════════════════════════ */
 export default function RecycleBinPage() {
+  const { isRole } = useAuth();
+  const isAdmin = isRole('admin');
+  const [releaseEmailInput, setReleaseEmailInput] = useState('');
+  const [releasingEmail, setReleasingEmail] = useState(false);
   const [deletedUsers,     setDeletedUsers]     = useState<any[]>([]);
   const [deletedStudents,  setDeletedStudents]  = useState<any[]>([]);
   const [deletedCompanies, setDeletedCompanies] = useState<any[]>([]);
@@ -55,6 +60,25 @@ export default function RecycleBinPage() {
   }, []);
 
   useEffect(() => { loadRecycleBin(); }, [loadRecycleBin]);
+
+  const handleReleaseEmail = async () => {
+    const email = releaseEmailInput.trim().toLowerCase();
+    if (!email) { toast.error('Enter an email address to release'); return; }
+    setReleasingEmail(true);
+    try {
+      const { data } = await api.post('/admin/users/release-email', {
+        email,
+        reason: 'Admin released email for testing/re-registration',
+      });
+      toast.success(data.message || 'Email released');
+      setReleaseEmailInput('');
+      loadRecycleBin();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to release email');
+    } finally {
+      setReleasingEmail(false);
+    }
+  };
 
   /* ── Open action modal ── */
   const openAction = (target: BinTarget, action: BinAction) => {
@@ -160,6 +184,38 @@ export default function RecycleBinPage() {
           All actions in the Recycle Bin are <strong>irreversible</strong> and require an authorised approval memo. Each action is logged in the institutional audit trail.
         </span>
       </div>
+
+      {isAdmin && (
+        <div className="card" style={{ padding: '16px 20px', marginBottom: 20, borderLeft: '4px solid var(--primary)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+            <Info size={18} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: 2 }} />
+            <div>
+              <strong>Release email for reuse</strong>
+              <p style={{ margin: '4px 0 0', fontSize: '.85rem', color: 'var(--text-2)' }}>
+                Permanently removes a soft-deleted account from the recycle bin so you can register the same email again (no approval memo required).
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <input
+              type="email"
+              className="form-control"
+              placeholder="e.g. test.user@acetel.ng"
+              value={releaseEmailInput}
+              onChange={e => setReleaseEmailInput(e.target.value)}
+              style={{ flex: '1 1 240px', maxWidth: 360 }}
+            />
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={releasingEmail || !releaseEmailInput.trim()}
+              onClick={handleReleaseEmail}
+            >
+              {releasingEmail ? 'Releasing…' : 'Release Email'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ══ Page Header ══ */}
       <div className="page-hero">
