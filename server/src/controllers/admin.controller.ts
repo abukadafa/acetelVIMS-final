@@ -42,6 +42,11 @@ const releaseEmailSchema = z.object({
   reason: z.string().min(3).optional(),
 });
 
+const releaseMatricSchema = z.object({
+  matricNumber: z.string().min(5),
+  reason: z.string().min(3).optional(),
+});
+
 const createStudentSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
@@ -149,6 +154,10 @@ export async function createUser(req: AuthRequest, res: Response): Promise<void>
   try {
     const { firstName, lastName, email, role, programme, phone, password } = createUserSchema.parse(req.body);
     const tenantId = req.user!.tenant;
+    if (!tenantId) {
+      res.status(400).json({ error: 'Session expired or missing tenant. Please log out and sign in again.' });
+      return;
+    }
     const normalizedEmail = email.toLowerCase().trim();
 
     const existing = await User.findOne({
@@ -368,6 +377,81 @@ export async function releaseEmail(req: AuthRequest, res: Response): Promise<voi
   }
 }
 
+/** POST /api/admin/students/release-matric — purge soft-deleted student so matric can be reused */
+export async function releaseMatric(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { matricNumber, reason } = releaseMatricSchema.parse(req.body);
+    const tenantId = req.user!.tenant;
+    if (!tenantId) {
+      res.status(400).json({ error: 'Session expired or missing tenant. Please log out and sign in again.' });
+      return;
+    }
+    const normMatric = matricNumber.trim();
+
+    const activeStudent = await Student.findOne({
+      tenant: tenantId,
+      matricNumber: normMatric,
+      isDeleted: { $ne: true },
+    });
+    if (activeStudent) {
+      res.status(400).json({ error: 'This matric number is still assigned to an active student. Deactivate the account first.' });
+      return;
+    }
+
+    const activeUser = await User.findOne({
+      tenant: tenantId,
+      username: normMatric.toLowerCase(),
+      isDeleted: { $ne: true },
+    });
+    if (activeUser) {
+      res.status(400).json({ error: 'This matric is still used as a login username by an active user.' });
+      return;
+    }
+
+    const deletedStudents = await Student.find({
+      tenant: tenantId,
+      matricNumber: normMatric,
+      isDeleted: true,
+    });
+
+    if (deletedStudents.length === 0) {
+      res.status(404).json({ error: 'No deleted student found with this matric number in the recycle bin' });
+      return;
+    }
+
+    const userIds = deletedStudents.map((s) => s.user);
+    await Student.deleteMany({ _id: { $in: deletedStudents.map((s) => s._id) } });
+    await User.deleteMany({ _id: { $in: userIds }, isDeleted: true });
+    await User.deleteMany({
+      tenant: tenantId,
+      username: normMatric.toLowerCase(),
+      isDeleted: true,
+    });
+
+    await AuditLog.create({
+      tenant: tenantId,
+      user: req.user!.id,
+      action: 'RELEASE_MATRIC',
+      module: 'RECYCLE_BIN',
+      reason: reason || 'Matric released for reuse',
+      details: `Permanently purged ${deletedStudents.length} soft-deleted student record(s) for matric ${normMatric}`,
+      ipAddress: req.ip,
+    });
+
+    res.json({
+      message: `Matric number ${normMatric} is now free to use for a new student`,
+      releasedCount: deletedStudents.length,
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      return;
+    }
+    logger.error('Release matric error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Failed to release matric number' });
+  }
+}
+
 export async function createStudent(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { 
@@ -378,6 +462,13 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       academicSession, level 
     } = createStudentSchema.parse(req.body);
     const tenantId = req.user!.tenant;
+    if (!tenantId) {
+      res.status(400).json({ error: 'Session expired or missing tenant. Please log out and sign in again.' });
+      return;
+    }
+
+    const normMatric = matricNumber.trim();
+    const normEmail = email.toLowerCase().trim();
 
     // Programme Isolation
     const targetProgramme = req.user!.role !== 'admin' ? req.user!.programme : programme;
@@ -387,21 +478,51 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const existingUser = await User.findOne({ 
+    const existingUser = await User.findOne({
       tenant: tenantId,
-      $or: [
-        { email: email.toLowerCase() },
-        { username: matricNumber.toLowerCase() }
-      ] 
+      isDeleted: { $ne: true },
+      $or: [{ email: normEmail }, { username: normMatric.toLowerCase() }],
     });
     if (existingUser) {
-      res.status(409).json({ error: 'Identity (Email or Matric Number) already in use in this institution' });
+      const conflict = existingUser.email === normEmail ? 'email' : 'matric number';
+      res.status(409).json({ error: `Identity already in use: ${conflict} is taken by an active account.` });
       return;
     }
 
-    const existingMatric = await Student.findOne({ tenant: tenantId, matricNumber });
+    const recycledUser = await User.findOne({
+      tenant: tenantId,
+      isDeleted: true,
+      $or: [{ email: normEmail }, { username: normMatric.toLowerCase() }],
+    });
+    if (recycledUser) {
+      const hint = recycledUser.username === normMatric.toLowerCase() ? 'release-matric' : 'release-email';
+      res.status(409).json({
+        error: 'This email or matric belongs to a deleted account. Use Release Email or Release Matric in Recycle Bin before reusing.',
+        hint,
+      });
+      return;
+    }
+
+    const existingMatric = await Student.findOne({
+      tenant: tenantId,
+      matricNumber: normMatric,
+      isDeleted: { $ne: true },
+    });
     if (existingMatric) {
-      res.status(409).json({ error: 'Matric number already registered' });
+      res.status(409).json({ error: 'Matric number already registered to an active student' });
+      return;
+    }
+
+    const recycledStudent = await Student.findOne({
+      tenant: tenantId,
+      matricNumber: normMatric,
+      isDeleted: true,
+    });
+    if (recycledStudent) {
+      res.status(409).json({
+        error: 'This matric belongs to a deleted student in the recycle bin. Use Release Matric before reusing.',
+        hint: 'release-matric',
+      });
       return;
     }
 
@@ -410,8 +531,8 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
     const user = new User({
       firstName,
       lastName,
-      email: email.toLowerCase(),
-      username: matricNumber.toLowerCase(),
+      email: normEmail,
+      username: normMatric.toLowerCase(),
       password: tempPassword,
       role: 'student',
       phone,
@@ -424,7 +545,7 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
     const student = new Student({
       user: user._id,
       tenant: tenantId,
-      matricNumber,
+      matricNumber: normMatric,
       programme: targetProgramme,
       academicSession: academicSession || '2024/2025',
       level: level || 'MSc',
@@ -521,13 +642,21 @@ _Please change your password after first login._`
       posting,
       tempPassword
     });
-  } catch (err) {
+  } catch (err: any) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    logger.error('Error: %s', (err as Error).message);
-    res.status(500).json({ error: 'Server error' });
+    if (err?.code === 11000) {
+      const field = Object.keys(err.keyValue || {})[0] || 'identity';
+      res.status(409).json({
+        error: `Duplicate ${field}. If this student was deleted, release the email or matric from Recycle Bin first.`,
+        field,
+      });
+      return;
+    }
+    logger.error('Create student error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Failed to onboard student. Please check required fields and try again.' });
   }
 }
 

@@ -37,7 +37,7 @@ export interface IStudent extends Document {
 
 const StudentSchema: Schema = new Schema({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  matricNumber: { type: String, required: true, unique: true },
+  matricNumber: { type: String, required: true, trim: true },
   programme: { type: Schema.Types.ObjectId, ref: 'Programme', required: true },
   tenant: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
   company: { type: Schema.Types.ObjectId, ref: 'Company' },
@@ -86,5 +86,10 @@ const StudentSchema: Schema = new Schema({
 }, {
   timestamps: true
 });
+
+StudentSchema.index(
+  { matricNumber: 1, tenant: 1 },
+  { unique: true, partialFilterExpression: { isDeleted: false } }
+);
 
 export default mongoose.model<IStudent>('Student', StudentSchema);

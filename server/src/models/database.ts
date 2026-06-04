@@ -4,6 +4,7 @@ import Tenant from './Tenant.model';
 import Programme from './Programme.model';
 import Setting from './Setting.model';
 import User from './User.model';
+import Student from './Student.model';
 import logger from '../utils/logger';
 
 dotenv.config();
@@ -45,11 +46,12 @@ export async function initDatabase(): Promise<void> {
     // Safety Seed: Ensure a User record exists for the Environment-based Admin
     await ensureAdminUserRecordExists(tenant._id as mongoose.Types.ObjectId);
 
-    // Align user indexes (partial unique on email/username per tenant for active users)
+    // Align indexes (partial unique — active records only; isDeleted must be false, not $ne)
     try {
       await User.syncIndexes();
+      await Student.syncIndexes();
     } catch (idxErr) {
-      logger.warn('User index sync warning (may need manual index cleanup): %s', (idxErr as Error).message);
+      logger.warn('Index sync warning (drop legacy email_1 / matricNumber_1 indexes in MongoDB if needed): %s', (idxErr as Error).message);
     }
 
     logger.info('🚀 Database synchronized (Identity sync skipped for No-Conflict Design)');

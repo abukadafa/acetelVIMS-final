@@ -52,11 +52,11 @@ const UserSchema: Schema = new Schema({
 // Active users only — soft-deleted records do not block email/username reuse
 UserSchema.index(
   { email: 1, tenant: 1 },
-  { unique: true, partialFilterExpression: { isDeleted: { $ne: true } } }
+  { unique: true, partialFilterExpression: { isDeleted: false } }
 );
 UserSchema.index(
   { username: 1, tenant: 1 },
-  { unique: true, partialFilterExpression: { isDeleted: { $ne: true } } }
+  { unique: true, partialFilterExpression: { isDeleted: false } }
 );
 
 // Hash password before saving

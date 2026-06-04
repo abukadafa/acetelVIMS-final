@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { ArrowRight, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import api from '../lib/api';
+import { NIGERIAN_STATES, getLgasForState } from '../data/nigeria-locations';
 
 type Step = 'identity' | 'academic' | 'location' | 'account' | 'success';
 
@@ -242,11 +243,19 @@ export default function RegisterPage() {
             <div className="vims-form">
               <div className="vims-field">
                 <label className="vims-label">State of Residence</label>
-                <input type="text" name="stateOfOrigin" className="vims-input" placeholder="e.g. Lagos" value={formData.stateOfOrigin} onChange={handleChange} />
+                <select name="stateOfOrigin" className="vims-input" value={formData.stateOfOrigin}
+                  onChange={(e) => setFormData((prev: any) => ({ ...prev, stateOfOrigin: e.target.value, lga: '' }))}>
+                  <option value="">Select state…</option>
+                  {NIGERIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
               </div>
               <div className="vims-field">
                 <label className="vims-label">Local Government Area</label>
-                <input type="text" name="lga" className="vims-input" placeholder="e.g. Alimosho" value={formData.lga} onChange={handleChange} />
+                <select name="lga" className="vims-input" disabled={!formData.stateOfOrigin} value={formData.lga}
+                  onChange={handleChange}>
+                  <option value="">{formData.stateOfOrigin ? 'Select LGA…' : 'Select state first'}</option>
+                  {getLgasForState(formData.stateOfOrigin).map(lga => <option key={lga} value={lga}>{lga}</option>)}
+                </select>
               </div>
               <div className="vims-field">
                 <label className="vims-label">Full Residential Address</label>

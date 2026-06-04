@@ -4,6 +4,7 @@ import api from '../lib/api';
 import { ArrowLeft, User, Building2, BookOpen, Shield, Pencil, Trash2, Camera as CameraIcon, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { NIGERIAN_STATES, getLgasForState, normalizeStateValue } from '../data/nigeria-locations';
 import ReasonModal from '../components/ReasonModal';
 
 export default function StudentProfilePage() {
@@ -255,13 +256,21 @@ export default function StudentProfilePage() {
                 </div>
                 <div>
                   <label className="form-label">State of Origin</label>
-                  <input className="form-control" value={editing.stateOfOrigin || ''}
-                    onChange={(e) => setEditing((p: any) => ({ ...p, stateOfOrigin: e.target.value }))} />
+                  <select className="form-control form-select" value={normalizeStateValue(editing.stateOfOrigin || '')}
+                    onChange={(e) => setEditing((p: any) => ({ ...p, stateOfOrigin: e.target.value, lga: '' }))}>
+                    <option value="">Select state…</option>
+                    {NIGERIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="form-label">LGA</label>
-                  <input className="form-control" value={editing.lga || ''}
-                    onChange={(e) => setEditing((p: any) => ({ ...p, lga: e.target.value }))} />
+                  <select className="form-control form-select" disabled={!editing.stateOfOrigin} value={editing.lga || ''}
+                    onChange={(e) => setEditing((p: any) => ({ ...p, lga: e.target.value }))}>
+                    <option value="">Select LGA…</option>
+                    {getLgasForState(normalizeStateValue(editing.stateOfOrigin || '')).map((lga: string) => (
+                      <option key={lga} value={lga}>{lga}</option>
+                    ))}
+                  </select>
                 </div>
                 <div style={{ gridColumn: 'span 2' }}>
                   <label className="form-label">Address</label>

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { upload } from '../middleware/upload.middleware';
 import {
-  listUsers, createUser, createStudent, updateUser, deactivateUser, listProgrammes, releaseEmail,
+  listUsers, createUser, createStudent, updateUser, deactivateUser, listProgrammes, releaseEmail, releaseMatric,
   restoreUser, listRecycleBin, getAuditLogs, exportSecurityAudit,
   permanentDeleteUser, bulkOnboard,
   restoreStudent, permanentDeleteStudent,
@@ -29,6 +29,7 @@ r.get('/recycle-bin', authorize('admin'), listRecycleBin);
 // Write — coordinators & ICT support can create users/students within their programme
 r.post('/users',     authorize(...GOVERNANCE_ROLES), createUser);
 r.post('/users/release-email', authorize('admin'), releaseEmail);
+r.post('/students/release-matric', authorize('admin'), releaseMatric);
 r.post('/students',  authorize(...GOVERNANCE_ROLES), createStudent);
 r.post('/bulk-onboard', authorize(...GOVERNANCE_ROLES), bulkOnboard);
 r.put('/users/:id',  authorize(...GOVERNANCE_ROLES), updateUser);

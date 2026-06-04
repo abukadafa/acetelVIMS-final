@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import AuditTrailModal from './AuditTrailModal';
 import BulkEnrollModal from './BulkEnrollModal';
 import ReasonModal from './ReasonModal';
+import { NIGERIAN_STATES, getLgasForState, normalizeStateValue } from '../data/nigeria-locations';
 
 export default function StudentList() {
   const [students, setStudents]       = useState<any[]>([]);
@@ -462,15 +463,21 @@ export default function StudentList() {
               </div>
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151',
-                  marginBottom: 5, display: 'block' }}>Student State (for Posting) *</label>
-                <input style={inputStyle} required placeholder="e.g. Lagos, FCT, Kano" value={newStudent.stateOfOrigin}
-                  onChange={e => setNewStudent(prev => ({ ...prev, stateOfOrigin: e.target.value }))} />
+                  marginBottom: 5, display: 'block' }}>State of Origin *</label>
+                <select style={inputStyle} required value={newStudent.stateOfOrigin}
+                  onChange={e => setNewStudent(prev => ({ ...prev, stateOfOrigin: e.target.value, lga: '' }))}>
+                  <option value="">Select state…</option>
+                  {NIGERIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
               </div>
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151',
-                  marginBottom: 5, display: 'block' }}>LGA (optional)</label>
-                <input style={inputStyle} placeholder="Local Government Area" value={newStudent.lga}
-                  onChange={e => setNewStudent(prev => ({ ...prev, lga: e.target.value }))} />
+                  marginBottom: 5, display: 'block' }}>LGA</label>
+                <select style={inputStyle} disabled={!newStudent.stateOfOrigin} value={newStudent.lga}
+                  onChange={e => setNewStudent(prev => ({ ...prev, lga: e.target.value }))}>
+                  <option value="">{newStudent.stateOfOrigin ? 'Select LGA…' : 'Select state first'}</option>
+                  {getLgasForState(newStudent.stateOfOrigin).map(lga => <option key={lga} value={lga}>{lga}</option>)}
+                </select>
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
                 <button type="button" onClick={() => setShowAddModal(false)}
@@ -547,13 +554,21 @@ export default function StudentList() {
               </div>
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', marginBottom: 5, display: 'block' }}>State of Origin</label>
-                <input style={inputStyle} value={editing.stateOfOrigin || ''}
-                  onChange={e => setEditing((p: any) => ({ ...p, stateOfOrigin: e.target.value }))} />
+                <select style={inputStyle} value={normalizeStateValue(editing.stateOfOrigin || '')}
+                  onChange={e => setEditing((p: any) => ({ ...p, stateOfOrigin: e.target.value, lga: '' }))}>
+                  <option value="">Select state…</option>
+                  {NIGERIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
               </div>
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', marginBottom: 5, display: 'block' }}>LGA</label>
-                <input style={inputStyle} value={editing.lga || ''}
-                  onChange={e => setEditing((p: any) => ({ ...p, lga: e.target.value }))} />
+                <select style={inputStyle} disabled={!editing.stateOfOrigin} value={editing.lga || ''}
+                  onChange={e => setEditing((p: any) => ({ ...p, lga: e.target.value }))}>
+                  <option value="">Select LGA…</option>
+                  {getLgasForState(normalizeStateValue(editing.stateOfOrigin || '')).map((lga: string) => (
+                    <option key={lga} value={lga}>{lga}</option>
+                  ))}
+                </select>
               </div>
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', marginBottom: 5, display: 'block' }}>Address</label>

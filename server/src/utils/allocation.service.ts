@@ -2,6 +2,7 @@ import Student from '../models/Student.model';
 import Company from '../models/Company.model';
 import User from '../models/User.model';
 import { calculateDistance } from './geo.utils';
+import { companyStatesMatching } from './nigeria-states.util';
 
 /**
  * Intelligent Allocation Engine
@@ -19,9 +20,10 @@ export async function autoAllocateStudent(studentId: string): Promise<any> {
   const targetSector = getSectorFromProgramme(programme.code);
 
   // Find all approved companies in the same state (tenant-scoped, not deleted)
+  const stateFilter = companyStatesMatching(student.stateOfOrigin);
   const availableCompanies = await Company.find({
     tenant: student.tenant,
-    state: student.stateOfOrigin,
+    state: stateFilter,
     isApproved: true,
     isDeleted: false,
     $expr: { $lt: ['$currentStudents', '$maxStudents'] }

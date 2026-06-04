@@ -11,6 +11,7 @@ import ReasonModal from '../components/ReasonModal';
 import AuditTrailModal from '../components/AuditTrailModal';
 import BulkEnrollModal from '../components/BulkEnrollModal';
 import { useAuth } from '../context/AuthContext';
+import NigeriaStateLgaSelect from '../components/NigeriaStateLgaSelect';
 
 /* ─── Types ────────────────────────────────────────────────────── */
 type Role = 'admin' | 'prog_coordinator' | 'internship_coordinator' | 'ict_support' | 'supervisor' | 'industry_supervisor';
@@ -265,7 +266,14 @@ export default function UserManagementPage() {
       });
       load();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to onboard student');
+      const msg = err.response?.data?.error || 'Failed to onboard student';
+      toast.error(msg);
+      const hint = err.response?.data?.hint;
+      if (hint === 'release-matric' && isAdmin) {
+        toast('Go to Recycle Bin → Release Matric to free this matric number.', { icon: 'ℹ️', duration: 7000 });
+      } else if (hint === 'release-email' && isAdmin) {
+        toast('Go to Recycle Bin → Release Email to free this address.', { icon: 'ℹ️', duration: 7000 });
+      }
     } finally { setSavingStudent(false); }
   };
 
@@ -843,18 +851,14 @@ export default function UserManagementPage() {
                  </div>
 
                  <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">State of Origin (for auto-posting) *</label>
-                    <input className="form-control" required
-                      value={studentForm.stateOfOrigin}
-                      onChange={e => setStudentForm(f => ({ ...f, stateOfOrigin: e.target.value }))} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">LGA (optional)</label>
-                    <input className="form-control"
-                      value={studentForm.lga}
-                      onChange={e => setStudentForm(f => ({ ...f, lga: e.target.value }))} />
-                  </div>
+                   <NigeriaStateLgaSelect
+                     stateValue={studentForm.stateOfOrigin}
+                     lgaValue={studentForm.lga}
+                     onStateChange={(stateOfOrigin) => setStudentForm(f => ({ ...f, stateOfOrigin }))}
+                     onLgaChange={(lga) => setStudentForm(f => ({ ...f, lga }))}
+                     stateLabel="State of Origin (for auto-posting)"
+                     required
+                   />
                  </div>
  
                  {isAdmin && (

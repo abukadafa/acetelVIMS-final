@@ -265,8 +265,9 @@ app.use('/api', apiRouter);
 // ─────────────────────────────────────────────────────────────────────────────
 // 13. REACT SPA FALLBACK (production)
 // ─────────────────────────────────────────────────────────────────────────────
-if (process.env.NODE_ENV === 'production') {
-  const clientBuildPath = path.join(process.cwd(), '..', 'client', 'dist');
+if (process.env.NODE_ENV === 'production' && process.env.SERVE_CLIENT !== 'false') {
+  const clientBuildPath = process.env.CLIENT_DIST_PATH
+    || path.join(process.cwd(), '..', 'client', 'dist');
   if (fs.existsSync(clientBuildPath)) {
     app.use(express.static(clientBuildPath, { index: false, dotfiles: 'deny' }));
     app.get('*', (req, res) => {
@@ -276,8 +277,8 @@ if (process.env.NODE_ENV === 'production') {
         res.status(404).json({ error: 'Not found' });
       }
     });
-  } else {
-    logger.warn('⚠️  Client build not found at %s.', clientBuildPath);
+  } else if (process.env.SERVE_CLIENT === 'true') {
+    logger.warn('⚠️  Client build not found at %s (set CLIENT_DIST_PATH or build client).', clientBuildPath);
   }
 }
 

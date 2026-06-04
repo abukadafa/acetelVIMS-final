@@ -26,7 +26,9 @@ export default function RecycleBinPage() {
   const { isRole } = useAuth();
   const isAdmin = isRole('admin');
   const [releaseEmailInput, setReleaseEmailInput] = useState('');
+  const [releaseMatricInput, setReleaseMatricInput] = useState('');
   const [releasingEmail, setReleasingEmail] = useState(false);
+  const [releasingMatric, setReleasingMatric] = useState(false);
   const [deletedUsers,     setDeletedUsers]     = useState<any[]>([]);
   const [deletedStudents,  setDeletedStudents]  = useState<any[]>([]);
   const [deletedCompanies, setDeletedCompanies] = useState<any[]>([]);
@@ -60,6 +62,25 @@ export default function RecycleBinPage() {
   }, []);
 
   useEffect(() => { loadRecycleBin(); }, [loadRecycleBin]);
+
+  const handleReleaseMatric = async () => {
+    const matricNumber = releaseMatricInput.trim();
+    if (!matricNumber) { toast.error('Enter a matric number to release'); return; }
+    setReleasingMatric(true);
+    try {
+      const { data } = await api.post('/admin/students/release-matric', {
+        matricNumber,
+        reason: 'Admin released matric for testing/re-registration',
+      });
+      toast.success(data.message || 'Matric released');
+      setReleaseMatricInput('');
+      loadRecycleBin();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to release matric number');
+    } finally {
+      setReleasingMatric(false);
+    }
+  };
 
   const handleReleaseEmail = async () => {
     const email = releaseEmailInput.trim().toLowerCase();
@@ -187,20 +208,20 @@ export default function RecycleBinPage() {
 
       {isAdmin && (
         <div className="card" style={{ padding: '16px 20px', marginBottom: 20, borderLeft: '4px solid var(--primary)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 12 }}>
             <Info size={18} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: 2 }} />
             <div>
-              <strong>Release email for reuse</strong>
+              <strong>Release identity for reuse</strong>
               <p style={{ margin: '4px 0 0', fontSize: '.85rem', color: 'var(--text-2)' }}>
-                Permanently removes a soft-deleted account from the recycle bin so you can register the same email again (no approval memo required).
+                Permanently removes soft-deleted records so you can register the same email or matric again (no approval memo required).
               </p>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
             <input
               type="email"
               className="form-control"
-              placeholder="e.g. test.user@acetel.ng"
+              placeholder="Email to release"
               value={releaseEmailInput}
               onChange={e => setReleaseEmailInput(e.target.value)}
               style={{ flex: '1 1 240px', maxWidth: 360 }}
@@ -212,6 +233,24 @@ export default function RecycleBinPage() {
               onClick={handleReleaseEmail}
             >
               {releasingEmail ? 'Releasing…' : 'Release Email'}
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Matric number to release"
+              value={releaseMatricInput}
+              onChange={e => setReleaseMatricInput(e.target.value)}
+              style={{ flex: '1 1 240px', maxWidth: 360 }}
+            />
+            <button
+              type="button"
+              className="btn btn-outline"
+              disabled={releasingMatric || !releaseMatricInput.trim()}
+              onClick={handleReleaseMatric}
+            >
+              {releasingMatric ? 'Releasing…' : 'Release Matric'}
             </button>
           </div>
         </div>
