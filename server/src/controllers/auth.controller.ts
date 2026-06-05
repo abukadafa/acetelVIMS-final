@@ -11,7 +11,7 @@ import NotificationModel from '../models/notification.model';
 import logger from '../utils/logger';
 import { loginSchema, registerSchema } from '../utils/validation';
 import * as authService from '../services/auth.service';
-import { sendEmail, emailTemplates } from '../utils/mail.service';
+import { sendEmail, emailTemplates, isEmailConfigured, verifySmtpConnection } from '../utils/mail.service';
 import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
 import { autoAllocateStudent } from '../utils/allocation.service';
 import { maskCompanyForStudentView } from '../utils/studentView.util';
@@ -433,15 +433,51 @@ export async function logout(req: AuthRequest, res: Response): Promise<void> {
 
 // ─── COMMS STATUS ────────────────────────────────────────────────────────────
 export async function getCommsStatus(_req: Request, res: Response): Promise<void> {
-  const emailActive    = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+  const emailActive = isEmailConfigured();
+  const smtpVerify = emailActive ? await verifySmtpConnection() : { ok: false as const, error: 'Not configured' };
   const waMetaActive   = !!(process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN);
   const waTwilioActive = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM);
   const whatsappActive = waMetaActive || waTwilioActive;
   res.json({
-    email:    { active: emailActive, provider: emailActive ? (process.env.SMTP_HOST || 'smtp.gmail.com') : null },
+    email: {
+      active: emailActive && smtpVerify.ok,
+      configured: emailActive,
+      verified: smtpVerify.ok,
+      provider: emailActive ? (process.env.SMTP_HOST || 'smtp.gmail.com') : null,
+      error: smtpVerify.ok ? null : smtpVerify.error,
+    },
     whatsapp: { active: whatsappActive, provider: whatsappActive ? (waMetaActive ? 'Meta WhatsApp Cloud API (Free)' : 'Twilio WhatsApp') : null },
     chat:     { active: true, provider: 'ACETEL IMS Real-Time Chat (Socket.IO)' },
   });
+}
+
+export async function testEmail(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const to = (req.body?.email as string)?.trim() || req.user?.email;
+    if (!to) {
+      res.status(400).json({ error: 'Email address required' });
+      return;
+    }
+    const verify = await verifySmtpConnection();
+    if (!verify.ok) {
+      res.status(400).json({ error: `SMTP connection failed: ${verify.error}` });
+      return;
+    }
+    const appUrl = process.env.FRONTEND_URL || 'https://acetel-frontend.onrender.com';
+    const sent = await sendEmail(
+      to,
+      'ACETEL VIMS — Email Test Successful',
+      emailTemplates.welcomeStaff('Test User', to, to, 'Test@1234', 'admin', appUrl)
+    );
+    if (!sent) {
+      res.status(500).json({ error: 'SMTP connected but test email failed to send' });
+      return;
+    }
+    res.json({ message: `Test email sent to ${to}` });
+  } catch (err) {
+    logger.error('testEmail: %s', (err as Error).message);
+    res.status(500).json({ error: 'Email test failed' });
+  }
 }
 
 // ─── TEST WHATSAPP ───────────────────────────────────────────────────────────

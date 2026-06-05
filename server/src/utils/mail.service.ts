@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import type Transporter from 'nodemailer/lib/mailer';
 import logger from './logger';
 
 const SMTP_PLACEHOLDERS = [
@@ -11,62 +12,77 @@ const SMTP_PLACEHOLDERS = [
   'example.com',
 ];
 
-export function isEmailConfigured(): boolean {
+/** Gmail App Passwords are 16 chars — Google displays them with spaces; strip for SMTP auth. */
+export function getSmtpCredentials(): { user: string; pass: string; host: string; port: number } | null {
   const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.trim();
-  if (!user || !pass) return false;
-  const lower = `${user}|${pass}`.toLowerCase();
+  const pass = process.env.SMTP_PASS?.replace(/\s+/g, '').trim();
+  if (!user || !pass) return null;
+  return {
+    user,
+    pass,
+    host: process.env.SMTP_HOST?.trim() || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+  };
+}
+
+export function isEmailConfigured(): boolean {
+  const creds = getSmtpCredentials();
+  if (!creds) return false;
+  const lower = `${creds.user}|${creds.pass}`.toLowerCase();
   if (SMTP_PLACEHOLDERS.some((p) => lower.includes(p))) return false;
-  if (user.includes('your-') || pass.includes('your-')) return false;
+  if (creds.user.includes('your-') || creds.pass.includes('your-')) return false;
   return true;
 }
 
-let transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false,
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-});
-
-// Auto-configure ethereal for local testing if dummy credentials are provided
-if (process.env.SMTP_PASS === 'your_institutional_password' || !process.env.SMTP_USER) {
-  nodemailer.createTestAccount((err, account) => {
-    if (err) {
-      console.error('Failed to create a testing account. ' + err.message);
-      return;
-    }
-    transporter = nodemailer.createTransport({
-      host: account.smtp.host,
-      port: account.smtp.port,
-      secure: account.smtp.secure,
-      auth: {
-        user: account.user,
-        pass: account.pass,
-      },
-    });
-    logger.info('Ethereal Mail configured for local email testing.');
+function createTransporter(): Transporter | null {
+  const creds = getSmtpCredentials();
+  if (!creds) return null;
+  return nodemailer.createTransport({
+    host: creds.host,
+    port: creds.port,
+    secure: creds.port === 465,
+    auth: { user: creds.user, pass: creds.pass },
   });
+}
+
+export async function verifySmtpConnection(): Promise<{ ok: boolean; error?: string }> {
+  if (!isEmailConfigured()) {
+    return { ok: false, error: 'SMTP not configured or still using placeholder values' };
+  }
+  const transporter = createTransporter();
+  if (!transporter) {
+    return { ok: false, error: 'Could not create mail transporter' };
+  }
+  try {
+    await transporter.verify();
+    return { ok: true };
+  } catch (err) {
+    const message = (err as Error).message;
+    logger.error('SMTP verify failed: %s', message);
+    return { ok: false, error: message };
+  }
 }
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   if (!isEmailConfigured()) {
-    console.warn('Email skipped: SMTP_USER/SMTP_PASS not configured');
+    logger.warn('Email skipped: SMTP_USER/SMTP_PASS not configured');
     return false;
   }
+  const creds = getSmtpCredentials();
+  const transporter = createTransporter();
+  if (!transporter || !creds) return false;
+
   try {
     const info = await transporter.sendMail({
-      from: `"ACETEL VIMS" <${process.env.SMTP_USER || 'no-reply@acetel.org'}>`,
-      to, subject, html,
+      from: `"ACETEL VIMS" <${creds.user}>`,
+      to,
+      subject,
+      html,
     });
-    
-    // Log ethereal link if using test account
-    if (info.messageId && (transporter.options as any).host?.includes('ethereal')) {
-      logger.info('Email sent to %s. Preview URL: %s', to, nodemailer.getTestMessageUrl(info));
-    }
-    
+    logger.info('Email sent to %s (messageId: %s)', to, info.messageId);
     return true;
   } catch (error) {
-    console.error('Email failed:', error);
+    logger.error('Email failed to %s: %s', to, (error as Error).message);
     return false;
   }
 }
