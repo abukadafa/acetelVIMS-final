@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Building2, Search, MapPin, Users, Plus, ExternalLink, Upload, X, Globe, Settings, Pencil, Trash2, History } from 'lucide-react';
 import api from '../lib/api';
+import { apiErrorMessage } from '../lib/errors';
 import { toast } from 'react-hot-toast';
 import BulkEnrollModal from './BulkEnrollModal';
 import AuditTrailModal from './AuditTrailModal';
@@ -68,7 +69,7 @@ export default function CompanyManagement() {
         website: '', maxStudents: 10, lat: 9.0765, lng: 7.3986 });
       fetchData();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || (editingId ? 'Failed to update partner' : 'Failed to register partner'));
+      toast.error(apiErrorMessage(err, editingId ? 'Failed to update partner' : 'Failed to register partner'));
     } finally { setSubmitting(false); }
   };
 

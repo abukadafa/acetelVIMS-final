@@ -1,9 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
+import User from '../models/User.model';
 import logger from '../utils/logger';
+import { resolveUserTenantId } from '../utils/tenant.util';
 
-// Extend Express Request
 export interface AuthRequest extends Request {
   user?: {
     id: string;
@@ -14,47 +15,62 @@ export interface AuthRequest extends Request {
   };
 }
 
-// ====================== PROTECT MIDDLEWARE ======================
 export const protect = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
 
     if (!token) {
-      return res.status(401).json({ message: "Not authorized, no token" });
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-
-    // Ensure tenant is always a valid ObjectId string (not 'default' or malformed)
-    if (decoded.tenant && !mongoose.Types.ObjectId.isValid(decoded.tenant)) {
-      logger.warn('JWT has invalid tenant ObjectId: %s', decoded.tenant);
-      return res.status(401).json({ message: "Session invalid — please log in again" });
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      return res.status(500).json({ error: 'Server misconfigured — contact administrator' });
     }
 
-    req.user = decoded;
+    let decoded: { id?: string; sub?: string; role?: string; email?: string; programme?: string; tenant?: string };
+    try {
+      decoded = jwt.verify(token, secret) as typeof decoded;
+    } catch (error: any) {
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({ error: 'Session expired — please log in again' });
+      }
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    const userId = decoded.id || decoded.sub;
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(401).json({ error: 'Invalid session — please log in again' });
+    }
+
+    const dbUser = await User.findById(userId).select('tenant programme role email isActive isDeleted');
+    if (!dbUser || !dbUser.isActive || dbUser.isDeleted) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const tenantId = await resolveUserTenantId(dbUser);
+
+    req.user = {
+      id: dbUser._id.toString(),
+      role: dbUser.role,
+      email: dbUser.email,
+      tenant: tenantId,
+      programme: dbUser.programme?.toString() || decoded.programme,
+    };
     next();
   } catch (error: any) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ message: "Session expired — please log in again" });
-    }
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ message: "Invalid token — please log in again" });
-    }
-    logger.error('Auth error:', error);
-    return res.status(401).json({ message: "Authentication failed" });
+    logger.error('Auth error: %s', error.message);
+    return res.status(401).json({ error: 'Authentication failed' });
   }
 };
 
-// ====================== AUTHORIZE MIDDLEWARE ======================
 export const authorize = (...roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ message: "You do not have permission to access this route" });
+      return res.status(403).json({ error: 'Access denied' });
     }
     next();
   };
 };
 
-// ====================== AUTHENTICATE (Legacy Support) ======================
-// Many routes use 'authenticate' instead of 'protect'
-export const authenticate = protect;   // Alias for backward compatibility
+export const authenticate = protect;

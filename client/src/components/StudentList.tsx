@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Download, UserPlus, MoreVertical, Mail, MessageSquare, Eye, UserCheck, AlertTriangle, Pencil, Trash2, History, Upload, FileText, ShieldAlert, X } from 'lucide-react';
 import api from '../lib/api';
+import { apiErrorMessage } from '../lib/errors';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import AuditTrailModal from './AuditTrailModal';
@@ -68,7 +69,12 @@ export default function StudentList() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await api.post('/admin/students', newStudent);
+      const payload: Record<string, unknown> = { ...newStudent };
+      if (!payload.personalEmail) delete payload.personalEmail;
+      if (!payload.phone) delete payload.phone;
+      if (!payload.address) delete payload.address;
+      if (!payload.lga) delete payload.lga;
+      const res = await api.post('/admin/students', payload);
       toast.success('Student enrolled successfully');
       const delivery = res.data?.delivery;
       const posting = res.data?.posting;
@@ -109,7 +115,7 @@ export default function StudentList() {
       });
       fetchData();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to enroll student');
+      toast.error(apiErrorMessage(err, 'Failed to enroll student'));
     } finally { setSubmitting(false); }
   };
 

@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { sendEmail, emailTemplates } from '../utils/mail.service';
 import { sendWhatsAppMessage } from '../utils/whatsapp.service';
 import AuditLog from '../models/AuditLog.model';
+import { normalizeCompanySector } from '../utils/sector.util';
 
 const companyQuerySchema = z.object({
   state: z.string().optional(),
@@ -21,7 +22,10 @@ const companyBodySchema = z.object({
   address: z.string().min(5).max(200),
   state: z.string().min(2),
   lga: z.string().optional().or(z.literal('')),
-  sector: z.enum(['AI', 'CS', 'MIS', 'Cybersecurity', 'Data Science', 'General IT']),
+  sector: z.preprocess(
+    (val) => normalizeCompanySector(String(val || 'General IT')),
+    z.enum(['AI', 'CS', 'MIS', 'Cybersecurity', 'Data Science', 'General IT'])
+  ),
   specialisation: z.string().optional().or(z.literal('')),
   contactPerson: z.string().optional().or(z.literal('')),
   contactEmail: z.string().email().optional().or(z.literal('')),
@@ -78,8 +82,12 @@ export async function getAllCompanies(req: AuthRequest, res: Response): Promise<
 export async function createCompany(req: AuthRequest, res: Response): Promise<void> {
   try {
     const data = companyBodySchema.parse(req.body);
-    const { tenant: userTenant } = req.user!;
-    
+    const userTenant = req.user!.tenant;
+    if (!userTenant) {
+      res.status(400).json({ error: 'Session expired or missing tenant. Please log out and sign in again.' });
+      return;
+    }
+
     const company = new Company({ ...data, tenant: userTenant });
     await company.save();
     
@@ -120,13 +128,18 @@ _You will be contacted by the institution for next steps._`).catch(() => false);
 
     logger.info('Company created: %s by user %s', company._id, req.user!.id);
     res.status(201).json({ message: 'Company created', id: company._id, company });
-  } catch (err) {
+  } catch (err: any) {
     if (err instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      const msg = err.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
+      res.status(400).json({ error: `Validation failed: ${msg}`, details: err.errors });
+      return;
+    }
+    if (err?.code === 11000) {
+      res.status(409).json({ error: 'A partner with this name already exists in your institution' });
       return;
     }
     logger.error('Error in createCompany: %s', (err as Error).message);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Failed to register partner. Please check all required fields.' });
   }
 }
 

@@ -331,7 +331,7 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
 export async function getProfile(req: AuthRequest, res: Response): Promise<void> {
   try {
     if (!req.user) { res.status(401).json({ error: 'Session invalid' }); return; }
-    const user = await User.findOne({ _id: req.user.id, tenant: req.user.tenant }).select('-password');
+    const user = await User.findById(req.user.id).select('-password');
     if (!user || !user.isActive) { res.status(401).json({ error: 'Unauthorized' }); return; }
 
     let studentData = null;

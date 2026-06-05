@@ -1,8 +1,24 @@
 import nodemailer from 'nodemailer';
 import logger from './logger';
 
+const SMTP_PLACEHOLDERS = [
+  'your-sender@gmail.com',
+  'your-email@gmail.com',
+  'your-app-password',
+  'your-gmail-app-password',
+  'your_institutional_password',
+  'changeme',
+  'example.com',
+];
+
 export function isEmailConfigured(): boolean {
-  return !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+  const user = process.env.SMTP_USER?.trim();
+  const pass = process.env.SMTP_PASS?.trim();
+  if (!user || !pass) return false;
+  const lower = `${user}|${pass}`.toLowerCase();
+  if (SMTP_PLACEHOLDERS.some((p) => lower.includes(p))) return false;
+  if (user.includes('your-') || pass.includes('your-')) return false;
+  return true;
 }
 
 let transporter = nodemailer.createTransport({

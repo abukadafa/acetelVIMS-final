@@ -13,6 +13,7 @@ import { sendEmail, emailTemplates, isEmailConfigured } from '../utils/mail.serv
 import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
 import Notification from '../models/notification.model';
 import { autoAllocateStudent } from '../utils/allocation.service';
+import { purgeSoftDeletedIdentity } from '../utils/identity.util';
 
 const STAFF_ROLES = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor'];
 
@@ -58,7 +59,10 @@ const createStudentSchema = z.object({
     (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
     z.string().min(8).optional()
   ),
-  personalEmail: z.string().email().optional().or(z.literal('')),
+  personalEmail: z.preprocess(
+    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+    z.string().email().optional()
+  ),
   gender: z.enum(['Male', 'Female', 'Other']).optional(),
   isNigerian: z.boolean().optional(),
   address: z.string().optional().or(z.literal('')),
@@ -160,6 +164,10 @@ export async function createUser(req: AuthRequest, res: Response): Promise<void>
     }
     const normalizedEmail = email.toLowerCase().trim();
 
+    if (req.user!.role === 'admin') {
+      await purgeSoftDeletedIdentity(tenantId, { email: normalizedEmail });
+    }
+
     const existing = await User.findOne({
       tenant: tenantId,
       email: normalizedEmail,
@@ -167,19 +175,6 @@ export async function createUser(req: AuthRequest, res: Response): Promise<void>
     });
     if (existing) {
       res.status(409).json({ error: 'Email already in use in this institution' });
-      return;
-    }
-
-    const recycled = await User.findOne({
-      tenant: tenantId,
-      email: normalizedEmail,
-      isDeleted: true,
-    });
-    if (recycled) {
-      res.status(409).json({
-        error: 'This email belongs to a deleted account in the recycle bin. Permanently delete it (Recycle Bin) or use Release Email before reusing.',
-        recycleBinUserId: recycled._id,
-      });
       return;
     }
 
@@ -470,6 +465,10 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
     const normMatric = matricNumber.trim();
     const normEmail = email.toLowerCase().trim();
 
+    if (req.user!.role === 'admin') {
+      await purgeSoftDeletedIdentity(tenantId, { email: normEmail, matric: normMatric });
+    }
+
     // Programme Isolation
     const targetProgramme = req.user!.role !== 'admin' ? req.user!.programme : programme;
 
@@ -489,20 +488,6 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const recycledUser = await User.findOne({
-      tenant: tenantId,
-      isDeleted: true,
-      $or: [{ email: normEmail }, { username: normMatric.toLowerCase() }],
-    });
-    if (recycledUser) {
-      const hint = recycledUser.username === normMatric.toLowerCase() ? 'release-matric' : 'release-email';
-      res.status(409).json({
-        error: 'This email or matric belongs to a deleted account. Use Release Email or Release Matric in Recycle Bin before reusing.',
-        hint,
-      });
-      return;
-    }
-
     const existingMatric = await Student.findOne({
       tenant: tenantId,
       matricNumber: normMatric,
@@ -510,19 +495,6 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
     });
     if (existingMatric) {
       res.status(409).json({ error: 'Matric number already registered to an active student' });
-      return;
-    }
-
-    const recycledStudent = await Student.findOne({
-      tenant: tenantId,
-      matricNumber: normMatric,
-      isDeleted: true,
-    });
-    if (recycledStudent) {
-      res.status(409).json({
-        error: 'This matric belongs to a deleted student in the recycle bin. Use Release Matric before reusing.',
-        hint: 'release-matric',
-      });
       return;
     }
 

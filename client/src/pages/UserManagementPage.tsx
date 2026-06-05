@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import api from '../lib/api';
+import { apiErrorMessage } from '../lib/errors';
 import {
   Users, Search, Edit2, Trash2, RefreshCw,
   Shield, BookOpen, Wifi, Briefcase, Download,
@@ -189,9 +190,7 @@ export default function UserManagementPage() {
       }
       load();
     } catch (err: any) {
-      const msg = err.response?.data?.error || 'Failed to save user';
-      const details = err.response?.data?.details;
-      toast.error(Array.isArray(details) ? `${msg}: ${details.map((d: any) => d.message || d).join(', ')}` : msg);
+      toast.error(apiErrorMessage(err, 'Failed to save user'));
       if (err.response?.status === 409 && err.response?.data?.recycleBinUserId && isAdmin) {
         toast('Tip: Admin can release this email under Recycle Bin → Release Email.', { icon: 'ℹ️', duration: 6000 });
       }
@@ -266,8 +265,7 @@ export default function UserManagementPage() {
       });
       load();
     } catch (err: any) {
-      const msg = err.response?.data?.error || 'Failed to onboard student';
-      toast.error(msg);
+      toast.error(apiErrorMessage(err, 'Failed to onboard student'));
       const hint = err.response?.data?.hint;
       if (hint === 'release-matric' && isAdmin) {
         toast('Go to Recycle Bin → Release Matric to free this matric number.', { icon: 'ℹ️', duration: 7000 });

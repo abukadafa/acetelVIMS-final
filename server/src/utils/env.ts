@@ -44,7 +44,18 @@ export function validateEnv() {
   }
 
   // Report feature availability
-  const emailActive = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+  const smtpUser = process.env.SMTP_USER?.trim() || '';
+  const smtpPass = process.env.SMTP_PASS?.trim() || '';
+  const smtpLooksPlaceholder = !smtpUser || !smtpPass
+    || smtpUser.includes('your-') || smtpPass.includes('your-')
+    || smtpUser.includes('example.com');
+  const emailActive = !smtpLooksPlaceholder;
+  if (smtpUser && smtpLooksPlaceholder) {
+    logger.warn('⚠️ SMTP_USER/SMTP_PASS look like placeholder values — replace with real Gmail + App Password');
+  }
+  if (process.env.FRONTEND_URL?.includes('your-frontend')) {
+    logger.warn('⚠️ FRONTEND_URL is still a placeholder — set your real Render frontend URL');
+  }
   const waTwilioActive = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM);
   const waMetaActive = !!(process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN);
   logger.info(
