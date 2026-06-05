@@ -29,7 +29,7 @@ const createUserSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
   email: z.string().email(),
-  role: z.enum(['prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor']),
+  role: z.enum(['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor']),
   programme: z.string().optional().or(z.literal('')),
   phone: z.string().optional().or(z.literal('')),
   password: z.preprocess(
