@@ -63,18 +63,28 @@ export async function login(req: Request, res: Response): Promise<void> {
       // Ensure we always use a real tenant ObjectId in the token
       let adminTenantId = adminUser.tenant?.toString();
       if (!adminTenantId || adminTenantId === 'default') {
-        let defaultTenantDoc = await Tenant.findOne({ slug: 'acetel' });
-        if (!defaultTenantDoc) {
-          defaultTenantDoc = await Tenant.create({ name: 'ACETEL', slug: 'acetel', institutionType: 'University' });
-        }
+        const defaultTenantDoc = await Tenant.findOneAndUpdate(
+          { slug: 'acetel' },
+          { $setOnInsert: { name: 'ACETEL', slug: 'acetel', institutionType: 'University' } },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
         adminTenantId = defaultTenantDoc._id.toString();
-        // Sync it back to the user record
         await User.findByIdAndUpdate(adminUser._id, { tenant: defaultTenantDoc._id });
       }
-      const { access, refresh } = await authService.generateTokens({
-        id: adminUser._id.toString(), role: 'admin',
-        email: adminUser.email, tenant: adminTenantId
-      }, req.ip || 'unknown', req.get('user-agent') || 'unknown');
+
+      let access: string;
+      let refresh: string;
+      try {
+        ({ access, refresh } = await authService.generateTokens({
+          id: adminUser._id.toString(), role: 'admin',
+          email: adminUser.email, tenant: adminTenantId
+        }, req.ip || 'unknown', req.get('user-agent') || 'unknown'));
+      } catch (err: any) {
+        logger.error('Admin login token generation failed: %s', err.message);
+        res.status(500).json({ error: 'Login failed due to server token generation error' });
+        return;
+      }
+
       res.cookie('token', access, COOKIE_OPTIONS);
       res.cookie('refresh_token', refresh, REFRESH_COOKIE_OPTIONS);
       res.json({ user: { id: adminUser._id, email: adminUser.email, role: 'admin',

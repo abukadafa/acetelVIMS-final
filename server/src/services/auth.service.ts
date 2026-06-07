@@ -33,22 +33,34 @@ export async function generateTokens(payload: TokenPayload, ipAddress: string, u
   );
 
   // Refresh Token (7 days for session persistence)
-  const refreshTokenString = crypto.randomBytes(40).toString('hex');
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
 
-  const refreshToken = new RefreshToken({
-    user: payload.id,
-    tenant: payload.tenant,
-    token: refreshTokenString,
-    expiresAt,
-    ipAddress,
-    userAgent
-  });
+  let refreshTokenString: string;
+  let refreshToken;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    refreshTokenString = crypto.randomBytes(40).toString('hex');
+    refreshToken = new RefreshToken({
+      user: payload.id,
+      tenant: payload.tenant,
+      token: refreshTokenString,
+      expiresAt,
+      ipAddress,
+      userAgent
+    });
+    try {
+      await refreshToken.save();
+      break;
+    } catch (err: any) {
+      if (err.code === 11000 && attempt < 2) {
+        continue;
+      }
+      logger.error('Refresh token save failed: %s', err.message);
+      throw err;
+    }
+  }
 
-  await refreshToken.save();
-
-  return { access, refresh: refreshTokenString };
+  return { access, refresh: refreshTokenString! };
 }
 
 /**
