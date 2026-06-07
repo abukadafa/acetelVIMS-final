@@ -1,7 +1,10 @@
+import path from 'path';
 import dotenv from 'dotenv';
 import logger from './logger';
 
-dotenv.config();
+// Load .env relative to the server project root (works when running node with different cwd)
+const envPath = path.resolve(__dirname, '../../.env');
+dotenv.config({ path: envPath });
 
 const REQUIRED_ENV_VARS = [
   'MONGO_URI',
