@@ -151,7 +151,8 @@ export async function register(req: Request, res: Response): Promise<void> {
       tenantSlug = 'acetel'
     } = validatedData.data as any;
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.trim().toLowerCase();
+    const existingUser = await User.findOne({ email: cleanEmail, isDeleted: { $ne: true } });
     if (existingUser) {
       res.status(409).json({ error: 'Email already registered' });
       return;
@@ -169,12 +170,13 @@ export async function register(req: Request, res: Response): Promise<void> {
     }
 
     let programmeId = null;
+    const normalizedMatricNumber = role === 'student' ? matricNumber.trim().toUpperCase() : undefined;
     if (role === 'student') {
-      if (!matricNumber) {
+      if (!normalizedMatricNumber) {
         res.status(400).json({ error: 'Matric number is required for students' });
         return;
       }
-      const sdmsData = await fetchStudentDetails(matricNumber);
+      const sdmsData = await fetchStudentDetails(normalizedMatricNumber);
       if (!sdmsData) {
         res.status(404).json({ error: 'Matric number not found in institution records' });
         return;
@@ -191,9 +193,7 @@ export async function register(req: Request, res: Response): Promise<void> {
       }
       programmeId = prog._id;
     }
-
-    const cleanEmail    = email.trim().toLowerCase();
-    const cleanUsername = (role === 'student' ? matricNumber.trim() : cleanEmail).toLowerCase();
+    const cleanUsername = role === 'student' ? normalizedMatricNumber!.toLowerCase() : cleanEmail;
 
     const user = new User({
       email: cleanEmail, username: cleanUsername, password, role,
@@ -205,7 +205,7 @@ export async function register(req: Request, res: Response): Promise<void> {
     let studentDoc: any = null;
     if (role === 'student') {
       studentDoc = new Student({
-        user: user._id, tenant: tenant._id, matricNumber,
+        user: user._id, tenant: tenant._id, matricNumber: normalizedMatricNumber,
         programme: programmeId, academicSession: academicSession || '2024/2025',
         level: level || 'MSc', stateOfOrigin, lga, address, lat, lng,
         riskScore: 0, riskLevel: 'Low'

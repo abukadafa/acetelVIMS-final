@@ -20,6 +20,9 @@ export const registerSchema = z.object({
   address: z.string().optional(),
   lat: z.number().optional(),
   lng: z.number().optional(),
+}).refine((data) => data.role !== 'student' || !!data.matricNumber?.trim(), {
+  message: 'Matric number is required for students',
+  path: ['matricNumber'],
 });
 
 export const updateStudentSchema = z.object({

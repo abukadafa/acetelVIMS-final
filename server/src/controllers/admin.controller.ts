@@ -17,6 +17,32 @@ import { purgeSoftDeletedIdentity } from '../utils/identity.util';
 
 const STAFF_ROLES = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor'];
 
+const ROLE_ALIASES: Record<string, string> = {
+  supervisor: 'supervisor',
+  'industry supervisor': 'industry_supervisor',
+  'industry_supervisor': 'industry_supervisor',
+  'prog_coordinator': 'prog_coordinator',
+  'programme coordinator': 'prog_coordinator',
+  'programme_coordinator': 'prog_coordinator',
+  'internship coordinator': 'internship_coordinator',
+  'internship_coordinator': 'internship_coordinator',
+  'ict_support': 'ict_support',
+  'ict support': 'ict_support',
+  support: 'ict_support',
+  admin: 'admin',
+  administrator: 'admin',
+};
+
+function normalizeRoleValue(raw?: string): string | null {
+  if (!raw) return null;
+  const key = String(raw).trim().toLowerCase();
+  return ROLE_ALIASES[key] || null;
+}
+
+function normalizeMatricValue(raw?: string): string {
+  return String(raw || '').trim().toUpperCase();
+}
+
 const userListQuerySchema = z.object({
   role: z.enum(['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor']).optional(),
   programme: z.string().optional(),
@@ -203,13 +229,13 @@ export async function createUser(req: AuthRequest, res: Response): Promise<void>
     const tempPassword = password || `Staff@${Math.floor(1000 + Math.random() * 9000)}`;
 
     const user = new User({
-      firstName,
-      lastName,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
       email: normalizedEmail,
       username: normalizedEmail,
       password: tempPassword,
       role,
-      phone,
+      phone: phone?.trim(),
       programme: targetProgramme || undefined,
       tenant: tenantId,
       isActive: true,
@@ -381,7 +407,7 @@ export async function releaseMatric(req: AuthRequest, res: Response): Promise<vo
       res.status(400).json({ error: 'Session expired or missing tenant. Please log out and sign in again.' });
       return;
     }
-    const normMatric = matricNumber.trim();
+    const normMatric = normalizeMatricValue(matricNumber);
 
     const activeStudent = await Student.findOne({
       tenant: tenantId,
@@ -462,7 +488,7 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const normMatric = matricNumber.trim();
+    const normMatric = normalizeMatricValue(matricNumber);
     const normEmail = email.toLowerCase().trim();
 
     if (req.user!.role === 'admin') {
@@ -501,13 +527,13 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
     const tempPassword = password || `Student@${Math.floor(1000 + Math.random() * 9000)}`;
 
     const user = new User({
-      firstName,
-      lastName,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
       email: normEmail,
       username: normMatric.toLowerCase(),
       password: tempPassword,
       role: 'student',
-      phone,
+      phone: phone?.trim(),
       tenant: tenantId,
       isActive: true,
     });
@@ -522,12 +548,12 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       academicSession: academicSession || '2024/2025',
       level: level || 'MSc',
       status: 'pending',
-      personalEmail,
+      personalEmail: personalEmail?.trim().toLowerCase(),
       gender,
       isNigerian: isNigerian ?? true,
-      address,
-      stateOfOrigin,
-      lga,
+      address: address?.trim(),
+      stateOfOrigin: stateOfOrigin?.trim(),
+      lga: lga?.trim(),
     });
 
     await student.save();
@@ -1124,9 +1150,15 @@ export async function exportSecurityAudit(req: AuthRequest, res: Response): Prom
  * POST /api/admin/bulk-onboard
  */
 export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void> {
-  const { type, data } = req.body; 
+  const { type, data } = req.body;
   const tenantId = req.user!.tenant;
-  
+  const entityType = String(type || '').trim().toLowerCase();
+
+  if (!['company', 'staff', 'student'].includes(entityType)) {
+    res.status(400).json({ error: 'Bulk onboard type must be company, staff, or student' });
+    return;
+  }
+
   if (!Array.isArray(data)) {
     res.status(400).json({ error: 'Data must be an array of objects' });
     return;
@@ -1147,13 +1179,13 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
     }, {} as Record<string, mongoose.Types.ObjectId>);
 
     // PARTNER COMPANY BRANCH
-    if (type === 'company') {
+    if (entityType === 'company') {
       const Company = (await import('../models/Company.model')).default;
       for (const row of data) {
-        const name = row['Company Name'] || row.companyName || row.name;
-        const address = row['Company Address'] || row.address;
-        const specialisation = row['Area of Specialisation'] || row.specialisation || row.sector;
-        const state = row['State'] || row.state || 'Lagos';
+        const name = String(row['Company Name'] || row.companyName || row.name || '').trim();
+        const address = String(row['Company Address'] || row.address || '').trim();
+        const specialisation = String(row['Area of Specialisation'] || row.specialisation || row.sector || 'General').trim();
+        const state = String(row['State'] || row.state || 'Lagos').trim();
 
         if (!name || !address) {
           results.failed.push({ row, reason: 'Missing required company fields (Name/Address)' });
@@ -1193,34 +1225,60 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
 
     // STAFF / STUDENT BRANCH
     for (const row of data) {
-      const firstName = row['Other Names'] || row.otherNames || row.firstName;
-      const lastName = row['Surname'] || row.surname || row.lastName;
-      const email = (row['Institutional Email'] || row.email)?.toLowerCase().trim();
-      const matricNum = row['Matric Number'] || row.matricNumber;
+      const firstName = String(row['Other Names'] || row.otherNames || row.firstName || '').trim();
+      const lastName = String(row['Surname'] || row.surname || row.lastName || '').trim();
+      const email = String(row['Institutional Email'] || row.email || '').trim().toLowerCase();
+      const matricNum = normalizeMatricValue(row['Matric Number'] || row.matricNumber || row.matric || '');
+      const phone = String(row['Phone Number'] || row.phone || '').trim() || undefined;
+      const personalEmail = String(row['Personal Email'] || row.personalEmail || '').trim().toLowerCase() || undefined;
+      const gender = String(row['Gender'] || row.gender || 'Male').trim();
+      const isNigerian = String(row['Nigerianity'] || row.nigerianity || row['Nigerian Status'] || '').toLowerCase() !== 'non-nigerian';
+      const address = String(row['Address'] || row.address || '').trim() || undefined;
+      const stateOfOrigin = String(row['State of Origin'] || row.stateOfOrigin || row.state || '').trim() || undefined;
+      const programmeCodeValue = String(row['programmeCode'] || row['Programme Code'] || row.programme || row['programme'] || '').trim();
+      const academicSession = String(row['academicSession'] || row['Academic Session'] || row.academic_session || '2024/2025').trim() || '2024/2025';
+      const level = String(row['level'] || row['Level'] || 'MSc').trim() || 'MSc';
 
-      if (!email || !firstName || !lastName || (type === 'student' && !matricNum)) {
+      if (!email || !firstName || !lastName || (entityType === 'student' && !matricNum)) {
         results.failed.push({ row, reason: 'Missing required profile fields' });
         continue;
       }
 
-      const username = type === 'student' ? matricNum.toLowerCase() : email;
-      const existingUser = await User.findOne({ 
+      const username = entityType === 'student' ? matricNum.toLowerCase() : email;
+      const existingUser = await User.findOne({
         tenant: tenantId,
-        $or: [ { email }, { username } ] 
+        isDeleted: { $ne: true },
+        $or: [{ email }, { username }]
       });
       if (existingUser) {
         results.failed.push({ email, reason: 'User already exists in this institution' });
         continue;
       }
 
-      let programmeId = row.programmeCode ? progMap[row.programmeCode.toLowerCase().trim()] : null;
+      let programmeId = programmeCodeValue ? progMap[programmeCodeValue.toLowerCase()] : null;
       if (req.user!.role !== 'admin') {
-        programmeId = (req.user!.programme as any);
+        programmeId = req.user!.programme as any;
       }
 
-      const role = type === 'staff' ? (row.role || 'supervisor') : 'student';
-      if ((role as string) === 'admin') {
+      const rawRoleValue = String(row['Role'] || row.role || 'supervisor');
+      const normalizedRole = entityType === 'staff' ? normalizeRoleValue(rawRoleValue) || 'supervisor' : 'student';
+      if (!normalizedRole) {
+        results.failed.push({ email, reason: `Invalid staff role: ${rawRoleValue}` });
+        continue;
+      }
+      if (normalizedRole === 'admin') {
         results.failed.push({ email, reason: 'Bulk creation of Admin role is prohibited' });
+        continue;
+      }
+
+      if (entityType === 'student' && !programmeId) {
+        results.failed.push({ email, reason: 'Programme code is required and must match an existing programme' });
+        continue;
+      }
+
+      const role = normalizedRole;
+      if (entityType === 'staff' && ['prog_coordinator', 'ict_support'].includes(role) && !programmeId) {
+        results.failed.push({ email, reason: `Programme is required for role ${role}` });
         continue;
       }
 
@@ -1234,7 +1292,7 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
           username,
           password: tempPassword,
           role,
-          phone: row['Phone Number'] || row.phone,
+          phone,
           programme: programmeId || undefined,
           tenant: tenantId,
           isActive: true,
@@ -1242,19 +1300,20 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
 
         await user.save();
 
-        if (type === 'student') {
+        if (entityType === 'student') {
           const student = new Student({
             user: user._id,
             tenant: tenantId,
-            matricNumber: matricNum.trim(),
+            matricNumber: matricNum,
             programme: programmeId,
-            academicSession: row.academicSession || '2024/2025',
-            level: row.level || 'MSc',
+            academicSession,
+            level,
             status: 'pending',
-            personalEmail: row['Personal Email'] || row.personalEmail,
-            gender: row['Gender'] || row.gender,
-            isNigerian: row['Nigerianity'] === 'Non-Nigerian' ? false : true,
-            address: row['Address'] || row.address
+            personalEmail,
+            gender,
+            isNigerian,
+            address,
+            stateOfOrigin,
           });
           await student.save();
         }
@@ -1278,7 +1337,7 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
         user: req.user!.id,
         action: 'BULK_ONBOARD',
         module: 'USER_MANAGEMENT',
-        reason: `Bulk onboarded ${results.success.length} ${type} accounts`,
+        reason: `Bulk onboarded ${results.success.length} ${entityType} accounts`,
         details: `Successfully enrolled ${results.success.length} users.`,
         ipAddress: req.ip,
       });
