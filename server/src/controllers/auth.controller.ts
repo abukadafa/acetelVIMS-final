@@ -14,6 +14,7 @@ import * as authService from '../services/auth.service';
 import { sendEmail, emailTemplates, isEmailConfigured, verifySmtpConnection } from '../utils/mail.service';
 import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
 import { autoAllocateStudent } from '../utils/allocation.service';
+import { normalizeStateName } from '../utils/nigeria-states.util';
 import { maskCompanyForStudentView } from '../utils/studentView.util';
 import { z } from 'zod';
 
@@ -204,10 +205,11 @@ export async function register(req: Request, res: Response): Promise<void> {
 
     let studentDoc: any = null;
     if (role === 'student') {
+      const normalizedState = normalizeStateName(stateOfOrigin) || undefined;
       studentDoc = new Student({
         user: user._id, tenant: tenant._id, matricNumber: normalizedMatricNumber,
         programme: programmeId, academicSession: academicSession || '2024/2025',
-        level: level || 'MSc', stateOfOrigin, lga, address, lat, lng,
+        level: level || 'MSc', stateOfOrigin: normalizedState, lga, address, lat, lng,
         riskScore: 0, riskLevel: 'Low'
       });
       await studentDoc.save();

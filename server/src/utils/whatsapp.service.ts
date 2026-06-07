@@ -129,6 +129,22 @@ ${appUrl}
 
 _ACETEL VIMS_`,
 
+  partnerPlacementNotice: (company: string, studentName: string, matric: string, email: string, phone: string) =>
+`*ACETEL VIMS — New Intern Assigned* 🏢
+
+Hello ${company} team,
+
+A new intern has been assigned to your organisation:
+*Name:* ${studentName}
+*Matric:* ${matric}
+*Email:* ${email}
+*Phone:* ${phone}
+
+Please log in to ACETEL VIMS to assign a supervisor and confirm the placement.
+${appUrl}
+
+_ACETEL VIMS_`,
+
   logbookReminder: (name: string) =>
 `*ACETEL VIMS — Logbook Reminder* ✍️
 

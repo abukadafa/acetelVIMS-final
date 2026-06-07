@@ -2,7 +2,7 @@ import Student from '../models/Student.model';
 import Company from '../models/Company.model';
 import User from '../models/User.model';
 import { calculateDistance } from './geo.utils';
-import { companyStatesMatching } from './nigeria-states.util';
+import { companyStatesMatching, normalizeStateName, extractStateFromAddress } from './nigeria-states.util';
 
 /**
  * Intelligent Allocation Engine
@@ -12,15 +12,17 @@ import { companyStatesMatching } from './nigeria-states.util';
 export async function autoAllocateStudent(studentId: string): Promise<any> {
   const student = await Student.findById(studentId).populate('programme');
   if (!student) throw new Error('Student not found');
-  if (!student.stateOfOrigin) {
-    return { success: false, message: 'Student state is required for auto-allocation' };
+
+  const resolvedState = normalizeStateName(student.stateOfOrigin) || extractStateFromAddress(student.address);
+  if (!resolvedState) {
+    return { success: false, message: 'Student state or address is required for auto-allocation' };
   }
 
   const programme = student.programme as any;
   const targetSector = getSectorFromProgramme(programme.code);
 
   // Find all approved companies in the same state (tenant-scoped, not deleted)
-  const stateFilter = companyStatesMatching(student.stateOfOrigin);
+  const stateFilter = companyStatesMatching(resolvedState, student.address);
   const availableCompanies = await Company.find({
     tenant: student.tenant,
     state: stateFilter,
@@ -30,7 +32,7 @@ export async function autoAllocateStudent(studentId: string): Promise<any> {
   });
 
   if (availableCompanies.length === 0) {
-    return { success: false, message: `No available companies found in ${student.stateOfOrigin}` };
+    return { success: false, message: `No available companies found in ${resolvedState}` };
   }
 
   // Score companies. If GPS is present for both sides, use distance; otherwise fall back to capacity.

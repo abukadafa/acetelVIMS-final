@@ -8,6 +8,7 @@ import { sendEmail, emailTemplates } from '../utils/mail.service';
 import { sendWhatsAppMessage } from '../utils/whatsapp.service';
 import AuditLog from '../models/AuditLog.model';
 import { normalizeCompanySector } from '../utils/sector.util';
+import { normalizeStateName } from '../utils/nigeria-states.util';
 
 const companyQuerySchema = z.object({
   state: z.string().optional(),
@@ -20,7 +21,7 @@ const companyQuerySchema = z.object({
 const companyBodySchema = z.object({
   name: z.string().min(2).max(100),
   address: z.string().min(5).max(200),
-  state: z.string().min(2),
+  state: z.preprocess((val) => normalizeStateName(String(val || '')), z.string().min(2)),
   lga: z.string().optional().or(z.literal('')),
   sector: z.preprocess(
     (val) => normalizeCompanySector(String(val || 'General IT')),
@@ -30,6 +31,7 @@ const companyBodySchema = z.object({
   contactPerson: z.string().optional().or(z.literal('')),
   contactEmail: z.string().email().optional().or(z.literal('')),
   contactPhone: z.string().optional().or(z.literal('')),
+  website: z.string().optional().or(z.literal('')),
   lat: z.number().optional(),
   lng: z.number().optional(),
   maxStudents: z.number().min(1).optional().default(5),
@@ -46,7 +48,7 @@ export async function getAllCompanies(req: AuthRequest, res: Response): Promise<
     
     let query: any = { tenant: userTenant, isDeleted: false };
 
-    if (state) query.state = state;
+    if (state) query.state = normalizeStateName(state);
     if (sector) query.sector = sector;
     if (specialisation) query.specialisation = specialisation;
     if (isApproved !== undefined) query.isApproved = isApproved;
@@ -88,7 +90,9 @@ export async function createCompany(req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const company = new Company({ ...data, tenant: userTenant });
+    const website = data.website?.trim() ? String(data.website).trim() : undefined;
+    const normalizedWebsite = website && !/^https?:\/\//i.test(website) ? `https://${website}` : website;
+    const company = new Company({ ...data, website: normalizedWebsite, tenant: userTenant });
     await company.save();
     
     // Audit

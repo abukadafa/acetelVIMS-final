@@ -184,7 +184,7 @@ export const emailTemplates = {
     <a class="btn" href="${appUrl}">Access Partner Portal</a>
   `),
 
-  companyPlacementNotice: (company: string, studentName: string, matric: string, email: string, phone: string) => base(`
+  companyPlacementNotice: (company: string, studentName: string, matric: string, email: string, phone: string, appUrl: string) => base(`
     <h2>New Intern Assigned to ${company}</h2>
     <p>A new intern has been assigned to your organisation through the ACETEL Virtual Internship Management System.</p>
     <div class="info-box">
@@ -192,9 +192,11 @@ export const emailTemplates = {
       <div class="info-row"><span class="info-label">Matric Number</span><span class="info-value">${matric}</span></div>
       <div class="info-row"><span class="info-label">Email</span><span class="info-value">${email}</span></div>
       <div class="info-row"><span class="info-label">Phone</span><span class="info-value">${phone}</span></div>
+      <div class="info-row"><span class="info-label">Partner Portal</span><span class="info-value"><a href="${appUrl}">${appUrl}</a></span></div>
     </div>
     <p>The student will be submitting daily logbook entries which you are required to review and approve. You will receive notifications for each submission.</p>
     <p>Please ensure you designate an Industry-Based Supervisor for this intern.</p>
+    <a class="btn" href="${appUrl}">Open ACETEL VIMS</a>
   `),
 
   logbookSubmitted: (supervisorName: string, studentName: string, entryDate: string, appUrl: string) => base(`

@@ -11,6 +11,7 @@ export interface ICompany extends Document {
   contactPerson?: string;
   contactEmail?: string;
   contactPhone?: string;
+  website?: string;
   lat?: number;
   lng?: number;
   maxStudents: number;
@@ -37,6 +38,7 @@ const CompanySchema: Schema = new Schema({
   contactPerson: { type: String },
   contactEmail: { type: String },
   contactPhone: { type: String },
+  website: { type: String },
   lat: { type: Number },
   lng: { type: Number },
   maxStudents: { type: Number, default: 5 },

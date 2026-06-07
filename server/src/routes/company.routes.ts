@@ -3,7 +3,7 @@ import { getAllCompanies, createCompany, updateCompany, deleteCompany, getCompan
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import Company from '../models/Company.model';
 import Student from '../models/Student.model';
-import { autoAllocateStudent } from '../utils/allocation.service';
+import { normalizeStateName, studentStateMatchesCompany } from '../utils/nigeria-states.util';
 import logger from '../utils/logger';
 
 const r = Router();
@@ -26,21 +26,41 @@ r.post(
         res.status(404).json({ error: 'Company not found' });
         return;
       }
+
+      const normalizedCompanyState = normalizeStateName(company.state || '');
+      if (!normalizedCompanyState) {
+        res.status(400).json({ error: 'Company state is required for allocation' });
+        return;
+      }
+
       const capacity = Math.max(0, (company.maxStudents || 0) - (company.currentStudents || 0));
-      const unallocated = await Student.find({
+      if (capacity === 0) {
+        res.status(400).json({ error: 'This company has reached its maximum intern capacity' });
+        return;
+      }
+
+      const candidates = await Student.find({
         tenant: req.user!.tenant,
         $or: [{ company: { $exists: false } }, { company: null }],
         status: { $in: ['pending', 'active'] },
         postingApproved: { $ne: true },
-      }).limit(capacity);
+      });
 
-      if (unallocated.length === 0) {
-        res.json({ message: 'No unallocated students available for this company', count: 0 });
+      const matchedStudents = candidates.filter((student) =>
+        studentStateMatchesCompany(normalizedCompanyState, student.stateOfOrigin, student.address)
+      ).slice(0, capacity);
+
+      if (matchedStudents.length === 0) {
+        res.json({
+          message: `No pending students found in ${normalizedCompanyState} for this company`,
+          count: 0,
+          pendingApproval: false,
+        });
         return;
       }
 
       let count = 0;
-      for (const student of unallocated) {
+      for (const student of matchedStudents) {
         student.company = company._id as any;
         student.postingApproved = false;
         student.postingApprovedAt = undefined;

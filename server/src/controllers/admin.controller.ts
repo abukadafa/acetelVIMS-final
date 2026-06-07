@@ -13,6 +13,7 @@ import { sendEmail, emailTemplates, isEmailConfigured } from '../utils/mail.serv
 import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
 import Notification from '../models/notification.model';
 import { autoAllocateStudent } from '../utils/allocation.service';
+import { normalizeStateName } from '../utils/nigeria-states.util';
 import { purgeSoftDeletedIdentity } from '../utils/identity.util';
 
 const STAFF_ROLES = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor'];
@@ -540,6 +541,7 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
 
     await user.save();
 
+    const normalizedState = normalizeStateName(stateOfOrigin) || undefined;
     const student = new Student({
       user: user._id,
       tenant: tenantId,
@@ -552,7 +554,7 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       gender,
       isNigerian: isNigerian ?? true,
       address: address?.trim(),
-      stateOfOrigin: stateOfOrigin?.trim(),
+      stateOfOrigin: normalizedState,
       lga: lga?.trim(),
     });
 

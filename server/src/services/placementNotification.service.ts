@@ -73,6 +73,20 @@ export async function sendApprovedPostingNotifications(
         studentName,
         student.matricNumber,
         user.email,
+        user.phone || 'N/A',
+        appUrl
+      )
+    ).catch(() => false);
+  }
+
+  if (company.contactPhone) {
+    await sendWhatsAppMessage(
+      company.contactPhone,
+      whatsappTemplates.partnerPlacementNotice(
+        company.name,
+        studentName,
+        student.matricNumber,
+        user.email,
         user.phone || 'N/A'
       )
     ).catch(() => false);
