@@ -497,9 +497,14 @@ export async function testWhatsApp(req: Request, res: Response): Promise<void> {
   try {
     const { phone } = req.body;
     if (!phone) { res.status(400).json({ error: 'Phone number required' }); return; }
-    await sendWhatsAppMessage(phone, '*ACETEL VIMS Test* ✅\n\nWhatsApp notifications are working correctly.');
+    const success = await sendWhatsAppMessage(phone, '*ACETEL VIMS Test* ✅\n\nWhatsApp notifications are working correctly.');
+    if (!success) {
+      res.status(500).json({ error: 'WhatsApp test failed: provider call failed or message was rejected' });
+      return;
+    }
     res.json({ message: 'Test WhatsApp message sent' });
   } catch (err) {
+    logger.error('testWhatsApp: %s', (err as Error).message);
     res.status(500).json({ error: 'WhatsApp test failed' });
   }
 }

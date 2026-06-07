@@ -1,5 +1,7 @@
+import dns from 'dns/promises';
 import nodemailer from 'nodemailer';
 import type Transporter from 'nodemailer/lib/mailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import logger from './logger';
 
 const SMTP_PLACEHOLDERS = [
@@ -34,22 +36,39 @@ export function isEmailConfigured(): boolean {
   return true;
 }
 
-function createTransporter(): Transporter | null {
+async function resolveHostToIPv4(host: string): Promise<string> {
+  if (!host || host.match(/^\d+\.\d+\.\d+\.\d+$/)) return host;
+  try {
+    const lookup = await dns.lookup(host, { family: 4 });
+    return lookup.address || host;
+  } catch (err) {
+    logger.warn('SMTP host IPv4 lookup failed for %s: %s', host, (err as Error).message);
+    return host;
+  }
+}
+
+async function createTransporter(): Promise<Transporter<SMTPTransport.SentMessageInfo> | null> {
   const creds = getSmtpCredentials();
   if (!creds) return null;
-  return nodemailer.createTransport({
-    host: creds.host,
+  const useIpv4 = process.env.SMTP_FORCE_IPV4?.toLowerCase() !== 'false';
+  const host = useIpv4 ? await resolveHostToIPv4(creds.host) : creds.host;
+
+  const transportOptions: SMTPTransport.Options = {
+    host,
     port: creds.port,
     secure: creds.port === 465,
     auth: { user: creds.user, pass: creds.pass },
-  });
+    tls: { rejectUnauthorized: false },
+    name: creds.host,
+  };
+  return nodemailer.createTransport(transportOptions);
 }
 
 export async function verifySmtpConnection(): Promise<{ ok: boolean; error?: string }> {
   if (!isEmailConfigured()) {
     return { ok: false, error: 'SMTP not configured or still using placeholder values' };
   }
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
   if (!transporter) {
     return { ok: false, error: 'Could not create mail transporter' };
   }
@@ -69,7 +88,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     return false;
   }
   const creds = getSmtpCredentials();
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
   if (!transporter || !creds) return false;
 
   try {
