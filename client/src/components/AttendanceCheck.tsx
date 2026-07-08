@@ -55,8 +55,8 @@ export default function AttendanceCheck({ onComplete }: { onComplete: () => void
 
       // 3. Send to Backend
       const { data } = await api.post('/attendance/checkin', {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
+        lat: position.lat,
+        lng: position.lng,
         photoBase64,
       });
 

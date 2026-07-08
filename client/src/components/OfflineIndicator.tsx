@@ -14,12 +14,12 @@ export default function OfflineIndicator() {
     window.addEventListener('online', handleStatus);
     window.addEventListener('offline', handleStatus);
 
-    setupOfflineAutoSync(async (entries: any) => {
+    setupOfflineAutoSync(async (entry) => {
       setSyncing(true);
       try {
-        await api.post('/logbook/sync', { entries });
-        setPendingCount(0);
-        toast.success(`Successfully synced ${entries.length} offline entries!`);
+        await api.post('/logbook/sync', { entries: [entry] });
+        setPendingCount(getPendingSyncCount());
+        toast.success('Offline logbook entry synced successfully!');
       } catch {
         console.error('Auto-sync failed');
       } finally {

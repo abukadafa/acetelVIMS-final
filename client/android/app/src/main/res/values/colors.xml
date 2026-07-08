@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand colors, matching the app's splash/theme (see capacitor.config.ts) -->
+    <color name="colorPrimary">#0A5C36</color>
+    <color name="colorPrimaryDark">#073D24</color>
+    <color name="colorAccent">#F5A623</color>
+</resources>

@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'ng.edu.noun.acetel.ims',
+  appId: 'com.acetel.ims',
   appName: 'ACETEL IMS',
   webDir: 'dist',
   server: {

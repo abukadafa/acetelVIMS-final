@@ -27,8 +27,17 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'logo-acetel.png', 'logo-noun.png'],
+      registerType: 'prompt',
+      includeAssets: [
+        'favicon.svg',
+        'logo-acetel.png',
+        'logo-noun.png',
+        'apple-touch-icon.png',
+        'icon-192.png',
+        'icon-512.png',
+        'icon-maskable-192.png',
+        'icon-maskable-512.png',
+      ],
       manifest: {
         name: 'ACETEL Virtual Internship Management System',
         short_name: 'ACETEL IMS',
@@ -41,8 +50,10 @@ export default defineConfig({
         start_url: '/',
         categories: ['education', 'productivity'],
         icons: [
-          { src: 'logo-acetel.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-          { src: 'logo-acetel.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
         shortcuts: [
           { name: 'My Logbook',   short_name: 'Logbook',   url: '/logbook',  description: 'Open daily logbook' },

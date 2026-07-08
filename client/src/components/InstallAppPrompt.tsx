@@ -61,7 +61,7 @@ export default function InstallAppPrompt() {
   return (
     <div style={{
       position: 'fixed',
-      bottom: '80px', // Above bottom nav if any
+      bottom: 'calc(80px + env(safe-area-inset-bottom))', // Above bottom nav if any
       left: '50%',
       transform: 'translateX(-50%)',
       width: '90%',

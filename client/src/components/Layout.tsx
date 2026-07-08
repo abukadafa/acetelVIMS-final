@@ -35,7 +35,7 @@ export default function Layout() {
         @media (max-width: 768px) {
           .app-layout { display: block; }
           .sidebar { display: none; }
-          .main-content { margin-left: 0 !important; padding-bottom: 80px; }
+          .main-content { margin-left: 0 !important; padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
           .page-content { padding: 16px; }
           .navbar { padding: 10px 16px; }
           .institutional-footer { display: none; }
