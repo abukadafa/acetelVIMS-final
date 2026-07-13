@@ -11,6 +11,7 @@ import {
   bulkRestoreStudents, bulkPermanentDeleteStudents,
   bulkRestoreCompanies, bulkPermanentDeleteCompanies,
   resetForTesting,
+  listPermissionCatalog, updateUserPermissions,
 } from '../controllers/admin.controller';
 
 const r = Router();
@@ -32,6 +33,8 @@ r.post('/users/release-email', authorize('admin'), releaseEmail);
 r.post('/students/release-matric', authorize('admin'), releaseMatric);
 r.post('/students',  authorize(...GOVERNANCE_ROLES), createStudent);
 r.post('/bulk-onboard', authorize(...GOVERNANCE_ROLES), bulkOnboard);
+r.get('/permissions', authorize('admin'), listPermissionCatalog);
+r.put('/users/:id/permissions', authorize('admin'), updateUserPermissions);
 r.put('/users/:id',  authorize(...GOVERNANCE_ROLES), updateUser);
 
 // Destructive — ADMIN ONLY (soft delete)

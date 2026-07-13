@@ -12,6 +12,7 @@ import AuditLog from '../models/AuditLog.model';
 import Company from '../models/Company.model';
 import { sendApprovedPostingNotifications } from '../services/placementNotification.service';
 import { maskCompanyForStudentView } from '../utils/studentView.util';
+import { buildStudentScope } from '../utils/accessScope.util';
 
 const STATE_COORDS: Record<string, { lat: number; lng: number }> = {
   fct: { lat: 9.0765, lng: 7.3986 },
@@ -92,19 +93,16 @@ const idParamSchema = z.object({
 export async function getAllStudents(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { programme, status, company, session, search } = studentQuerySchema.parse(req.query);
-    const { role: userRole, programme: userProg, tenant: userTenant } = req.user!;
+    const { role: userRole, programme: userProg, tenant: userTenant, id: userId } = req.user!;
     
-    let query: any = { tenant: userTenant };
+    let query: any = buildStudentScope(
+      { id: userId, role: userRole, tenant: userTenant, programme: userProg, permissions: req.user!.permissions },
+    );
 
     if (programme) query.programme = programme;
     if (status) query.status = status;
     if (company) query.company = company;
     if (session) query.academicSession = session;
-
-    // Programme Isolation for non-admins
-    if (userRole !== 'admin') {
-      query.programme = userProg;
-    }
 
     if (search) {
       // Escape special regex characters to prevent ReDoS attacks
@@ -531,7 +529,13 @@ export async function getAllStudentsForMap(req: AuthRequest, res: Response): Pro
   try {
     const { tenant: userTenant } = req.user!;
     const students = await Student.find({
-      tenant: userTenant,
+      ...buildStudentScope({
+        id: req.user!.id,
+        role: req.user!.role,
+        tenant: userTenant,
+        programme: req.user!.programme,
+        permissions: req.user!.permissions,
+      }),
       status: { $in: ['active', 'pending'] }
     })
       .populate('user', 'firstName lastName')
@@ -569,11 +573,10 @@ export async function getAllStudentsForMap(req: AuthRequest, res: Response): Pro
 
 export async function exportStudents(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { role: userRole, programme: userProg, tenant: userTenant } = req.user!;
-    let query: any = { tenant: userTenant };
-    if (userRole !== 'admin') {
-      query.programme = userProg;
-    }
+    const { role: userRole, programme: userProg, tenant: userTenant, id: userId } = req.user!;
+    let query: any = buildStudentScope(
+      { id: userId, role: userRole, tenant: userTenant, programme: userProg, permissions: req.user!.permissions },
+    );
 
     const students = await Student.find(query)
       .populate('user', 'firstName lastName email phone')

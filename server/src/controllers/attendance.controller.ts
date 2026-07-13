@@ -16,7 +16,27 @@ const checkInSchema = z.object({
   lng: z.number().min(-180).max(180),
   method: z.enum(['gps', 'biometric', 'manual', 'qr', 'offline']).optional().default('gps'),
   photoBase64: z.string().optional(),
+  session: z.enum(['morning', 'afternoon']).optional(),
 });
+
+/** Determine attendance session from time of day (before 13:00 = morning) */
+function resolveAttendanceSession(explicit?: 'morning' | 'afternoon'): 'morning' | 'afternoon' {
+  if (explicit) return explicit;
+  const hour = new Date().getHours();
+  return hour < 13 ? 'morning' : 'afternoon';
+}
+
+function startOfDay(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function endOfDay(): Date {
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
 
 const attendanceQuerySchema = z.object({
   studentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ID format').optional(),
@@ -27,13 +47,15 @@ const attendanceQuerySchema = z.object({
 const manualAttendanceSchema = z.object({
   studentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ID format'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)'),
+  session: z.enum(['morning', 'afternoon']).optional().default('morning'),
   notes: z.string().max(500).optional(),
 });
 
 export async function checkIn(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { lat, lng, method, photoBase64 } = checkInSchema.parse(req.body);
+    const { lat, lng, method, photoBase64, session: explicitSession } = checkInSchema.parse(req.body);
     const { id: userId, tenant: userTenant } = req.user!;
+    const session = resolveAttendanceSession(explicitSession);
     
     const student = await Student.findOne({ user: userId, tenant: userTenant }).populate('company');
 
@@ -42,19 +64,15 @@ export async function checkIn(req: AuthRequest, res: Response): Promise<void> {
       return;
     }
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
-
     const existing = await Attendance.findOne({
       student: student._id,
       tenant: userTenant,
-      checkInTime: { $gte: startOfDay, $lte: endOfDay }
+      session,
+      checkInTime: { $gte: startOfDay(), $lte: endOfDay() }
     });
 
     if (existing) {
-      res.status(409).json({ error: 'Already checked in today' });
+      res.status(409).json({ error: `Already checked in for ${session} session today` });
       return;
     }
 
@@ -83,6 +101,7 @@ export async function checkIn(req: AuthRequest, res: Response): Promise<void> {
     const attendance = new Attendance({
       student: student._id,
       tenant: userTenant,
+      session,
       checkInTime: new Date(),
       lat,
       lng,
@@ -100,8 +119,11 @@ export async function checkIn(req: AuthRequest, res: Response): Promise<void> {
     await student.save();
 
     res.json({
-      message: isValid ? '✅ Check-in successful' : '⚠️ Check-in recorded but location is outside company radius',
+      message: isValid
+        ? `✅ ${session.charAt(0).toUpperCase() + session.slice(1)} check-in successful`
+        : `⚠️ ${session} check-in recorded but location is outside company radius`,
       isValid,
+      session,
       distance: distance ? `${distance.toFixed(2)} km` : null,
       attendanceId: attendance._id,
     });
@@ -118,10 +140,9 @@ export async function checkIn(req: AuthRequest, res: Response): Promise<void> {
 export async function checkOut(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { id: userId, tenant: userTenant } = req.user!;
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    const session = resolveAttendanceSession(
+      req.body?.session === 'morning' || req.body?.session === 'afternoon' ? req.body.session : undefined
+    );
 
     const student = await Student.findOne({ user: userId, tenant: userTenant });
     if (!student) {
@@ -132,19 +153,20 @@ export async function checkOut(req: AuthRequest, res: Response): Promise<void> {
     const record = await Attendance.findOne({
       student: student._id,
       tenant: userTenant,
-      checkInTime: { $gte: startOfDay, $lte: endOfDay },
+      session,
+      checkInTime: { $gte: startOfDay(), $lte: endOfDay() },
       checkOutTime: { $exists: false }
     });
 
     if (!record) {
-      res.status(404).json({ error: 'No active check-in found for today' });
+      res.status(404).json({ error: `No active ${session} check-in found for today` });
       return;
     }
 
     record.checkOutTime = new Date();
     await record.save();
 
-    res.json({ message: '✅ Check-out successful' });
+    res.json({ message: `✅ ${session} check-out successful`, session });
   } catch (err) {
     logger.error('Error in checkOut: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
@@ -214,7 +236,7 @@ export async function getAttendanceRecords(req: AuthRequest, res: Response): Pro
 
 export async function manualAttendance(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { studentId, date, notes } = manualAttendanceSchema.parse(req.body);
+    const { studentId, date, session, notes } = manualAttendanceSchema.parse(req.body);
     const { tenant: userTenant } = req.user!;
 
     // SECURITY: Only admins or coordinators can log manual attendance
@@ -229,10 +251,12 @@ export async function manualAttendance(req: AuthRequest, res: Response): Promise
       return;
     }
 
+    const checkInHour = session === 'morning' ? '08:00:00' : '13:00:00';
     const attendance = new Attendance({
       student: studentId,
       tenant: userTenant,
-      checkInTime: new Date(`${date} 08:00:00`),
+      session,
+      checkInTime: new Date(`${date} ${checkInHour}`),
       isValid: true,
       method: 'manual',
       notes
@@ -322,6 +346,38 @@ export async function getAttendanceAnalytics(req: AuthRequest, res: Response): P
   }
 }
 
+/** GET today's attendance status for the logged-in student */
+export async function getTodayStatus(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { id: userId, tenant: userTenant } = req.user!;
+    const student = await Student.findOne({ user: userId, tenant: userTenant });
+    if (!student) {
+      res.status(404).json({ error: 'Student profile not found' });
+      return;
+    }
+
+    const records = await Attendance.find({
+      student: student._id,
+      tenant: userTenant,
+      checkInTime: { $gte: startOfDay(), $lte: endOfDay() },
+    }).sort({ checkInTime: 1 });
+
+    const morning = records.find((r) => r.session === 'morning') || null;
+    const afternoon = records.find((r) => r.session === 'afternoon') || null;
+    const currentSession = resolveAttendanceSession();
+
+    res.json({
+      currentSession,
+      morning,
+      afternoon,
+      records,
+    });
+  } catch (err) {
+    logger.error('getTodayStatus: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
 export async function exportAttendanceRecords(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { tenant: userTenant, role: userRole, id: userId } = req.user!;
@@ -347,7 +403,7 @@ export async function exportAttendanceRecords(req: AuthRequest, res: Response): 
       })
       .sort({ checkInTime: -1 });
 
-    let csv = 'Student Name,Student Email,Date,Time In,Method,Verification Status,Distance Deviation (km),Has Selfie\n';
+    let csv = 'Student Name,Student Email,Date,Session,Time In,Method,Verification Status,Distance Deviation (km),Has Selfie\n';
     
     for (const r of records) {
       const student = r.student as any;
@@ -359,7 +415,7 @@ export async function exportAttendanceRecords(req: AuthRequest, res: Response): 
       const deviation = r.distanceFromCompany ? r.distanceFromCompany.toFixed(3) : '';
       const hasSelfie = r.photoUrl ? 'Yes' : 'No';
       
-      csv += `"${user?.firstName} ${user?.lastName}","${user?.email}",${dateStr},${timeStr},${r.method},${verificationStatus},${deviation},${hasSelfie}\n`;
+      csv += `"${user?.firstName} ${user?.lastName}","${user?.email}",${dateStr},${r.session || 'morning'},${timeStr},${r.method},${verificationStatus},${deviation},${hasSelfie}\n`;
     }
 
     res.setHeader('Content-Type', 'text/csv');

@@ -16,6 +16,7 @@ import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.servic
 import { autoAllocateStudent } from '../utils/allocation.service';
 import { normalizeStateName } from '../utils/nigeria-states.util';
 import { maskCompanyForStudentView } from '../utils/studentView.util';
+import { resolveUserPermissions } from '../utils/permissions.util';
 import { z } from 'zod';
 
 // Allow cookies on HTTP for local testing even in production mode
@@ -353,7 +354,8 @@ export async function getProfile(req: AuthRequest, res: Response): Promise<void>
         .populate('supervisor', 'firstName lastName email phone');
       studentData = raw ? maskCompanyForStudentView(raw, 'student') : null;
     }
-    res.json({ user, student: studentData });
+    const perms = resolveUserPermissions(user);
+    res.json({ user: { ...user.toObject(), permissions: perms }, student: studentData });
   } catch (err) {
     logger.error('Profile Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });

@@ -15,6 +15,12 @@ import Notification from '../models/notification.model';
 import { autoAllocateStudent } from '../utils/allocation.service';
 import { normalizeStateName } from '../utils/nigeria-states.util';
 import { purgeSoftDeletedIdentity } from '../utils/identity.util';
+import {
+  ALL_PERMISSIONS,
+  PERMISSION_LABELS,
+  Permission,
+  DEFAULT_ROLE_PERMISSIONS,
+} from '../utils/permissions.util';
 
 const STAFF_ROLES = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor'];
 
@@ -159,13 +165,24 @@ export async function listUsers(req: AuthRequest, res: Response): Promise<void> 
       User.countDocuments(filter),
     ]);
 
+    const usersWithPerms = users.map((u) => {
+      const doc = u.toObject();
+      const custom = Array.isArray(doc.permissions) && doc.permissions.length > 0;
+      return {
+        ...doc,
+        effectivePermissions: custom
+          ? doc.permissions
+          : DEFAULT_ROLE_PERMISSIONS[doc.role] || [],
+      };
+    });
+
     // Role-wise counts for current tenant
     const counts = await User.aggregate([
       { $match: { tenant: new mongoose.Types.ObjectId(tenantId), role: { $in: STAFF_ROLES } } },
       { $group: { _id: '$role', count: { $sum: 1 } } },
     ]);
 
-    res.json({ users, total, counts });
+    res.json({ users: usersWithPerms, total, counts });
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.errors });
@@ -1318,6 +1335,67 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
             stateOfOrigin,
           });
           await student.save();
+
+          const progDoc = programmeId ? await Programme.findById(programmeId).select('name') : null;
+          const progName = progDoc?.name || programmeCodeValue || 'your programme';
+          const delivery = await sendBulkStudentWelcome(
+            { firstName: user.firstName, lastName: user.lastName, email: user.email, phone },
+            matricNum,
+            tempPassword,
+            progName,
+            personalEmail
+          );
+
+          try {
+            await autoAllocateStudent((student._id as any).toString());
+          } catch (allocErr) {
+            logger.warn('Bulk auto-post failed for %s: %s', user.email, (allocErr as Error).message);
+          }
+
+          results.success.push({
+            name: `${user.firstName} ${user.lastName}`,
+            email: user.email,
+            username: user.username,
+            tempPassword,
+            role: user.role,
+            delivery,
+          });
+          continue;
+        }
+
+        // Staff welcome notifications
+        const appUrl = process.env.FRONTEND_URL || 'https://acetel-frontend.onrender.com';
+        const roleLabel = formatRoleLabel(role);
+        let staffEmailSent = false;
+        let staffWaSent = false;
+        try {
+          staffEmailSent = await sendEmail(
+            user.email,
+            'Welcome to ACETEL IMS — Your Account is Ready',
+            emailTemplates.welcomeStaff(
+              `${user.firstName} ${user.lastName}`,
+              user.email,
+              user.email,
+              tempPassword,
+              roleLabel,
+              appUrl
+            )
+          );
+        } catch (mailErr) {
+          logger.warn('Bulk staff email failed for %s: %s', user.email, (mailErr as Error).message);
+        }
+        if (phone) {
+          try {
+            staffWaSent = await sendWhatsAppMessage(phone, whatsappTemplates.welcomeStaff(
+              `${user.firstName} ${user.lastName}`,
+              user.email,
+              tempPassword,
+              role,
+              appUrl
+            ));
+          } catch (waErr) {
+            logger.warn('Bulk staff WhatsApp failed for %s: %s', phone, (waErr as Error).message);
+          }
         }
 
         results.success.push({
@@ -1325,7 +1403,8 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
           email: user.email,
           username: user.username,
           tempPassword,
-          role: user.role
+          role: user.role,
+          delivery: { email: staffEmailSent, whatsapp: staffWaSent },
         });
 
       } catch (saveErr: any) {
@@ -1352,7 +1431,126 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
   }
 }
 
-// ─── BULK RECYCLE BIN ACTIONS ───────────────────────────────────────────────
+/** GET /api/admin/permissions — catalog of assignable permissions */
+export async function listPermissionCatalog(_req: AuthRequest, res: Response): Promise<void> {
+  res.json({
+    permissions: ALL_PERMISSIONS.map((key) => ({
+      key,
+      label: PERMISSION_LABELS[key],
+    })),
+  });
+}
+
+const updatePermissionsSchema = z.object({
+  permissions: z.array(z.string()),
+  reason: z.string().min(3),
+});
+
+/** PUT /api/admin/users/:id/permissions — assign granular permissions (admin only) */
+export async function updateUserPermissions(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { id } = idParamSchema.parse(req.params);
+    const { permissions, reason } = updatePermissionsSchema.parse(req.body);
+    const tenantId = req.user!.tenant;
+
+    const user = await User.findOne({ _id: id, tenant: tenantId, isDeleted: { $ne: true } });
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    if (user.role === 'admin') {
+      res.status(403).json({ error: 'Administrator permissions cannot be modified' });
+      return;
+    }
+
+    const valid = permissions.filter((p): p is Permission =>
+      ALL_PERMISSIONS.includes(p as Permission)
+    );
+    user.permissions = valid;
+    await user.save();
+
+    await AuditLog.create({
+      tenant: tenantId,
+      user: req.user!.id,
+      action: 'UPDATE_PERMISSIONS',
+      module: 'USER_MANAGEMENT',
+      targetId: id,
+      reason,
+      details: `Updated permissions for ${user.email}: ${valid.join(', ') || '(role defaults)'}`,
+      ipAddress: req.ip,
+    });
+
+    const updated = await User.findById(id).select('-password').populate('programme', 'code name level');
+    res.json({
+      user: updated,
+      effectivePermissions: valid.length ? valid : DEFAULT_ROLE_PERMISSIONS[user.role] || [],
+      message: 'Permissions updated successfully',
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      return;
+    }
+    logger.error('updateUserPermissions: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+async function sendBulkStudentWelcome(
+  user: { firstName: string; lastName: string; email: string; phone?: string },
+  matricNumber: string,
+  tempPassword: string,
+  progName: string,
+  personalEmail?: string
+): Promise<{ email: boolean; personalEmail: boolean; whatsapp: boolean }> {
+  const appUrl = process.env.FRONTEND_URL || 'https://acetel-frontend.onrender.com';
+  const welcomeHtml = emailTemplates.welcomeStudent(
+    `${user.firstName} ${user.lastName}`,
+    user.email,
+    tempPassword,
+    appUrl,
+    'Pending Placement'
+  );
+  const delivery = { email: false, personalEmail: false, whatsapp: false };
+  try {
+    delivery.email = await sendEmail(user.email, 'Welcome to ACETEL IMS — Your Account is Ready', welcomeHtml);
+  } catch (e) {
+    logger.warn('Bulk student email failed for %s: %s', user.email, (e as Error).message);
+  }
+  if (personalEmail) {
+    try {
+      delivery.personalEmail = await sendEmail(personalEmail, 'Welcome to ACETEL IMS — Your Account is Ready', welcomeHtml);
+    } catch (e) {
+      logger.warn('Bulk personal email failed for %s: %s', personalEmail, (e as Error).message);
+    }
+  }
+  if (user.phone) {
+    try {
+      delivery.whatsapp = await sendWhatsAppMessage(
+        user.phone,
+        `*ACETEL IMS — Enrollment Successful* 🎓
+
+Hello ${user.firstName},
+
+You have been enrolled on the ACETEL Virtual Internship Management System.
+
+*Matric Number:* ${matricNumber}
+*Programme:* ${progName}
+*Login Email:* ${user.email}
+*Temporary Password:* ${tempPassword}
+
+Access the portal here:
+${appUrl}
+
+_Please change your password after first login._`
+      );
+    } catch (e) {
+      logger.warn('Bulk WhatsApp failed for %s: %s', user.phone, (e as Error).message);
+    }
+  }
+  return delivery;
+}
+
 
 const bulkActionSchema = z.object({
   ids: z.union([z.string(), z.array(z.string())]).transform((val) => Array.isArray(val) ? val : val.split(',')),

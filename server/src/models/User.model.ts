@@ -19,6 +19,8 @@ export interface IUser extends Document {
   deleteReason?: string;
   lastEditReason?: string;
   lastLogin?: Date;
+  /** Custom permission overrides — when empty, role defaults apply */
+  permissions?: string[];
   comparePassword(password: string): Promise<boolean>;
 }
 
@@ -44,7 +46,8 @@ const UserSchema: Schema = new Schema({
   deletedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   deleteReason: { type: String },
   lastEditReason: { type: String },
-  lastLogin: { type: Date }
+  lastLogin: { type: Date },
+  permissions: [{ type: String }]
 }, {
   timestamps: true
 });

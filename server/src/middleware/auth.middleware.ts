@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import User from '../models/User.model';
 import logger from '../utils/logger';
 import { resolveUserTenantId } from '../utils/tenant.util';
+import { Permission, resolveUserPermissions, hasPermission as checkPermission } from '../utils/permissions.util';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -12,6 +13,7 @@ export interface AuthRequest extends Request {
     email: string;
     programme?: string;
     tenant?: string;
+    permissions?: Permission[];
   };
 }
 
@@ -43,12 +45,13 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
       return res.status(401).json({ error: 'Invalid session — please log in again' });
     }
 
-    const dbUser = await User.findById(userId).select('tenant programme role email isActive isDeleted');
+    const dbUser = await User.findById(userId).select('tenant programme role email isActive isDeleted permissions');
     if (!dbUser || !dbUser.isActive || dbUser.isDeleted) {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
     const tenantId = await resolveUserTenantId(dbUser);
+    const permissions = resolveUserPermissions(dbUser);
 
     req.user = {
       id: dbUser._id.toString(),
@@ -56,6 +59,7 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
       email: dbUser.email,
       tenant: tenantId,
       programme: dbUser.programme?.toString() || decoded.programme,
+      permissions,
     };
     next();
   } catch (error: any) {
@@ -70,6 +74,36 @@ export const authorize = (...roles: string[]) => {
       return res.status(403).json({ error: 'Access denied' });
     }
     next();
+  };
+};
+
+/** Permission-based access — admin always passes; others need explicit permission */
+export const requirePermission = (...perms: Permission[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    if (req.user.role === 'admin' || checkPermission(req.user, ...perms)) {
+      return next();
+    }
+    return res.status(403).json({ error: 'You do not have permission to perform this action' });
+  };
+};
+
+/** Pass if the user holds at least one of the listed permissions */
+export const requireAnyPermission = (...perms: Permission[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    if (req.user.role === 'admin') {
+      return next();
+    }
+    const effective = resolveUserPermissions(req.user);
+    if (perms.some((p) => effective.includes(p))) {
+      return next();
+    }
+    return res.status(403).json({ error: 'You do not have permission to perform this action' });
   };
 };
 

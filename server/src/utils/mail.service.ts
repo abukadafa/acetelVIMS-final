@@ -58,7 +58,7 @@ async function createTransporter(): Promise<Transporter<SMTPTransport.SentMessag
     port: creds.port,
     secure: creds.port === 465,
     auth: { user: creds.user, pass: creds.pass },
-    tls: { rejectUnauthorized: false },
+    tls: { rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== 'false' },
     name: creds.host,
   };
   return nodemailer.createTransport(transportOptions);
