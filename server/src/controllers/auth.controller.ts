@@ -17,6 +17,21 @@ import { autoAllocateStudent } from '../utils/allocation.service';
 import { normalizeStateName } from '../utils/nigeria-states.util';
 import { maskCompanyForStudentView } from '../utils/studentView.util';
 import { z } from 'zod';
+import crypto from 'crypto';
+
+/** Constant-time string comparison to avoid leaking the admin password via response-time analysis. */
+function timingSafeStringEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  // Buffers must be equal length for timingSafeEqual; pad the shorter one so length
+  // itself isn't leaked either (comparison will still correctly fail).
+  const maxLen = Math.max(bufA.length, bufB.length, 1);
+  const paddedA = Buffer.alloc(maxLen);
+  const paddedB = Buffer.alloc(maxLen);
+  bufA.copy(paddedA);
+  bufB.copy(paddedB);
+  return bufA.length === bufB.length && crypto.timingSafeEqual(paddedA, paddedB);
+}
 
 // Allow cookies on HTTP for local testing even in production mode
 const isSecure = process.env.FRONTEND_URL?.startsWith('https') || false;
@@ -51,7 +66,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     const envAdminPass  = process.env.ADMIN_PASSWORD?.trim();
 
     if (envAdminEmail && (cleanIdentifier === envAdminEmail || cleanIdentifier === 'admin')) {
-      if (password !== envAdminPass) {
+      if (!envAdminPass || !timingSafeStringEqual(password, envAdminPass)) {
         res.status(401).json({ error: 'Invalid admin password.' });
         return;
       }
@@ -139,7 +154,8 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     res.json({ user: { id: user._id, email: user.email, role: user.role,
       firstName: user.firstName, lastName: user.lastName, phone: user.phone,
-      avatar: user.avatar, tenant: user.tenant }, student: studentData, accessToken: access, refreshToken: refresh });
+      avatar: user.avatar, tenant: user.tenant, mustChangePassword: user.mustChangePassword },
+      student: studentData, accessToken: access, refreshToken: refresh });
   } catch (err) {
     logger.error('Login Error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
@@ -157,10 +173,15 @@ export async function register(req: Request, res: Response): Promise<void> {
 
     const {
       email, password, firstName, lastName, phone,
-      role, matricNumber, academicSession, level,
+      matricNumber, academicSession, level,
       stateOfOrigin, lga, address, lat, lng,
       tenantSlug = 'acetel'
     } = validatedData.data as any;
+
+    // SECURITY: public self-registration can only ever create a 'student' account.
+    // Do NOT accept a role from the request body here — staff/coordinator/admin
+    // accounts must be created via the authenticated POST /api/admin/users route.
+    const role = 'student' as const;
 
     const cleanEmail = email.trim().toLowerCase();
     const existingUser = await User.findOne({ email: cleanEmail, isDeleted: { $ne: true } });
@@ -285,22 +306,10 @@ export async function register(req: Request, res: Response): Promise<void> {
       });
     }
 
-    // ── POST-REGISTRATION: Staff welcome email ──
-    if (role !== 'student') {
-      setImmediate(async () => {
-        try {
-          const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
-          await sendEmail(cleanEmail, 'Welcome to ACETEL VIMS — Staff Account Created',
-            emailTemplates.welcomeStaff(`${firstName} ${lastName}`, cleanEmail, cleanEmail, password, role, appUrl));
-          if (phone) {
-            await sendWhatsAppMessage(phone,
-              whatsappTemplates.welcomeStaff(`${firstName} ${lastName}`, cleanEmail, password, role, appUrl));
-          }
-        } catch (e: any) {
-          logger.error('Staff welcome notification error: %s', e.message);
-        }
-      });
-    }
+    // NOTE: Staff/coordinator/admin accounts are created exclusively via the
+    // authenticated POST /api/admin/users route (admin.controller.ts), which sends
+    // its own welcome email. Public registration is student-only, so no staff
+    // welcome-email branch is needed here.
 
     res.status(201).json({ message: 'Registration successful' });
   } catch (err) {
@@ -410,6 +419,7 @@ export async function changePassword(req: AuthRequest, res: Response): Promise<v
     if (!isMatch) { res.status(400).json({ error: 'Current password incorrect' }); return; }
 
     user.password = newPassword;
+    user.mustChangePassword = false;
     await user.save();
     await RefreshToken.updateMany({ user: req.user!.id, isRevoked: false }, { isRevoked: true });
     await AuditLog.create({ user: user._id, tenant: req.user!.tenant, action: 'PASSWORD_CHANGED',
