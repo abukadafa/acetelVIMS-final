@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getAllCompanies, createCompany, updateCompany, deleteCompany, getCompanyById, getCompanyMetadata } from '../controllers/company.controller';
-import { authenticate, authorize } from '../middleware/auth.middleware';
+import { authenticate, authorize, requirePermission } from '../middleware/auth.middleware';
+import { PERMISSIONS } from '../config/permissions';
 import Company from '../models/Company.model';
 import Student from '../models/Student.model';
 import { normalizeStateName, studentStateMatchesCompany } from '../utils/nigeria-states.util';
@@ -8,17 +9,19 @@ import logger from '../utils/logger';
 
 const r = Router();
 r.use(authenticate);
+// Companies were already tenant-wide (not programme-scoped) at the query
+// level, so this was purely a route-gate issue for who could view/manage them.
 r.get('/', getAllCompanies);
 r.get('/meta', getCompanyMetadata);
 r.get('/:id', getCompanyById);
-r.post('/', authorize('admin', 'prog_coordinator', 'internship_coordinator'), createCompany);
-r.put('/:id', authorize('admin', 'prog_coordinator', 'internship_coordinator'), updateCompany);
+r.post('/', requirePermission(PERMISSIONS.COMPANIES_ADD, PERMISSIONS.COMPANIES_MANAGE), createCompany);
+r.put('/:id', requirePermission(PERMISSIONS.COMPANIES_MANAGE), updateCompany);
 r.delete('/:id', authorize('admin'), deleteCompany);
 
 /** Bulk assign pending students to a company — emails only after coordinator approves each posting */
 r.post(
   '/:id/auto-allocate',
-  authorize('admin', 'internship_coordinator', 'prog_coordinator'),
+  requirePermission(PERMISSIONS.COMPANIES_MANAGE),
   async (req: any, res: any) => {
     try {
       const company = await Company.findById(req.params.id);

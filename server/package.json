@@ -10,7 +10,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc --skipLibCheck",
     "start": "node dist/index.js",
-    "seed": "tsx src/seed.ts"
+    "seed": "tsx src/seed.ts",
+    "migrate:permissions": "tsx src/scripts/migrate-permissions.ts",
+    "migrate:attendance-sessions": "tsx src/scripts/migrate-attendance-sessions.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

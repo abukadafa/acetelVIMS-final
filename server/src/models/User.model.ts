@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { getDefaultPermissionsForRole } from '../config/permissions';
 
 export interface IUser extends Document {
   email: string;
@@ -11,6 +12,8 @@ export interface IUser extends Document {
   phone?: string;
   avatar?: string;
   programme?: mongoose.Types.ObjectId; // For per-programme staff roles
+  /** Explicit, admin-editable grants. Admin role bypasses this and implicitly has everything. */
+  permissions: string[];
   tenant: mongoose.Types.ObjectId;
   isActive: boolean;
   isDeleted: boolean;
@@ -37,6 +40,7 @@ const UserSchema: Schema = new Schema({
   phone: { type: String },
   avatar: { type: String },
   programme: { type: Schema.Types.ObjectId, ref: 'Programme' }, // optional per-programme linkage
+  permissions: { type: [String], default: [] },
   tenant: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
   isActive: { type: Boolean, default: true },
   isDeleted: { type: Boolean, default: false },
@@ -58,6 +62,14 @@ UserSchema.index(
   { username: 1, tenant: 1 },
   { unique: true, partialFilterExpression: { isDeleted: false } }
 );
+
+// Seed default permissions for brand-new users based on their role, unless
+// permissions were explicitly provided (e.g. by the permission-migration script).
+UserSchema.pre<IUser>('validate', function () {
+  if (this.isNew && (!this.permissions || this.permissions.length === 0)) {
+    this.permissions = getDefaultPermissionsForRole(this.role);
+  }
+});
 
 // Hash password before saving
 UserSchema.pre<IUser>('save', async function() {

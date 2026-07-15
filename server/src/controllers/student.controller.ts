@@ -12,6 +12,8 @@ import AuditLog from '../models/AuditLog.model';
 import Company from '../models/Company.model';
 import { sendApprovedPostingNotifications } from '../services/placementNotification.service';
 import { maskCompanyForStudentView } from '../utils/studentView.util';
+import { hasPermission } from '../middleware/auth.middleware';
+import { PERMISSIONS } from '../config/permissions';
 
 const STATE_COORDS: Record<string, { lat: number; lng: number }> = {
   fct: { lat: 9.0765, lng: 7.3986 },
@@ -101,9 +103,18 @@ export async function getAllStudents(req: AuthRequest, res: Response): Promise<v
     if (company) query.company = company;
     if (session) query.academicSession = session;
 
-    // Programme Isolation for non-admins
-    if (userRole !== 'admin') {
-      query.programme = userProg;
+    // Visibility is permission-based, not programme-based: anyone holding
+    // STUDENTS_VIEW_ALL (admin included) sees every student in the tenant,
+    // regardless of who enrolled them or which programme they belong to.
+    // Only fall back to programme isolation for users who hold the narrower
+    // STUDENTS_VIEW grant and were explicitly assigned to one programme.
+    if (!hasPermission(req.user, PERMISSIONS.STUDENTS_VIEW_ALL) && !programme) {
+      if (userProg) {
+        query.programme = userProg;
+      } else {
+        // No broad-view permission and no programme assigned — nothing to show.
+        query._id = { $in: [] };
+      }
     }
 
     if (search) {
@@ -569,10 +580,14 @@ export async function getAllStudentsForMap(req: AuthRequest, res: Response): Pro
 
 export async function exportStudents(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { role: userRole, programme: userProg, tenant: userTenant } = req.user!;
+    const { programme: userProg, tenant: userTenant } = req.user!;
     let query: any = { tenant: userTenant };
-    if (userRole !== 'admin') {
-      query.programme = userProg;
+    if (!hasPermission(req.user, PERMISSIONS.STUDENTS_VIEW_ALL)) {
+      if (userProg) {
+        query.programme = userProg;
+      } else {
+        query._id = { $in: [] };
+      }
     }
 
     const students = await Student.find(query)

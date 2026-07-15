@@ -4,15 +4,31 @@ import type Transporter from 'nodemailer/lib/mailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import logger from './logger';
 
+// IMPORTANT: this list must be kept in sync with server/.env.example.
+// The original list did NOT include the actual example defaults
+// ("admin@yourdomain.com" / "16-char-google-app-password"), which meant a
+// deployment that copied .env.example without editing SMTP_USER/SMTP_PASS
+// was treated as "configured" — sendMail then failed on every attempt with
+// a real (but silent, log-only) auth error, while the admin UI reported
+// emailConfigured: true, making the failure invisible.
 const SMTP_PLACEHOLDERS = [
   'your-sender@gmail.com',
   'your-email@gmail.com',
   'your-app-password',
   'your-gmail-app-password',
   'your_institutional_password',
+  'your_gmail_app_password',
   'changeme',
   'example.com',
+  'admin@yourdomain.com',
+  'yourdomain.com',
+  '16-char-google-app-password',
 ];
+
+let lastSmtpError: string | null = null;
+export function getLastSmtpError(): string | null {
+  return lastSmtpError;
+}
 
 /** Gmail App Passwords are 16 chars — Google displays them with spaces; strip for SMTP auth. */
 export function getSmtpCredentials(): { user: string; pass: string; host: string; port: number } | null {
@@ -34,6 +50,17 @@ export function isEmailConfigured(): boolean {
   if (SMTP_PLACEHOLDERS.some((p) => lower.includes(p))) return false;
   if (creds.user.includes('your-') || creds.pass.includes('your-')) return false;
   return true;
+}
+
+/** Human-readable reason email sending is currently disabled, or null if it's properly configured. */
+export function getEmailConfigReason(): string | null {
+  const creds = getSmtpCredentials();
+  if (!creds) return 'SMTP_USER and/or SMTP_PASS are not set in the environment';
+  const lower = `${creds.user}|${creds.pass}`.toLowerCase();
+  if (SMTP_PLACEHOLDERS.some((p) => lower.includes(p)) || creds.user.includes('your-') || creds.pass.includes('your-')) {
+    return 'SMTP_USER/SMTP_PASS still contain placeholder/example values from .env.example — replace them with real credentials';
+  }
+  return null;
 }
 
 async function resolveHostToIPv4(host: string): Promise<string> {
@@ -84,12 +111,16 @@ export async function verifySmtpConnection(): Promise<{ ok: boolean; error?: str
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   if (!isEmailConfigured()) {
-    logger.warn('Email skipped: SMTP_USER/SMTP_PASS not configured');
+    lastSmtpError = getEmailConfigReason();
+    logger.warn('Email skipped to %s: %s', to, lastSmtpError);
     return false;
   }
   const creds = getSmtpCredentials();
   const transporter = await createTransporter();
-  if (!transporter || !creds) return false;
+  if (!transporter || !creds) {
+    lastSmtpError = 'Could not create mail transporter';
+    return false;
+  }
 
   try {
     const info = await transporter.sendMail({
@@ -99,11 +130,34 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
       html,
     });
     logger.info('Email sent to %s (messageId: %s)', to, info.messageId);
+    lastSmtpError = null;
     return true;
   } catch (error) {
-    logger.error('Email failed to %s: %s', to, (error as Error).message);
+    lastSmtpError = (error as Error).message;
+    logger.error('Email failed to %s: %s', to, lastSmtpError);
     return false;
   }
+}
+
+/** Diagnostics for an admin-facing "integration status" panel — no secrets included. */
+export function getEmailDiagnostics(): {
+  configured: boolean;
+  host: string | null;
+  port: number | null;
+  user: string | null;
+  reason: string | null;
+  lastError: string | null;
+} {
+  const creds = getSmtpCredentials();
+  return {
+    configured: isEmailConfigured(),
+    host: creds?.host ?? null,
+    port: creds?.port ?? null,
+    // mask the local part so the address isn't fully exposed in API responses/logs shipped to the client
+    user: creds ? creds.user.replace(/^(.{2}).*(@.*)$/, '$1***$2') : null,
+    reason: getEmailConfigReason(),
+    lastError: lastSmtpError,
+  };
 }
 
 const base = (content: string) => `
@@ -195,6 +249,22 @@ export const emailTemplates = {
     <a class="btn" href="${appUrl}">Open ACETEL VIMS</a>
   `),
 
+  /** Bulk "you are enrolled" resend — does not include a password (use welcomeStudent for that at creation time). */
+  enrollmentNotice: (name: string, matric: string, programme: string, status: string, company: string | null, appUrl: string) => base(`
+    <h2>You Are Enrolled — ACETEL VIMS</h2>
+    <p>Dear ${name},</p>
+    <p>This confirms your enrollment on the ACETEL Virtual Internship Management System.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Matric Number</span><span class="info-value">${matric}</span></div>
+      <div class="info-row"><span class="info-label">Programme</span><span class="info-value">${programme}</span></div>
+      <div class="info-row"><span class="info-label">Status</span><span class="info-value">${status}</span></div>
+      ${company ? `<div class="info-row"><span class="info-label">Placed At</span><span class="info-value"><strong>${company}</strong></span></div>` : ''}
+      <div class="info-row"><span class="info-label">Portal</span><span class="info-value"><a href="${appUrl}">${appUrl}</a></span></div>
+    </div>
+    <p>Log in with your institutional email. If you have forgotten your password, use the "Forgot Password" link on the login page or contact ICT Support.</p>
+    <a class="btn" href="${appUrl}">Open ACETEL VIMS Portal</a>
+  `),
+
   welcomeCompany: (companyName: string, contactPerson: string, appUrl: string) => base(`
     <h2>Welcome to ACETEL VIMS, ${companyName}!</h2>
     <p>Dear ${contactPerson},</p>
@@ -261,6 +331,13 @@ export const emailTemplates = {
     <p>Dear ${coordName},</p>
     <p>Student <strong>${studentName}</strong> has reached <strong>${days} days</strong> of non-submission.</p>
     <p>Further action may be required according to institutional policy.</p>
+  `),
+
+  criticalInactivityEscalation: (studentName: string, matric: string, days: number, coordName: string) => base(`
+    <h2>🚨 Critical: 10-Day Inactivity — Action Required</h2>
+    <p>Dear ${coordName},</p>
+    <p>Student <strong>${studentName}</strong> (Matric: ${matric}) has now been inactive for <strong>${days} consecutive days</strong>. This has crossed the critical threshold and may require formal review, a compliance query, or withdrawal consideration per institutional policy.</p>
+    <p>Please review this student's status as a priority.</p>
   `),
 
   missingWeeklySubmission: (name: string) => base(`

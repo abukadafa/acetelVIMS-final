@@ -9,6 +9,8 @@ import Logbook from '../models/Logbook.model';
 import Attendance from '../models/Attendance.model';
 import { z } from 'zod';
 import logger from '../utils/logger';
+import { getEmailDiagnostics, verifySmtpConnection } from '../utils/mail.service';
+import { isWhatsAppConfigured, getWhatsAppProvider, getLastWhatsAppError } from '../utils/whatsapp.service';
 
 const settingUpdateSchema = z.object({
   key: z.string(),
@@ -18,6 +20,32 @@ const settingUpdateSchema = z.object({
 const multipleSettingsSchema = z.object({
   settings: z.record(z.string()),
 });
+
+/**
+ * GET /api/settings/integrations — live diagnostics for email + WhatsApp so
+ * an admin can see (from the UI, without SSH access to the VPS) exactly why
+ * notifications aren't going out, instead of them silently failing.
+ */
+export async function getIntegrationStatus(_req: AuthRequest, res: Response): Promise<void> {
+  const emailDiag = getEmailDiagnostics();
+  let smtpLiveCheck: { ok: boolean; error?: string } = { ok: false, error: 'Not attempted — SMTP not configured' };
+  if (emailDiag.configured) {
+    smtpLiveCheck = await verifySmtpConnection();
+  }
+
+  res.json({
+    email: {
+      ...emailDiag,
+      liveConnectionOk: smtpLiveCheck.ok,
+      liveConnectionError: smtpLiveCheck.error ?? null,
+    },
+    whatsapp: {
+      configured: isWhatsAppConfigured(),
+      provider: getWhatsAppProvider(),
+      lastError: getLastWhatsAppError(),
+    },
+  });
+}
 
 export async function getSettings(req: AuthRequest, res: Response): Promise<void> {
   try {

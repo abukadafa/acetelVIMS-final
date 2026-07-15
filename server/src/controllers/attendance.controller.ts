@@ -8,6 +8,7 @@ import Student from '../models/Student.model';
 import Setting from '../models/Setting.model';
 import Programme from '../models/Programme.model';
 import { calculateDistance } from '../utils/geo.utils';
+import { resolveCurrentSession, getAttendanceDateKey } from '../utils/attendance.util';
 import logger from '../utils/logger';
 import { z } from 'zod';
 
@@ -27,6 +28,7 @@ const attendanceQuerySchema = z.object({
 const manualAttendanceSchema = z.object({
   studentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ID format'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)'),
+  session: z.enum(['morning', 'afternoon']).optional().default('morning'),
   notes: z.string().max(500).optional(),
 });
 
@@ -42,19 +44,18 @@ export async function checkIn(req: AuthRequest, res: Response): Promise<void> {
       return;
     }
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    const now = new Date();
+    const { session, attendanceDate } = await resolveCurrentSession(userTenant!, now);
 
     const existing = await Attendance.findOne({
       student: student._id,
       tenant: userTenant,
-      checkInTime: { $gte: startOfDay, $lte: endOfDay }
+      attendanceDate,
+      session,
     });
 
     if (existing) {
-      res.status(409).json({ error: 'Already checked in today' });
+      res.status(409).json({ error: `Already checked in for the ${session} session today` });
       return;
     }
 
@@ -80,19 +81,31 @@ export async function checkIn(req: AuthRequest, res: Response): Promise<void> {
       photoUrl = `/uploads/${filename}`;
     }
 
-    const attendance = new Attendance({
-      student: student._id,
-      tenant: userTenant,
-      checkInTime: new Date(),
-      lat,
-      lng,
-      distanceFromCompany: distance,
-      isValid,
-      method,
-      photoUrl,
-    });
-
-    await attendance.save();
+    let attendance: InstanceType<typeof Attendance>;
+    try {
+      attendance = new Attendance({
+        student: student._id,
+        tenant: userTenant,
+        session,
+        attendanceDate,
+        checkInTime: now,
+        lat,
+        lng,
+        distanceFromCompany: distance,
+        isValid,
+        method,
+        photoUrl,
+      });
+      await attendance.save();
+    } catch (saveErr: any) {
+      // Unique index (student, attendanceDate, session) caught a race — two
+      // near-simultaneous requests both passed the findOne check above.
+      if (saveErr?.code === 11000) {
+        res.status(409).json({ error: `Already checked in for the ${session} session today` });
+        return;
+      }
+      throw saveErr;
+    }
 
     student.lat = lat;
     student.lng = lng;
@@ -100,7 +113,10 @@ export async function checkIn(req: AuthRequest, res: Response): Promise<void> {
     await student.save();
 
     res.json({
-      message: isValid ? '✅ Check-in successful' : '⚠️ Check-in recorded but location is outside company radius',
+      message: isValid
+        ? `✅ ${session === 'morning' ? 'Morning' : 'Afternoon'} check-in successful`
+        : `⚠️ Check-in recorded but location is outside company radius`,
+      session,
       isValid,
       distance: distance ? `${distance.toFixed(2)} km` : null,
       attendanceId: attendance._id,
@@ -118,10 +134,6 @@ export async function checkIn(req: AuthRequest, res: Response): Promise<void> {
 export async function checkOut(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { id: userId, tenant: userTenant } = req.user!;
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
 
     const student = await Student.findOne({ user: userId, tenant: userTenant });
     if (!student) {
@@ -129,24 +141,68 @@ export async function checkOut(req: AuthRequest, res: Response): Promise<void> {
       return;
     }
 
-    const record = await Attendance.findOne({
+    const now = new Date();
+    const { session, attendanceDate } = await resolveCurrentSession(userTenant!, now);
+
+    // Prefer the record for the current session; if the student is checking
+    // out just after the AM/PM cutoff rolled over, fall back to any still-open
+    // record for today so a late checkout isn't lost.
+    let record = await Attendance.findOne({
       student: student._id,
       tenant: userTenant,
-      checkInTime: { $gte: startOfDay, $lte: endOfDay },
-      checkOutTime: { $exists: false }
+      attendanceDate,
+      session,
+      checkOutTime: { $exists: false },
     });
+
+    if (!record) {
+      record = await Attendance.findOne({
+        student: student._id,
+        tenant: userTenant,
+        attendanceDate,
+        checkOutTime: { $exists: false },
+      }).sort({ checkInTime: -1 });
+    }
 
     if (!record) {
       res.status(404).json({ error: 'No active check-in found for today' });
       return;
     }
 
-    record.checkOutTime = new Date();
+    record.checkOutTime = now;
     await record.save();
 
-    res.json({ message: '✅ Check-out successful' });
+    res.json({ message: `✅ ${record.session === 'morning' ? 'Morning' : 'Afternoon'} check-out successful`, session: record.session });
   } catch (err) {
     logger.error('Error in checkOut: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+export async function getTodayStatus(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { id: userId, tenant: userTenant } = req.user!;
+    const student = await Student.findOne({ user: userId, tenant: userTenant });
+    if (!student) {
+      res.status(404).json({ error: 'Student profile not found' });
+      return;
+    }
+
+    const now = new Date();
+    const { session: currentSession, attendanceDate } = await resolveCurrentSession(userTenant!, now);
+
+    const records = await Attendance.find({ student: student._id, tenant: userTenant, attendanceDate });
+    const morning = records.find((r) => r.session === 'morning') || null;
+    const afternoon = records.find((r) => r.session === 'afternoon') || null;
+
+    res.json({
+      date: attendanceDate,
+      currentSession,
+      morning: morning ? { checkedIn: true, checkInTime: morning.checkInTime, checkedOut: !!morning.checkOutTime, checkOutTime: morning.checkOutTime, isValid: morning.isValid } : { checkedIn: false },
+      afternoon: afternoon ? { checkedIn: true, checkInTime: afternoon.checkInTime, checkedOut: !!afternoon.checkOutTime, checkOutTime: afternoon.checkOutTime, isValid: afternoon.isValid } : { checkedIn: false },
+    });
+  } catch (err) {
+    logger.error('Error in getTodayStatus: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -214,7 +270,7 @@ export async function getAttendanceRecords(req: AuthRequest, res: Response): Pro
 
 export async function manualAttendance(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { studentId, date, notes } = manualAttendanceSchema.parse(req.body);
+    const { studentId, date, session, notes } = manualAttendanceSchema.parse(req.body);
     const { tenant: userTenant } = req.user!;
 
     // SECURITY: Only admins or coordinators can log manual attendance
@@ -229,16 +285,24 @@ export async function manualAttendance(req: AuthRequest, res: Response): Promise
       return;
     }
 
+    const existing = await Attendance.findOne({ student: studentId, tenant: userTenant, attendanceDate: date, session });
+    if (existing) {
+      res.status(409).json({ error: `Attendance already recorded for the ${session} session on ${date}` });
+      return;
+    }
+
     const attendance = new Attendance({
       student: studentId,
       tenant: userTenant,
-      checkInTime: new Date(`${date} 08:00:00`),
+      session,
+      attendanceDate: date,
+      checkInTime: new Date(`${date} ${session === 'morning' ? '08:00:00' : '13:00:00'}`),
       isValid: true,
       method: 'manual',
       notes
     });
     await attendance.save();
-    res.status(201).json({ message: 'Manual attendance recorded', id: attendance._id });
+    res.status(201).json({ message: `Manual ${session} attendance recorded`, id: attendance._id });
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.errors });
@@ -347,7 +411,7 @@ export async function exportAttendanceRecords(req: AuthRequest, res: Response): 
       })
       .sort({ checkInTime: -1 });
 
-    let csv = 'Student Name,Student Email,Date,Time In,Method,Verification Status,Distance Deviation (km),Has Selfie\n';
+    let csv = 'Student Name,Student Email,Date,Session,Time In,Time Out,Method,Verification Status,Distance Deviation (km),Has Selfie\n';
     
     for (const r of records) {
       const student = r.student as any;
@@ -355,11 +419,13 @@ export async function exportAttendanceRecords(req: AuthRequest, res: Response): 
       const d = new Date(r.checkInTime);
       const dateStr = d.toLocaleDateString();
       const timeStr = d.toLocaleTimeString();
+      const timeOutStr = r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString() : '';
+      const sessionLabel = r.session === 'afternoon' ? 'Afternoon' : 'Morning';
       const verificationStatus = r.isValid ? 'Verified' : 'Out of Range';
       const deviation = r.distanceFromCompany ? r.distanceFromCompany.toFixed(3) : '';
       const hasSelfie = r.photoUrl ? 'Yes' : 'No';
       
-      csv += `"${user?.firstName} ${user?.lastName}","${user?.email}",${dateStr},${timeStr},${r.method},${verificationStatus},${deviation},${hasSelfie}\n`;
+      csv += `"${user?.firstName} ${user?.lastName}","${user?.email}",${dateStr},${sessionLabel},${timeStr},${timeOutStr},${r.method},${verificationStatus},${deviation},${hasSelfie}\n`;
     }
 
     res.setHeader('Content-Type', 'text/csv');

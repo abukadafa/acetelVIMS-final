@@ -3,7 +3,7 @@ import api from '../lib/api';
 import { apiErrorMessage } from '../lib/errors';
 import {
   Users, Search, Edit2, Trash2, RefreshCw,
-  Shield, BookOpen, Wifi, Briefcase, Download,
+  Shield, ShieldCheck, BookOpen, Wifi, Briefcase, Download,
   History, GraduationCap, Lock, UserPlus, X, AlertTriangle, 
   Eye, EyeOff, FileText, Upload
 } from 'lucide-react';
@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import ReasonModal from '../components/ReasonModal';
 import AuditTrailModal from '../components/AuditTrailModal';
 import BulkEnrollModal from '../components/BulkEnrollModal';
+import PermissionsModal from '../components/PermissionsModal';
 import { useAuth } from '../context/AuthContext';
 import NigeriaStateLgaSelect from '../components/NigeriaStateLgaSelect';
 
@@ -103,6 +104,7 @@ export default function UserManagementPage() {
   const [reasonTarget, setReasonTarget]       = useState<UserRecord | null>(null);
   const [showAuditTrail, setShowAuditTrail]   = useState<string | null>(null);
   const [showBulkEnroll, setShowBulkEnroll]   = useState(false);
+  const [permTarget, setPermTarget] = useState<{ id: string; name: string } | null>(null);
 
   /* ── Fetch ── */
   const load = useCallback(async () => {
@@ -562,6 +564,15 @@ export default function UserManagementPage() {
                           {u.role !== 'admin' ? (
                             <>
                               <button className="btn btn-ghost btn-sm btn-icon" onClick={() => openEdit(u)}><Edit2 size={14} /></button>
+                              {isAdmin && (
+                                <button
+                                  className="btn btn-ghost btn-sm btn-icon"
+                                  title="Manage granular permissions (view/add/manage students, companies, staff, etc.)"
+                                  onClick={() => setPermTarget({ id: u._id, name: `${u.firstName} ${u.lastName}` })}
+                                >
+                                  <ShieldCheck size={14} />
+                                </button>
+                              )}
                               {isAdmin ? (
                                 <button className="btn btn-danger btn-sm btn-icon" onClick={() => initiateDelete(u)}><Trash2 size={14} /></button>
                               ) : (
@@ -916,6 +927,15 @@ export default function UserManagementPage() {
           allowedTypes={["staff"]}
           onClose={() => setShowBulkEnroll(false)}
           onSuccess={() => { setShowBulkEnroll(false); load(); }}
+        />
+      )}
+
+      {/* ══ Permissions Modal ══ */}
+      {permTarget && (
+        <PermissionsModal
+          userId={permTarget.id}
+          userName={permTarget.name}
+          onClose={() => setPermTarget(null)}
         />
       )}
 

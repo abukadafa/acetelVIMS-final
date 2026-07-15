@@ -1,9 +1,11 @@
 import { Router } from 'express';
-import { getSettings, updateSetting, updateMultipleSettings, getAuditLog, getAdminDashboard } from '../controllers/settings.controller';
-import { authenticate, authorize } from '../middleware/auth.middleware';
+import { getSettings, updateSetting, updateMultipleSettings, getAuditLog, getAdminDashboard, getIntegrationStatus } from '../controllers/settings.controller';
+import { authenticate, authorize, requirePermission } from '../middleware/auth.middleware';
+import { PERMISSIONS } from '../config/permissions';
 const r = Router();
 r.use(authenticate);
 r.get('/', getSettings);
+r.get('/integrations', requirePermission(PERMISSIONS.SETTINGS_MANAGE), getIntegrationStatus);
 r.get('/audit', authorize('admin'), getAuditLog);
 r.get('/admin-dashboard', authorize('admin','prog_coordinator', 'internship_coordinator'), getAdminDashboard);
 r.put('/single', authorize('admin'), updateSetting);

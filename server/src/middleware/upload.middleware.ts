@@ -68,21 +68,17 @@ export const upload = multer({
 
 /**
  * Post-upload magic byte validation middleware.
- * Use after upload.single()/upload.fields() to validate actual file content.
+ * Use after upload.single()/upload.array()/upload.fields() to validate
+ * actual file content against its declared MIME type — the fileFilter above
+ * only checks metadata the client controls (declared mimetype + extension),
+ * which is trivially spoofable; this checks the real file bytes on disk.
  */
-export function validateUploadedFile(req: any, res: any, next: any) {
-  if (!req.file) return next();
-
-  const filePath = req.file.path;
-  const expectedMime = req.file.mimetype;
-  const expectedSig = ALLOWED_TYPES[expectedMime];
-
+function validateOneFile(filePath: string, mimetype: string): { ok: true } | { ok: false; error: string } {
+  const expectedSig = ALLOWED_TYPES[mimetype];
   if (!expectedSig) {
-    fs.unlinkSync(filePath);
-    logger.warn('Magic byte check: unknown MIME type %s | IP: %s', expectedMime, req.ip);
-    return res.status(415).json({ error: 'Unsupported file type' });
+    try { fs.unlinkSync(filePath); } catch {}
+    return { ok: false, error: 'Unsupported file type' };
   }
-
   try {
     const fd = fs.openSync(filePath, 'r');
     const buf = Buffer.alloc(expectedSig.length);
@@ -90,14 +86,46 @@ export function validateUploadedFile(req: any, res: any, next: any) {
     fs.closeSync(fd);
 
     if (!buf.slice(0, expectedSig.length).equals(expectedSig)) {
-      fs.unlinkSync(filePath);
-      logger.warn('Magic byte mismatch — file content does not match declared MIME %s | IP: %s', expectedMime, req.ip);
-      return res.status(415).json({ error: 'File content does not match declared type. Upload rejected.' });
+      try { fs.unlinkSync(filePath); } catch {}
+      return { ok: false, error: 'File content does not match declared type. Upload rejected.' };
     }
+    return { ok: true };
   } catch (err) {
     try { fs.unlinkSync(filePath); } catch {}
-    logger.error('Magic byte validation error: %s', (err as Error).message);
-    return res.status(500).json({ error: 'File validation failed' });
+    return { ok: false, error: 'File validation failed' };
+  }
+}
+
+export function validateUploadedFile(req: any, res: any, next: any) {
+  // Single-file uploads (upload.single(...))
+  if (req.file) {
+    const result = validateOneFile(req.file.path, req.file.mimetype);
+    if (!result.ok) {
+      logger.warn('Magic byte check failed for %s | IP: %s | %s', req.file.originalname, req.ip, result.error);
+      return res.status(415).json({ error: result.error });
+    }
+    return next();
+  }
+
+  // Multi-file uploads (upload.array(...) / upload.fields(...))
+  const files: any[] = Array.isArray(req.files)
+    ? req.files
+    : req.files && typeof req.files === 'object'
+      ? Object.values(req.files).flat()
+      : [];
+
+  if (files.length > 0) {
+    for (const f of files as any[]) {
+      const result = validateOneFile(f.path, f.mimetype);
+      if (!result.ok) {
+        // Clean up any sibling files from the same request before rejecting
+        for (const other of files as any[]) {
+          if (other !== f) { try { fs.unlinkSync(other.path); } catch {} }
+        }
+        logger.warn('Magic byte check failed for %s | IP: %s | %s', f.originalname, req.ip, result.error);
+        return res.status(415).json({ error: result.error });
+      }
+    }
   }
 
   next();

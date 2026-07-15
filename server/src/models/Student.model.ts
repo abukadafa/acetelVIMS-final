@@ -17,6 +17,8 @@ export interface IStudent extends Document {
   researchInterests?: string[];
   riskScore: number;
   riskLevel: 'Low' | 'Medium' | 'High';
+  /** Highest inactivity-escalation tier (0/3/5/7/10 days) already notified for the CURRENT inactivity streak. */
+  lastEscalationTier: number;
   stateOfOrigin?: string;
   lga?: string;
   address?: string;
@@ -53,6 +55,7 @@ const StudentSchema: Schema = new Schema({
     default: 'pending'
   },
   riskScore: { type: Number, default: 0 },
+  lastEscalationTier: { type: Number, default: 0 },
   riskLevel: { 
     type: String, 
     enum: ['Low', 'Medium', 'High'],

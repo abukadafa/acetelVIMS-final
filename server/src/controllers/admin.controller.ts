@@ -10,11 +10,14 @@ import Company from '../models/Company.model';
 import { z } from 'zod';
 import logger from '../utils/logger';
 import { sendEmail, emailTemplates, isEmailConfigured } from '../utils/mail.service';
-import { sendWhatsAppMessage, whatsappTemplates } from '../utils/whatsapp.service';
+import { sendWhatsAppMessage, whatsappTemplates, isWhatsAppConfigured } from '../utils/whatsapp.service';
 import Notification from '../models/notification.model';
+import EmailRecord from '../models/EmailRecord.model';
 import { autoAllocateStudent } from '../utils/allocation.service';
 import { normalizeStateName } from '../utils/nigeria-states.util';
 import { purgeSoftDeletedIdentity } from '../utils/identity.util';
+import { hasPermission } from '../middleware/auth.middleware';
+import { PERMISSIONS, PERMISSION_CATALOG, ALL_PERMISSIONS, isValidPermission, getDefaultPermissionsForRole } from '../config/permissions';
 
 const STAFF_ROLES = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor'];
 
@@ -133,11 +136,13 @@ export async function listUsers(req: AuthRequest, res: Response): Promise<void> 
       isDeleted: { $ne: true } 
     };
     
-    // Programme Isolation
-    if (req.user!.role !== 'admin') {
-      filter.programme = req.user!.programme;
-    } else if (programme) {
+    // Visibility is permission-based: STAFF_VIEW (or admin) sees all staff
+    // tenant-wide. Users without that permission are locked to their own
+    // programme, same fallback as before.
+    if (programme) {
       filter.programme = programme;
+    } else if (!hasPermission(req.user, PERMISSIONS.STAFF_VIEW)) {
+      filter.programme = req.user!.programme;
     }
 
     if (role) filter.role = role;
@@ -263,10 +268,7 @@ export async function createUser(req: AuthRequest, res: Response): Promise<void>
     const delivery = { email: false, whatsapp: false };
     const deliveryDetails = {
       emailConfigured: isEmailConfigured(),
-      whatsappConfigured: !!(
-        (process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN) ||
-        (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM)
-      ),
+      whatsappConfigured: isWhatsAppConfigured(),
       phoneProvided: !!phone,
     };
 
@@ -580,10 +582,7 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
     const delivery = { email: false, personalEmail: false, whatsapp: false };
     const deliveryDetails = {
       emailConfigured: isEmailConfigured(),
-      whatsappConfigured: !!(
-        (process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN) ||
-        (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM)
-      ),
+      whatsappConfigured: isWhatsAppConfigured(),
       phoneProvided: !!phone,
       institutionalEmail: email.toLowerCase(),
       personalEmail: personalEmail || null,
@@ -688,7 +687,12 @@ export async function updateUser(req: AuthRequest, res: Response): Promise<void>
     if (firstName)  user.firstName = firstName;
     if (lastName)   user.lastName  = lastName;
     if (phone)      user.phone     = phone;
-    if (role)       user.role      = role as any;
+    if (role && role !== user.role) {
+      user.role = role as any;
+      // Role changed — reset to that role's default permission grant. An
+      // admin can fine-tune afterwards via PUT /users/:id/permissions.
+      user.permissions = getDefaultPermissionsForRole(role);
+    }
     if (programme !== undefined) user.programme = (programme as any) || undefined;
     if (isActive   !== undefined) user.isActive = isActive;
 
@@ -723,6 +727,226 @@ export async function updateUser(req: AuthRequest, res: Response): Promise<void>
       return;
     }
     logger.error('Error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+/** GET /api/admin/permissions/catalog — the full list of grantable permissions, grouped for UI rendering */
+export async function getPermissionCatalog(_req: AuthRequest, res: Response): Promise<void> {
+  res.json({ catalog: PERMISSION_CATALOG, all: ALL_PERMISSIONS });
+}
+
+/** GET /api/admin/users/:id/permissions */
+export async function getUserPermissions(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { id } = idParamSchema.parse(req.params);
+    const tenantId = req.user!.tenant;
+
+    const user = await User.findOne({ _id: id, tenant: tenantId }).select('role permissions email firstName lastName');
+    if (!user) {
+      res.status(404).json({ error: 'User not found in your institution' });
+      return;
+    }
+
+    res.json({
+      userId: user._id,
+      role: user.role,
+      // admin implicitly has everything; report the full catalog so the UI shows it as fully granted
+      permissions: user.role === 'admin' ? ALL_PERMISSIONS : (user.permissions || []),
+      isAdmin: user.role === 'admin',
+      defaultsForRole: getDefaultPermissionsForRole(user.role),
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      return;
+    }
+    logger.error('getUserPermissions error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+const updatePermissionsSchema = z.object({
+  permissions: z.array(z.string()).max(ALL_PERMISSIONS.length),
+  reason: z.string().min(3).optional(),
+});
+
+/**
+ * PUT /api/admin/users/:id/permissions — admin-only. Fully replaces the
+ * target user's permission grant with the given list (add AND remove in one
+ * call: send the complete desired set). This is the mechanism referenced
+ * throughout the app for "who can add/view/manage students, companies,
+ * staff, attendance, logbook, etc."
+ */
+export async function updateUserPermissions(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { id } = idParamSchema.parse(req.params);
+    const { permissions, reason } = updatePermissionsSchema.parse(req.body);
+    const tenantId = req.user!.tenant;
+
+    const invalid = permissions.filter((p) => !isValidPermission(p));
+    if (invalid.length > 0) {
+      res.status(400).json({ error: `Unknown permission(s): ${invalid.join(', ')}` });
+      return;
+    }
+
+    const user = await User.findOne({ _id: id, tenant: tenantId });
+    if (!user) {
+      res.status(404).json({ error: 'User not found in your institution' });
+      return;
+    }
+
+    if (user.role === 'admin') {
+      res.status(400).json({ error: 'Administrators implicitly hold every permission and cannot be edited.' });
+      return;
+    }
+
+    const before = user.permissions || [];
+    user.permissions = [...new Set(permissions)];
+    await user.save();
+
+    await AuditLog.create({
+      tenant: tenantId,
+      user: req.user!.id,
+      action: 'UPDATE_USER_PERMISSIONS',
+      module: 'ACCESS_CONTROL',
+      targetId: id,
+      reason,
+      details: `Updated permissions for ${user.email}: [${before.join(', ')}] → [${user.permissions.join(', ')}]`,
+      ipAddress: req.ip,
+    });
+
+    res.json({ userId: user._id, permissions: user.permissions, message: 'Permissions updated successfully' });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      return;
+    }
+    logger.error('updateUserPermissions error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+const sendEnrollmentEmailsSchema = z.object({
+  studentIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/)).optional(), // omit = all visible students
+  programme: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+});
+
+/**
+ * POST /api/admin/students/send-enrollment-emails
+ * Bulk-sends (or resends) the enrollment confirmation email to every
+ * enrolled student the caller is permitted to see (respects the same
+ * STUDENTS_VIEW_ALL / programme-scope rule as the student list), or to a
+ * specific subset via `studentIds`. Uses each student's stored institutional
+ * email address. Records the run in EmailRecord for an audit trail and
+ * returns a per-student delivery breakdown so failures are never silent.
+ */
+export async function sendEnrollmentEmails(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { studentIds, programme } = sendEnrollmentEmailsSchema.parse(req.body);
+    const tenantId = req.user!.tenant;
+
+    const query: any = { tenant: tenantId, isDeleted: { $ne: true } };
+    if (studentIds?.length) {
+      query._id = { $in: studentIds };
+    } else if (!hasPermission(req.user, PERMISSIONS.STUDENTS_VIEW_ALL)) {
+      if (req.user!.programme) {
+        query.programme = req.user!.programme;
+      } else {
+        res.status(403).json({ error: 'You do not have permission to view students outside your programme' });
+        return;
+      }
+    }
+    if (programme) query.programme = programme;
+
+    const students = await Student.find(query)
+      .populate('user', 'firstName lastName email isActive')
+      .populate('programme', 'name')
+      .populate('company', 'name');
+
+    if (students.length === 0) {
+      res.status(400).json({ error: 'No matching enrolled students found' });
+      return;
+    }
+
+    if (!isEmailConfigured()) {
+      res.status(400).json({
+        error: 'Email is not configured on this server. Check SMTP settings under Settings → Integrations before sending enrollment emails.',
+      });
+      return;
+    }
+
+    const appUrl = process.env.FRONTEND_URL || 'https://acetel-frontend.onrender.com';
+    const sender = await User.findById(req.user!.id).select('firstName lastName email');
+
+    const record = await EmailRecord.create({
+      tenant: tenantId,
+      sender: req.user!.id,
+      subject: 'You Are Enrolled — ACETEL VIMS',
+      body: 'Bulk enrollment confirmation email',
+      recipientScope: programme ? 'programme' : 'all_students',
+      programme: programme || undefined,
+      recipients: students
+        .filter((s: any) => s.user?.email)
+        .map((s: any) => ({ userId: s.user._id, email: s.user.email, name: `${s.user.firstName} ${s.user.lastName}` })),
+      sentCount: 0,
+      failedCount: 0,
+      status: 'sending',
+    });
+
+    const results: { studentId: string; email: string | null; sent: boolean; error?: string }[] = [];
+    let sent = 0;
+    let failed = 0;
+
+    for (const s of students as any[]) {
+      const u = s.user;
+      if (!u?.email) {
+        results.push({ studentId: s._id.toString(), email: null, sent: false, error: 'No email on file' });
+        failed++;
+        continue;
+      }
+      const html = emailTemplates.enrollmentNotice(
+        `${u.firstName} ${u.lastName}`,
+        s.matricNumber,
+        s.programme?.name || 'N/A',
+        s.status,
+        s.company?.name || null,
+        appUrl
+      );
+      const ok = await sendEmail(u.email, 'You Are Enrolled — ACETEL VIMS', html);
+      results.push({ studentId: s._id.toString(), email: u.email, sent: ok, error: ok ? undefined : 'Send failed — see server logs' });
+      if (ok) sent++; else failed++;
+    }
+
+    await EmailRecord.findByIdAndUpdate(record._id, {
+      sentCount: sent,
+      failedCount: failed,
+      status: failed === 0 ? 'sent' : sent === 0 ? 'failed' : 'partial',
+    });
+
+    await AuditLog.create({
+      tenant: tenantId,
+      user: req.user!.id,
+      action: 'BULK_SEND_ENROLLMENT_EMAIL',
+      module: 'COMMUNICATIONS',
+      details: `Sent enrollment email to ${sent}/${students.length} students (${failed} failed) by ${sender?.email || req.user!.id}`,
+      ipAddress: req.ip,
+    });
+
+    res.json({
+      message: `Enrollment email sent to ${sent} of ${students.length} student(s)${failed > 0 ? ` — ${failed} failed` : ''}.`,
+      emailRecordId: record._id,
+      total: students.length,
+      sent,
+      failed,
+      results,
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      return;
+    }
+    logger.error('sendEnrollmentEmails error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }

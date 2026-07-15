@@ -6,7 +6,7 @@ import {
   verifyMatric
 } from '../controllers/auth.controller';
 import { authenticate, authorize } from '../middleware/auth.middleware';
-import { upload } from '../middleware/upload.middleware';
+import { upload, validateUploadedFile } from '../middleware/upload.middleware';
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -17,7 +17,7 @@ const loginLimiter = rateLimit({
 const r = Router();
 
 r.post('/login',           loginLimiter, login);
-r.post('/register',        upload.single('avatar'), register);
+r.post('/register',        upload.single('avatar'), validateUploadedFile, register);
 r.get('/verify-matric/:matric', verifyMatric);
 r.post('/refresh',         refreshToken);
 r.post('/logout',          authenticate, logout);

@@ -1,3 +1,5 @@
+import logger from './logger';
+
 function normalizeToE164Like(input: string): string {
   // Keep digits only; Meta expects international format digits, Twilio works with +.
   let digits = String(input || '').replace(/[^\d]/g, '');
@@ -13,13 +15,49 @@ function normalizeToE164Like(input: string): string {
   return digits;
 }
 
+type WaProvider = 'meta' | 'twilio' | 'none';
+
+/** Which provider (if any) is configured via environment variables. */
+export function getWhatsAppProvider(): WaProvider {
+  if (process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN) return 'meta';
+  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM) return 'twilio';
+  return 'none';
+}
+
+export function isWhatsAppConfigured(): boolean {
+  return getWhatsAppProvider() !== 'none';
+}
+
+let lastWhatsAppError: string | null = null;
+export function getLastWhatsAppError(): string | null {
+  return lastWhatsAppError;
+}
+
+/**
+ * Sends a WhatsApp message via Meta Cloud API or Twilio, whichever is
+ * configured. IMPORTANT: previously, when NEITHER provider was configured,
+ * this function logged a "simulated" message and returned `true` — meaning
+ * every caller (staff/student welcome messages, placement notices, logbook
+ * reminders, etc.) believed the message had been delivered even though
+ * nothing was actually sent, in every environment including production.
+ * That is the root cause of "WhatsApp is not working" being invisible to
+ * admins. Now: outside production, sends are simulated (logged) and clearly
+ * reported as NOT delivered; in production, an unconfigured provider is
+ * always reported as a failed send with a descriptive error.
+ */
 export async function sendWhatsAppMessage(phone: string, message: string): Promise<boolean> {
   try {
     const toDigits = normalizeToE164Like(phone);
-    if (!toDigits) return false;
+    if (!toDigits) {
+      lastWhatsAppError = `Invalid/empty phone number: "${phone}"`;
+      logger.warn('WhatsApp skipped: %s', lastWhatsAppError);
+      return false;
+    }
+
+    const provider = getWhatsAppProvider();
 
     // Option A: Meta WhatsApp Cloud API
-    if (process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN) {
+    if (provider === 'meta') {
       const url = `https://graph.facebook.com/v19.0/${process.env.WA_PHONE_NUMBER_ID}/messages`;
       const resp = await fetch(url, {
         method: 'POST',
@@ -36,17 +74,19 @@ export async function sendWhatsAppMessage(phone: string, message: string): Promi
       });
       if (!resp.ok) {
         const body = await resp.text().catch(() => '');
-        console.error('WhatsApp(Meta) failed:', resp.status, body);
+        lastWhatsAppError = `Meta API ${resp.status}: ${body}`;
+        logger.error('WhatsApp(Meta) failed: %s', lastWhatsAppError);
         return false;
       }
+      lastWhatsAppError = null;
       return true;
     }
 
     // Option B: Twilio WhatsApp (no SDK required)
-    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM) {
-      const sid = process.env.TWILIO_ACCOUNT_SID;
-      const token = process.env.TWILIO_AUTH_TOKEN;
-      const from = process.env.TWILIO_WHATSAPP_FROM;
+    if (provider === 'twilio') {
+      const sid = process.env.TWILIO_ACCOUNT_SID!;
+      const token = process.env.TWILIO_AUTH_TOKEN!;
+      const from = process.env.TWILIO_WHATSAPP_FROM!;
       const auth = Buffer.from(`${sid}:${token}`).toString('base64');
       const form = new URLSearchParams();
       form.set('From', from.startsWith('whatsapp:') ? from : `whatsapp:${from}`);
@@ -63,17 +103,28 @@ export async function sendWhatsAppMessage(phone: string, message: string): Promi
       });
       if (!resp.ok) {
         const body = await resp.text().catch(() => '');
-        console.error('WhatsApp(Twilio) failed:', resp.status, body);
+        lastWhatsAppError = `Twilio API ${resp.status}: ${body}`;
+        logger.error('WhatsApp(Twilio) failed: %s', lastWhatsAppError);
         return false;
       }
+      lastWhatsAppError = null;
       return true;
     }
 
-    // Fallback: simulated (dev)
-    console.log(`[WHATSAPP OUTGOING - SIMULATED] To: ${phone}\n${message}`);
-    return true;
+    // No provider configured.
+    if (process.env.NODE_ENV === 'production') {
+      lastWhatsAppError = 'WhatsApp is not configured (missing WA_PHONE_NUMBER_ID/WA_ACCESS_TOKEN or TWILIO_* env vars)';
+      logger.warn('WhatsApp send skipped — %s. To: %s', lastWhatsAppError, phone);
+      return false;
+    }
+
+    // Development/staging convenience only: log instead of sending, and say so honestly.
+    logger.info('[WHATSAPP SIMULATED — dev only, NOT delivered] To: %s\n%s', phone, message);
+    lastWhatsAppError = 'WhatsApp not configured — message only simulated in logs (non-production)';
+    return false;
   } catch (error) {
-    console.error('WhatsApp error:', error);
+    lastWhatsAppError = (error as Error).message;
+    logger.error('WhatsApp error: %s', lastWhatsAppError);
     return false;
   }
 }
@@ -215,6 +266,3 @@ If this was not you, contact ICT Support immediately.
 
 _ACETEL VIMS_`,
 };
-
-// Additional templates used by chat and feedback controllers
-export const emailTemplates = { ...whatsappTemplates }; // re-export alias if needed

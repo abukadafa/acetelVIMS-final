@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { authenticate, authorize } from '../middleware/auth.middleware';
+import { authenticate, authorize, requirePermission } from '../middleware/auth.middleware';
+import { PERMISSIONS } from '../config/permissions';
 import {
   getAllStudents,
   getStudentById,
@@ -17,25 +18,24 @@ import {
 
 const r = Router();
 
-const STUDENT_VIEWERS = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor'];
-const STUDENT_EDITORS = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support'];
-const POSTING_MANAGERS = ['admin', 'prog_coordinator', 'internship_coordinator'];
-
 r.use(authenticate);
-r.get('/', authorize(...STUDENT_VIEWERS), getAllStudents);
-r.get('/export', authorize(...STUDENT_EDITORS), exportStudents);
-r.get('/map', authorize('admin', 'prog_coordinator', 'internship_coordinator'), getAllStudentsForMap);
+// Visibility/edit access is now permission-based (admin-editable via
+// PUT /api/admin/users/:id/permissions) instead of a fixed role list, so a
+// student enrolled by one user shows for anyone granted the right permission.
+r.get('/', requirePermission(PERMISSIONS.STUDENTS_VIEW, PERMISSIONS.STUDENTS_VIEW_ALL), getAllStudents);
+r.get('/export', requirePermission(PERMISSIONS.STUDENTS_EXPORT), exportStudents);
+r.get('/map', requirePermission(PERMISSIONS.STUDENTS_VIEW_ALL), getAllStudentsForMap);
 r.get('/dashboard', getStudentDashboard);
 r.get('/programmes', getProgrammes);
 r.get('/:id', getStudentById);
-r.post('/:id/allocate', authorize(...POSTING_MANAGERS), requestAllocation);
-r.post('/:id/approve-posting', authorize(...POSTING_MANAGERS), approvePosting);
+r.post('/:id/allocate', requirePermission(PERMISSIONS.STUDENTS_MANAGE), requestAllocation);
+r.post('/:id/approve-posting', requirePermission(PERMISSIONS.STUDENTS_MANAGE), approvePosting);
 r.put('/location', updateStudentLocation);
-r.put('/:id', authorize(...STUDENT_EDITORS), updateStudent);
+r.put('/:id', requirePermission(PERMISSIONS.STUDENTS_MANAGE), updateStudent);
 r.delete('/:id', authorize('admin'), deleteStudent);
 r.post('/bulk-delete', authorize('admin'), bulkDeleteStudents);
 
-r.post('/:id/flag', authorize('admin', 'supervisor', 'prog_coordinator', 'internship_coordinator'), async (req: any, res: any) => {
+r.post('/:id/flag', requirePermission(PERMISSIONS.STUDENTS_MANAGE, PERMISSIONS.STUDENTS_VIEW_ALL), async (req: any, res: any) => {
   try {
     const Student = (await import('../models/Student.model')).default;
     const student = await Student.findByIdAndUpdate(

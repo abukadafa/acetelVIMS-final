@@ -50,6 +50,12 @@ export async function runMonitoringJob(): Promise<void> {
   }
 }
 
+/** Escalation tiers, ascending. Each fires once per inactivity streak, even if the
+ *  job didn't run on the exact day (e.g. server was down) — it fires for the
+ *  highest tier newly crossed since the last check, instead of requiring an
+ *  exact `daysInactive === N` match that could be silently skipped by drift. */
+const ESCALATION_TIERS = [3, 5, 7, 10] as const;
+
 async function processStudent(student: any): Promise<void> {
   try {
     const u = student.user as any;
@@ -62,48 +68,60 @@ async function processStudent(student: any): Promise<void> {
     // 1. Update Risk Score & Level
     let newRiskScore = daysInactive * 2;
     let newRiskLevel: 'Low' | 'Medium' | 'High' = 'Low';
-    
+
     if (newRiskScore >= 20) newRiskLevel = 'High';
     else if (newRiskScore >= 10) newRiskLevel = 'Medium';
 
-    // Only update if changed to avoid unnecessary DB writes
+    let dirty = false;
     if (student.riskScore !== newRiskScore || student.riskLevel !== newRiskLevel) {
       student.riskScore = newRiskScore;
       student.riskLevel = newRiskLevel;
-      await student.save();
+      dirty = true;
     }
 
-    // 2. Escalation Logic
-    // We only send emails for exact day milestones to avoid spamming every day
-    if (daysInactive === 3) {
-      await sendEmail(u.email, 'ACETEL Internship: 3-Day Activity Warning', 
-        emailTemplates.inactivityWarning(u.firstName, 3));
-    } 
-    else if (daysInactive === 5) {
-      await sendEmail(u.email, 'ACETEL Internship: URGENT 5-Day Warning', 
-        emailTemplates.inactivityWarning(u.firstName, 5));
-      
-      if (student.supervisor) {
-        const s = student.supervisor as any;
-        await sendEmail(s.email, 'Student Inactivity Alert', 
-          emailTemplates.supervisorEscalation(`${u.firstName} ${u.lastName}`, s.firstName, 5));
-      }
+    // Student re-engaged (logged in / submitted since last check) — reset the
+    // escalation streak so a future period of inactivity notifies again.
+    if (daysInactive < ESCALATION_TIERS[0] && (student.lastEscalationTier || 0) > 0) {
+      student.lastEscalationTier = 0;
+      dirty = true;
     }
-    else if (daysInactive === 7) {
-      await sendEmail(u.email, 'ACETEL Internship: CRITICAL 7-Day Warning', 
-        emailTemplates.inactivityWarning(u.firstName, 7));
-      
-      // Notify Programme Coordinator FOR THE STUDENT'S TENANT
-      const coordinator = await User.findOne({ 
-        role: 'prog_coordinator', 
-        tenant: student.tenant,
-        isActive: true 
-      });
-      
-      if (coordinator) {
-        await sendEmail(coordinator.email, 'High Risk Student Alert', 
-          emailTemplates.coordinatorEscalation(`${u.firstName} ${u.lastName}`, coordinator.firstName, 7));
+
+    if (dirty) await student.save();
+
+    // 2. Escalation — fire for the highest tier newly crossed since we last notified.
+    const currentTier = [...ESCALATION_TIERS].reverse().find((t) => daysInactive >= t);
+    const alreadyNotifiedTier = student.lastEscalationTier || 0;
+
+    if (currentTier && currentTier > alreadyNotifiedTier) {
+      await sendEmail(u.email, `ACETEL Internship: ${currentTier}-Day Activity Warning`,
+        emailTemplates.inactivityWarning(u.firstName, currentTier));
+
+      if (currentTier >= 5 && student.supervisor) {
+        const s = student.supervisor as any;
+        await sendEmail(s.email, 'Student Inactivity Alert',
+          emailTemplates.supervisorEscalation(`${u.firstName} ${u.lastName}`, s.firstName, currentTier));
       }
+
+      if (currentTier >= 7) {
+        const coordinator = await User.findOne({
+          role: 'prog_coordinator',
+          tenant: student.tenant,
+          isActive: true,
+        });
+
+        if (coordinator) {
+          if (currentTier >= 10) {
+            await sendEmail(coordinator.email, 'CRITICAL: 10-Day Student Inactivity',
+              emailTemplates.criticalInactivityEscalation(`${u.firstName} ${u.lastName}`, student.matricNumber, currentTier, coordinator.firstName));
+          } else {
+            await sendEmail(coordinator.email, 'High Risk Student Alert',
+              emailTemplates.coordinatorEscalation(`${u.firstName} ${u.lastName}`, coordinator.firstName, currentTier));
+          }
+        }
+      }
+
+      student.lastEscalationTier = currentTier;
+      await student.save();
     }
   } catch (err) {
     logger.error('Error processing student %s in monitoring job: %s', student._id, (err as Error).message);
@@ -115,19 +133,22 @@ async function acquireLock(jobName: string, timeout: number): Promise<boolean> {
   const expiresAt = new Date(now.getTime() + timeout);
 
   try {
-    // Atomic lock acquisition using findOneAndUpdate with upsert
+    // Atomic lock acquisition using findOneAndUpdate with upsert.
+    // IMPORTANT: only steal a lock that has actually expired. The previous
+    // version also allowed stealing any lock where `lastRunSuccess: true`,
+    // regardless of whether it was still within its timeout window — that
+    // meant a second process (e.g. a PM2 cluster worker, or a cron overlap)
+    // could grab the lock and start a duplicate run *while the first run was
+    // still in progress*, sending every escalation email twice.
     const lock = await JobLock.findOneAndUpdate(
-      { 
-        jobName, 
-        $or: [
-          { expiresAt: { $lt: now } }, // Lock expired
-          { lastRunSuccess: true }      // Lock from previous successful run is okay to take if it's been 24h (handled by cron)
-        ]
+      {
+        jobName,
+        expiresAt: { $lt: now }, // only true once the lock has actually expired
       },
-      { 
-        lockedAt: now, 
+      {
+        lockedAt: now,
         expiresAt,
-        lastRunSuccess: false
+        lastRunSuccess: false,
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
