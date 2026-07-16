@@ -22,6 +22,8 @@ export interface IUser extends Document {
   deleteReason?: string;
   lastEditReason?: string;
   lastLogin?: Date;
+  /** Forces a password-change prompt on next login (e.g. after an admin-initiated reset). */
+  mustChangePassword?: boolean;
   comparePassword(password: string): Promise<boolean>;
 }
 
@@ -48,7 +50,8 @@ const UserSchema: Schema = new Schema({
   deletedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   deleteReason: { type: String },
   lastEditReason: { type: String },
-  lastLogin: { type: Date }
+  lastLogin: { type: Date },
+  mustChangePassword: { type: Boolean, default: false }
 }, {
   timestamps: true
 });

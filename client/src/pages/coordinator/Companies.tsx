@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { toast } from 'react-hot-toast';
-import { socket } from '../../App';
+import { socket } from '../../lib/socket';
 
 const CoordinatorCompanies = () => {
   const [companies, setCompanies] = useState<any[]>([]);

@@ -62,11 +62,22 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
     reader.onload = (evt) => {
       try {
         const csvText = evt.target?.result as string;
-        const result = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-        const data = result.data as any[];
+        // transformHeader strips a UTF-8 BOM (common when saving CSVs from Excel)
+        // and trims stray whitespace so 'Matric Number ' still matches the
+        // exact key the backend/preview expect — without this, files edited in
+        // Excel silently produced rows the backend rejected as "missing fields".
+        const result = Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true,
+          transformHeader: (h) => h.replace(/^\uFEFF/, '').trim(),
+          transform: (v) => (typeof v === 'string' ? v.trim() : v),
+        });
+        const data = (result.data as any[]).filter((row) =>
+          Object.values(row).some((v) => String(v ?? '').trim() !== '')
+        );
 
         if (!data || data.length === 0) {
-          toast.error('The uploaded file is empty');
+          toast.error('The uploaded file is empty or has no readable rows. Please use the provided CSV template.');
           return;
         }
 
@@ -87,6 +98,15 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
       const { data } = await api.post('/admin/bulk-onboard', { type, data: fileData });
       setResults(data);
       setStep(4); // Move to results
+      if (data.success.length === 0) {
+        toast.error(`No ${type} records were created — check the failure reasons below.`);
+      } else if (data.failed.length > 0) {
+        toast(`${data.success.length} onboarded, ${data.failed.length} failed. See details below.`, { icon: '⚠️' });
+      }
+      if (type !== 'company' && data.success.length > 0) {
+        if (!data.emailConfigured) toast.error('Email is not configured on backend (SMTP_USER/SMTP_PASS missing) — accounts were created but no welcome email was sent.');
+        if (!data.whatsappConfigured) toast('WhatsApp is not configured on backend — accounts were created but no WhatsApp message was sent.', { icon: 'ℹ️' });
+      }
       onSuccess();
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Bulk enrollment failed');
@@ -132,7 +152,7 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
         <div className="modal-body" style={{ minHeight: 400 }}>
           
           {step === 1 && (
-            <div className="animate-fade" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, padding: '20px 0' }}>
+            <div className="animate-fade onboarding-type-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, padding: '20px 0' }}>
               {(!allowedTypes || allowedTypes.includes('student')) && (
                 <button 
                   className={`card onboarding-card ${type === 'student' ? 'active' : ''}`}
@@ -257,12 +277,33 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
           {step === 4 && results && (
             <div className="animate-fade">
               <div style={{ textAlign: 'center', padding: '10px 0 24px' }}>
-                <div className="badge-icon success" style={{ margin: '0 auto 12px', width: 56, height: 56 }}>
-                  <CheckCircle size={32} />
+                <div className={`badge-icon ${results.success.length > 0 ? 'success' : 'warning'}`} style={{ margin: '0 auto 12px', width: 56, height: 56 }}>
+                  {results.success.length > 0 ? <CheckCircle size={32} /> : <ShieldCheck size={32} />}
                 </div>
-                <h2 style={{ fontSize: '1.25rem', marginBottom: 4 }}>Institutional Onboarding Complete!</h2>
-                <p style={{ color: 'var(--text-3)' }}>Successfully processed <strong>{results.success.length}</strong> {type} records.</p>
+                <h2 style={{ fontSize: '1.25rem', marginBottom: 4 }}>
+                  {results.success.length > 0 ? 'Institutional Onboarding Complete!' : 'No Records Were Created'}
+                </h2>
+                <p style={{ color: 'var(--text-3)' }}>
+                  <strong>{results.success.length}</strong> of <strong>{results.success.length + results.failed.length}</strong> {type} records were onboarded successfully.
+                  {results.failed.length > 0 && <> <strong style={{ color: 'var(--danger, #dc2626)' }}>{results.failed.length}</strong> failed — see reasons below.</>}
+                </p>
               </div>
+
+              {results.failed.length > 0 && (
+                <div className="card" style={{ padding: 16, marginBottom: 16, background: '#fff5f5', border: '1px solid #feb2b2' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 8, color: '#c53030' }}>
+                    Rows that failed ({results.failed.length})
+                  </div>
+                  <div style={{ maxHeight: 180, overflowY: 'auto', fontSize: '0.75rem' }}>
+                    {results.failed.map((f, i) => (
+                      <div key={i} style={{ borderBottom: '1px solid #feb2b2', padding: '6px 0' }}>
+                        <strong>{f.email || f.name || (f.row && (f.row['Institutional Email'] || f.row.email)) || `Row ${i + 1}`}</strong>
+                        {' — '}{f.reason}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {results.success.length > 0 && (
                 <div className="card" style={{ padding: 16, background: 'var(--surface-2)', border: '1px solid var(--primary-light)' }}>
@@ -308,6 +349,10 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
         .onboarding-card:hover { transform: translateY(-4px); border-color: var(--primary) !important; }
         .onboarding-card.active { background: var(--primary-light); border-color: var(--primary) !important; }
         .badge-icon.success { background: #f0fff4; color: #38a169; }
+        .badge-icon.warning { background: #fffaf0; color: #dd6b20; }
+        @media (max-width: 560px) {
+          .onboarding-type-grid { grid-template-columns: 1fr !important; }
+        }
       `}</style>
     </div>
   );

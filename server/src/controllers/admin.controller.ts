@@ -1544,12 +1544,39 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
           await student.save();
         }
 
+        // Welcome notifications — same behaviour as single-record add, so bulk
+        // enrollment actually notifies people instead of silently creating
+        // accounts nobody is told about.
+        const appUrl = process.env.FRONTEND_URL || 'https://acetel-frontend.onrender.com';
+        const delivery = { email: false, personalEmail: false, whatsapp: false };
+        try {
+          const html = entityType === 'student'
+            ? emailTemplates.welcomeStudent(`${firstName} ${lastName}`, email, tempPassword, appUrl, 'Pending Placement')
+            : emailTemplates.welcomeStaff(`${firstName} ${lastName}`, email, username, tempPassword, formatRoleLabel(role), appUrl);
+          delivery.email = await sendEmail(email, 'Welcome to ACETEL IMS — Your Account is Ready', html);
+          if (entityType === 'student' && personalEmail) {
+            delivery.personalEmail = await sendEmail(personalEmail, 'Welcome to ACETEL IMS — Your Account is Ready', html);
+          }
+        } catch (mailErr) {
+          logger.warn('Bulk onboard welcome email failed for %s: %s', email, (mailErr as Error).message);
+        }
+        if (phone) {
+          try {
+            delivery.whatsapp = await sendWhatsAppMessage(phone,
+              `*ACETEL IMS — Enrollment Successful* 🎓\n\nHello ${firstName},\n\nYour ${entityType === 'student' ? 'student' : formatRoleLabel(role)} account has been created via bulk enrollment.\n\n*Login:* ${username}\n*Temporary Password:* ${tempPassword}\n\nAccess the portal here:\n${appUrl}\n\n_Please change your password after first login._`
+            );
+          } catch (waErr) {
+            logger.warn('Bulk onboard WhatsApp failed for %s: %s', phone, (waErr as Error).message);
+          }
+        }
+
         results.success.push({
           name: `${user.firstName} ${user.lastName}`,
           email: user.email,
           username: user.username,
           tempPassword,
-          role: user.role
+          role: user.role,
+          delivery,
         });
 
       } catch (saveErr: any) {
@@ -1558,18 +1585,23 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
     }
 
     if (results.success.length > 0) {
+      const emailedCount = results.success.filter((s) => s.delivery?.email).length;
       await AuditLog.create({
         tenant: tenantId,
         user: req.user!.id,
         action: 'BULK_ONBOARD',
         module: 'USER_MANAGEMENT',
         reason: `Bulk onboarded ${results.success.length} ${entityType} accounts`,
-        details: `Successfully enrolled ${results.success.length} users.`,
+        details: `Successfully enrolled ${results.success.length} users. Welcome email delivered to ${emailedCount}/${results.success.length}.${!isEmailConfigured() ? ' SMTP not configured on server.' : ''}`,
         ipAddress: req.ip,
       });
     }
 
-    res.json(results);
+    res.json({
+      ...results,
+      emailConfigured: isEmailConfigured(),
+      whatsappConfigured: isWhatsAppConfigured(),
+    });
   } catch (err) {
     logger.error('Bulk onboard error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error during bulk processing' });

@@ -360,7 +360,7 @@ export async function getAttendanceAnalytics(req: AuthRequest, res: Response): P
       const present = await Attendance.countDocuments({
         tenant: tenantId,
         checkInTime: { $gte: today },
-        student: { $in: await Student.find({ programme: p._id }).distinct('_id') }
+        student: { $in: await Student.find({ programme: p._id, tenant: tenantId }).distinct('_id') }
       });
 
       return {
