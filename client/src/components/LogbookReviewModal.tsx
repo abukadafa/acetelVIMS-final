@@ -113,12 +113,16 @@ export default function LogbookReviewModal({ entry, onClose, onSuccess }: Props)
               <section>
                 <h4 style={{ fontSize: '0.9rem', marginBottom: '8px' }}>Technical Evidence</h4>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  {entry.attachments.map((url, i) => (
-                    <a key={i} href={`${import.meta.env.VITE_API_URL}${url}`} target="_blank" rel="noreferrer" className="evidence-preview">
-                      <FileText size={24} />
-                      <span>Attachment {i + 1}</span>
-                    </a>
-                  ))}
+                  {entry.attachments.map((url, i) => {
+                    const backendBase = (import.meta.env.VITE_API_URL as string || '').replace(/\/api\/?$/, '');
+                    const fileHref = url.startsWith('http') ? url : `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
+                    return (
+                      <a key={i} href={fileHref} target="_blank" rel="noreferrer" className="evidence-preview">
+                        <FileText size={24} />
+                        <span>Attachment {i + 1}</span>
+                      </a>
+                    );
+                  })}
                 </div>
               </section>
             )}

@@ -210,18 +210,24 @@ io.on('connection', (socket) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // 10. STATIC FILES — uploads served with no directory listing
 // ─────────────────────────────────────────────────────────────────────────────
-app.use('/uploads', (req, res, next) => {
-  // Block directory traversal in static serving
-  if (req.path.includes('..') || req.path.includes('//')) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  next();
-}, express.static(uploadsDir, {
-  dotfiles: 'deny',
-  index: false,    // No directory listing
-  etag: true,
-  maxAge: '7d',
-}));
+const uploadsStaticMiddleware = [
+  (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    // Block directory traversal in static serving
+    if (req.path.includes('..') || req.path.includes('//')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    next();
+  },
+  express.static(uploadsDir, {
+    dotfiles: 'deny',
+    index: false,    // No directory listing
+    etag: true,
+    maxAge: '7d',
+  })
+];
+
+app.use('/uploads', uploadsStaticMiddleware);
+app.use('/api/uploads', uploadsStaticMiddleware);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 11. HEALTH + ROOT
