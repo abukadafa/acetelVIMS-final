@@ -64,7 +64,10 @@ export default function PermissionsModal({ userId, userName, onClose }: Props) {
   const toggleGroup = (group: PermissionGroup, checked: boolean) => {
     setSelected(prev => {
       const next = new Set(prev);
-      group.permissions.forEach(p => { checked ? next.add(p.key) : next.delete(p.key); });
+      group.permissions.forEach(p => {
+        if (checked) next.add(p.key);
+        else next.delete(p.key);
+      });
       return next;
     });
   };

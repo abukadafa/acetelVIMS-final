@@ -135,6 +135,62 @@ export async function fetchStudentDetails(matricNumber: string): Promise<SDMSDat
   const found = Object.values(MOCK_SDMS_DATA).find(
     (s) => normalise(s.matricNumber) === needle
   );
+  if (found) return found;
 
-  return found || null;
+  // Check local database for pre-enrolled students
+  try {
+    const Student = (await import('../models/Student.model')).default;
+    const escaped = matricNumber.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const localStudent = await Student.findOne({
+      matricNumber: { $regex: new RegExp(`^${escaped}$`, 'i') },
+      isDeleted: { $ne: true },
+    }).populate('user').populate('programme');
+
+    if (localStudent) {
+      const u = localStudent.user as any;
+      const p = localStudent.programme as any;
+      return {
+        matricNumber: localStudent.matricNumber,
+        firstName: u?.firstName || '',
+        lastName: u?.lastName || '',
+        programme: p?.code || 'MSC-AI',
+        programmeName: p?.name || 'MSc Artificial Intelligence',
+        level: localStudent.level || 'MSc',
+        email: u?.email || `${normalise(matricNumber).replace(/[^A-Z0-9]/g, '.').toLowerCase()}@student.noun.edu.ng`,
+      };
+    }
+  } catch (err) {
+    console.warn('Local database lookup in SDMS service fallback error:', err);
+  }
+
+  // Fallback: accept any valid matric format (at least 4 characters alphanumeric with slashes/dashes)
+  const cleanMatric = matricNumber.trim().toUpperCase();
+  if (cleanMatric.length >= 4 && /^[A-Z0-9/_-]+$/.test(cleanMatric)) {
+    let prog = 'MSC-AI';
+    let progName = 'MSc Artificial Intelligence';
+    let level = 'MSc';
+
+    if (cleanMatric.includes('PHD')) {
+      level = 'PhD';
+      if (cleanMatric.includes('CYB')) { prog = 'PHD-CYB'; progName = 'PhD Cybersecurity'; }
+      else if (cleanMatric.includes('MIS')) { prog = 'PHD-MIS'; progName = 'PhD Management Information System'; }
+      else { prog = 'PHD-AI'; progName = 'PhD Artificial Intelligence'; }
+    } else {
+      if (cleanMatric.includes('CYB')) { prog = 'MSC-CYB'; progName = 'MSc Cybersecurity'; }
+      else if (cleanMatric.includes('MIS')) { prog = 'MSC-MIS'; progName = 'MSc Management Information System'; }
+      else { prog = 'MSC-AI'; progName = 'MSc Artificial Intelligence'; }
+    }
+
+    return {
+      matricNumber: cleanMatric,
+      firstName: '',
+      lastName: '',
+      programme: prog,
+      programmeName: progName,
+      level,
+      email: `${cleanMatric.replace(/[^A-Z0-9]/g, '.').toLowerCase()}@student.noun.edu.ng`,
+    };
+  }
+
+  return null;
 }

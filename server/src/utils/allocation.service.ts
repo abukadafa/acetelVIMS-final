@@ -97,9 +97,10 @@ export async function autoAllocateStudent(studentId: string): Promise<any> {
 /**
  * Mapping ACETEL Programmes to Industry Sectors
  */
-function getSectorFromProgramme(code: string): string {
-  if (code.includes('AI')) return 'AI';
-  if (code.includes('CYB')) return 'Cybersecurity';
-  if (code.includes('MIS')) return 'MIS';
+function getSectorFromProgramme(code?: string): string {
+  const c = String(code || '').toUpperCase();
+  if (c.includes('AI')) return 'AI';
+  if (c.includes('CYB')) return 'Cybersecurity';
+  if (c.includes('MIS')) return 'MIS';
   return 'General IT';
 }

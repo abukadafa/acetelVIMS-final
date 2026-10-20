@@ -5,6 +5,8 @@ import User from '../models/User.model';
 import logger from '../utils/logger';
 import { resolveUserTenantId } from '../utils/tenant.util';
 
+import { getDefaultPermissionsForRole } from '../config/permissions';
+
 export interface AuthRequest extends Request {
   user?: {
     id: string;
@@ -51,13 +53,17 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
 
     const tenantId = await resolveUserTenantId(dbUser);
 
+    const userPermissions = (dbUser.permissions && dbUser.permissions.length > 0)
+      ? dbUser.permissions
+      : (dbUser.role === 'admin' ? [] : getDefaultPermissionsForRole(dbUser.role));
+
     req.user = {
       id: dbUser._id.toString(),
       role: dbUser.role,
       email: dbUser.email,
       tenant: tenantId,
       programme: dbUser.programme?.toString() || decoded.programme,
-      permissions: dbUser.role === 'admin' ? [] : (dbUser.permissions || []),
+      permissions: userPermissions,
     };
     next();
   } catch (error: any) {
@@ -79,14 +85,20 @@ export const authorize = (...roles: string[]) => {
 export function hasPermission(user: AuthRequest['user'], permission: string): boolean {
   if (!user) return false;
   if (user.role === 'admin') return true;
-  return (user.permissions || []).includes(permission);
+  const userPerms = (user.permissions && user.permissions.length > 0)
+    ? user.permissions
+    : getDefaultPermissionsForRole(user.role);
+  return userPerms.includes(permission as any);
 }
 
 /** True if the user holds any of the given permissions (or is admin). */
 export function hasAnyPermission(user: AuthRequest['user'], permissions: string[]): boolean {
   if (!user) return false;
   if (user.role === 'admin') return true;
-  return permissions.some((p) => (user.permissions || []).includes(p));
+  const userPerms = (user.permissions && user.permissions.length > 0)
+    ? user.permissions
+    : getDefaultPermissionsForRole(user.role);
+  return permissions.some((p) => userPerms.includes(p as any));
 }
 
 /**

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import { AuthRequest } from '../middleware/auth.middleware';
 import Student from '../models/Student.model';
 import User from '../models/User.model';
@@ -495,7 +496,12 @@ export async function bulkDeleteStudents(req: AuthRequest, res: Response): Promi
 export async function getProgrammes(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { tenant: userTenant } = req.user!;
-    const programmes = await Programme.find({ tenant: userTenant, isActive: true }).sort({ level: 1, name: 1 });
+    let programmes = await Programme.find({ tenant: userTenant, isActive: { $ne: false } }).sort({ level: 1, name: 1 });
+    if (programmes.length === 0) {
+      const { seedProgrammes } = await import('../models/database');
+      await seedProgrammes(new mongoose.Types.ObjectId(userTenant));
+      programmes = await Programme.find({ tenant: userTenant, isActive: { $ne: false } }).sort({ level: 1, name: 1 });
+    }
     res.json({ programmes });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

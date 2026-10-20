@@ -5,7 +5,7 @@ import {
   Users, Search, Edit2, Trash2, RefreshCw,
   Shield, ShieldCheck, BookOpen, Wifi, Briefcase, Download,
   History, GraduationCap, Lock, UserPlus, X, AlertTriangle, 
-  Eye, EyeOff, FileText, Upload
+  Eye, EyeOff, FileText, Upload, Send
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ReasonModal from '../components/ReasonModal';
@@ -106,6 +106,11 @@ export default function UserManagementPage() {
   const [showBulkEnroll, setShowBulkEnroll]   = useState(false);
   const [permTarget, setPermTarget] = useState<{ id: string; name: string } | null>(null);
 
+  const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
+  const [sendingStaffEmail, setSendingStaffEmail] = useState(false);
+  const [staffEmailModalTarget, setStaffEmailModalTarget] = useState<{ ids: string[]; count: number; name?: string } | null>(null);
+  const [staffResetPasswordOption, setStaffResetPasswordOption] = useState(false);
+
   /* ── Fetch ── */
   const load = useCallback(async () => {
     setLoading(true);
@@ -203,8 +208,9 @@ export default function UserManagementPage() {
   const handleStudentOnboard = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Client-side validation: admin must select a programme
-    const resolvedProgramme = studentForm.programme || (!isAdmin ? (authUser as any)?.programme?._id : '');
+    // Client-side validation: must have a resolved programme
+    const userProgId = (authUser as any)?.programme?._id || (authUser as any)?.programme;
+    const resolvedProgramme = studentForm.programme || userProgId || '';
     if (!resolvedProgramme) {
       toast.error('Please select an Academic Programme before submitting.');
       return;
@@ -220,19 +226,19 @@ export default function UserManagementPage() {
 
     setSavingStudent(true);
     try {
-      const payload = {
-        firstName: studentForm.otherNames,
-        lastName: studentForm.surname,
-        email: studentForm.email,
-        matricNumber: studentForm.matricNumber,
+      const payload: Record<string, any> = {
+        firstName: studentForm.otherNames.trim(),
+        lastName: studentForm.surname.trim(),
+        email: studentForm.email.trim(),
+        matricNumber: studentForm.matricNumber.trim(),
         programme: resolvedProgramme,
-        phone: studentForm.phone,
-        personalEmail: studentForm.personalEmail,
+        phone: studentForm.phone?.trim() || undefined,
+        personalEmail: studentForm.personalEmail?.trim() || undefined,
         gender: studentForm.gender,
         isNigerian: studentForm.isNigerian,
-        address: studentForm.address,
-        stateOfOrigin: studentForm.stateOfOrigin,
-        lga: studentForm.lga,
+        address: studentForm.address?.trim() || undefined,
+        stateOfOrigin: studentForm.isNigerian ? (studentForm.stateOfOrigin || undefined) : undefined,
+        lga: studentForm.isNigerian ? (studentForm.lga?.trim() || undefined) : undefined,
         academicSession: studentForm.academicSession,
         level: studentForm.level
       };
@@ -511,9 +517,49 @@ export default function UserManagementPage() {
           </div>
         ) : activeTab === 'staff' ? (
           <div className="table-container">
+            {selectedStaff.length > 0 && (
+              <div style={{
+                background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 8,
+                padding: '10px 16px', margin: '12px 16px', display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between', gap: 10, flexWrap: 'wrap'
+              }}>
+                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#166534' }}>
+                  ✓ {selectedStaff.length} staff member{selectedStaff.length > 1 ? 's' : ''} selected
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    style={{ background: '#166534', borderColor: '#166534', display: 'flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => setStaffEmailModalTarget({ ids: selectedStaff, count: selectedStaff.length })}
+                  >
+                    <Send size={14} /> Resend Welcome Email ({selectedStaff.length})
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost"
+                    onClick={() => setSelectedStaff([])}
+                  >
+                    Clear Selection
+                  </button>
+                </div>
+              </div>
+            )}
             <table>
               <thead>
                 <tr>
+                  <th style={{ width: 38, textAlign: 'center', padding: '10px 8px' }}>
+                    <input
+                      type="checkbox"
+                      aria-label="Select all staff"
+                      checked={displayedUsers.length > 0 && selectedStaff.length === displayedUsers.length}
+                      onChange={e => {
+                        if (e.target.checked) setSelectedStaff(displayedUsers.map(u => u._id));
+                        else setSelectedStaff([]);
+                      }}
+                      style={{ accentColor: '#166534', cursor: 'pointer', transform: 'scale(1.1)' }}
+                    />
+                  </th>
                   <th style={{ minWidth: 185 }}>Institutional Role</th>
                   <th>Staff Member</th>
                   <th>Programme</th>
@@ -526,8 +572,22 @@ export default function UserManagementPage() {
                 {displayedUsers.map(u => {
                   const meta = ROLE_META[u.role];
                   const Icon = meta?.icon || Users;
+                  const isSelected = selectedStaff.includes(u._id);
                   return (
-                    <tr key={u._id}>
+                    <tr key={u._id} style={{ background: isSelected ? '#f0fdf4' : undefined }}>
+                      <td style={{ width: 38, textAlign: 'center', padding: '10px 8px' }}>
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${u.firstName} ${u.lastName}`}
+                          checked={isSelected}
+                          onChange={() => {
+                            setSelectedStaff(prev =>
+                              prev.includes(u._id) ? prev.filter(id => id !== u._id) : [...prev, u._id]
+                            );
+                          }}
+                          style={{ accentColor: '#166534', cursor: 'pointer', transform: 'scale(1.1)' }}
+                        />
+                      </td>
                       <td style={{ minWidth: 185 }}>
                         <div className="role-cell">
                           <span className={`badge ${meta?.color || 'badge-gray'}`} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '4px 10px' }}>
@@ -558,6 +618,13 @@ export default function UserManagementPage() {
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                          <button
+                            className="btn btn-ghost btn-sm btn-icon"
+                            title="Resend Welcome / Enrollment Email"
+                            onClick={() => setStaffEmailModalTarget({ ids: [u._id], count: 1, name: `${u.firstName} ${u.lastName}` })}
+                          >
+                            <Send size={14} color="#166534" />
+                          </button>
                           <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setShowAuditTrail(u._id)}><History size={14} /></button>
                           
                           {/* Protect Admin Profile from modification */}
@@ -937,6 +1004,85 @@ export default function UserManagementPage() {
           userName={permTarget.name}
           onClose={() => setPermTarget(null)}
         />
+      )}
+
+      {/* ══ Staff Resend Welcome Email Modal ══ */}
+      {staffEmailModalTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 350, padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 460, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', position: 'relative' }}>
+            <button onClick={() => { setStaffEmailModalTarget(null); setStaffResetPasswordOption(false); }} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#6b7280' }}>✕</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 10, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#166534' }}>
+                <Send size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#111827' }}>Resend Staff Welcome Email</h3>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: '#6b7280' }}>
+                  {staffEmailModalTarget.count === 1
+                    ? `Send welcome email to ${staffEmailModalTarget.name || 'this staff member'}`
+                    : `Send welcome emails to ${staffEmailModalTarget.count} selected staff members`}
+                </p>
+              </div>
+            </div>
+            
+            <div style={{ background: '#f9fafb', borderRadius: 10, padding: '14px 16px', border: '1px solid #e5e7eb', marginBottom: 20 }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={staffResetPasswordOption}
+                  onChange={e => setStaffResetPasswordOption(e.target.checked)}
+                  style={{ marginTop: 3, accentColor: '#166534' }}
+                />
+                <div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1f2937' }}>
+                    Reset & generate new temporary password
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: 2 }}>
+                    Generate a new temporary password and send credentials via email & WhatsApp. Check this if the staff member forgot or never received their initial password.
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => { setStaffEmailModalTarget(null); setStaffResetPasswordOption(false); }}
+                disabled={sendingStaffEmail}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                style={{ background: '#166534', borderColor: '#166534', display: 'flex', alignItems: 'center', gap: 6 }}
+                onClick={async () => {
+                  if (!staffEmailModalTarget) return;
+                  setSendingStaffEmail(true);
+                  try {
+                    const { data } = await api.post('/admin/staff/send-enrollment-emails', {
+                      userIds: staffEmailModalTarget.ids,
+                      resetPassword: staffResetPasswordOption,
+                    });
+                    toast.success(data?.message || `Welcome email sent to ${staffEmailModalTarget.count} staff`);
+                    setStaffEmailModalTarget(null);
+                    setStaffResetPasswordOption(false);
+                    setSelectedStaff([]);
+                  } catch (err: any) {
+                    toast.error(apiErrorMessage(err, 'Failed to send welcome email'));
+                  } finally {
+                    setSendingStaffEmail(false);
+                  }
+                }}
+                disabled={sendingStaffEmail}
+              >
+                <Send size={14} />
+                {sendingStaffEmail ? 'Sending...' : `Send Email${staffEmailModalTarget.count > 1 ? ` (${staffEmailModalTarget.count})` : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ══ Extra Styles ══ */}

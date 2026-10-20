@@ -311,7 +311,12 @@ export default function LogbookPage() {
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-3)', maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {e.activities}
                             </div>
-                            <button className="btn btn-sm btn-primary">Review & Sign</button>
+                            <button 
+                              className="btn btn-sm btn-primary"
+                              onClick={(ev) => { ev.stopPropagation(); setReviewingEntry(e); }}
+                            >
+                              Review & Sign
+                            </button>
                          </div>
                       </div>
                     ))}

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllCompanies, createCompany, updateCompany, deleteCompany, getCompanyById, getCompanyMetadata } from '../controllers/company.controller';
+import { getAllCompanies, createCompany, updateCompany, deleteCompany, getCompanyById, getCompanyMetadata, sendPartnerEnrollmentEmails } from '../controllers/company.controller';
 import { authenticate, authorize, requirePermission } from '../middleware/auth.middleware';
 import { PERMISSIONS } from '../config/permissions';
 import Company from '../models/Company.model';
@@ -13,10 +13,11 @@ r.use(authenticate);
 // level, so this was purely a route-gate issue for who could view/manage them.
 r.get('/', getAllCompanies);
 r.get('/meta', getCompanyMetadata);
+r.post('/send-enrollment-emails', requirePermission(PERMISSIONS.COMPANIES_ADD, PERMISSIONS.COMPANIES_MANAGE), sendPartnerEnrollmentEmails);
 r.get('/:id', getCompanyById);
 r.post('/', requirePermission(PERMISSIONS.COMPANIES_ADD, PERMISSIONS.COMPANIES_MANAGE), createCompany);
 r.put('/:id', requirePermission(PERMISSIONS.COMPANIES_MANAGE), updateCompany);
-r.delete('/:id', authorize('admin'), deleteCompany);
+r.delete('/:id', requirePermission(PERMISSIONS.COMPANIES_DELETE, PERMISSIONS.COMPANIES_MANAGE), deleteCompany);
 
 /** Bulk assign pending students to a company — emails only after coordinator approves each posting */
 r.post(

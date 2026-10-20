@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth.middleware';
+import { AuthRequest, hasPermission } from '../middleware/auth.middleware';
+import { PERMISSIONS } from '../config/permissions';
 import Logbook from '../models/Logbook.model';
 import Student from '../models/Student.model';
 import Notification from '../models/notification.model';
@@ -9,9 +10,15 @@ import logger from '../utils/logger';
 import { z } from 'zod';
 
 const logbookQuerySchema = z.object({
-  studentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ID format').optional(),
+  studentId: z.preprocess(
+    (val) => (val && mongoose.Types.ObjectId.isValid(String(val)) ? String(val) : undefined),
+    z.string().optional()
+  ),
   status: z.enum(['submitted', 'approved', 'rejected']).optional(),
-  week: z.preprocess((val) => Number(val), z.number().min(1).max(52)).optional(),
+  week: z.preprocess(
+    (val) => (val !== undefined && val !== '' && !isNaN(Number(val)) ? Number(val) : undefined),
+    z.number().min(1).max(52).optional()
+  ),
 });
 
 const logbookEntrySchema = z.object({
@@ -164,7 +171,10 @@ export async function reviewLogbookEntry(req: AuthRequest, res: Response): Promi
     }
 
     const student = entry.student as any;
-    if (student.supervisor?.toString() !== userId && req.user!.role !== 'admin') {
+    const isAssignedSupervisor = student.supervisor?.toString() === userId;
+    const canManageLogbook = hasPermission(req.user, PERMISSIONS.LOGBOOK_MANAGE);
+
+    if (!isAssignedSupervisor && !canManageLogbook) {
       logger.warn('User %s tried to review logbook for student %s without permission', userId, student._id);
       res.status(403).json({ error: 'Access denied' });
       return;

@@ -239,6 +239,20 @@ export const emailTemplates = {
     <a class="btn" href="${appUrl}">Access ACETEL VIMS Portal</a>
   `),
 
+  staffEnrollmentNotice: (name: string, email: string, role: string, appUrl: string) => base(`
+    <h2>Your ACETEL VIMS Account Notice</h2>
+    <p>Dear ${name},</p>
+    <p>This is a confirmation of your staff account on the ACETEL Virtual Internship Management System.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Name</span><span class="info-value">${name}</span></div>
+      <div class="info-row"><span class="info-label">Login Email</span><span class="info-value">${email}</span></div>
+      <div class="info-row"><span class="info-label">Role</span><span class="info-value">${role.replace(/_/g, ' ').toUpperCase()}</span></div>
+      <div class="info-row"><span class="info-label">Portal URL</span><span class="info-value"><a href="${appUrl}">${appUrl}</a></span></div>
+    </div>
+    <p>Log in with your institutional email. If you have forgotten your password, use the "Forgot Password" link on the login page or contact ICT Support.</p>
+    <a class="btn" href="${appUrl}">Access ACETEL VIMS Portal</a>
+  `),
+
   studentPostingConfirmed: (
     studentName: string,
     company: string,

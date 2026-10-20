@@ -32,8 +32,8 @@ r.post('/:id/allocate', requirePermission(PERMISSIONS.STUDENTS_MANAGE), requestA
 r.post('/:id/approve-posting', requirePermission(PERMISSIONS.STUDENTS_MANAGE), approvePosting);
 r.put('/location', updateStudentLocation);
 r.put('/:id', requirePermission(PERMISSIONS.STUDENTS_MANAGE), updateStudent);
-r.delete('/:id', authorize('admin'), deleteStudent);
-r.post('/bulk-delete', authorize('admin'), bulkDeleteStudents);
+r.delete('/:id', requirePermission(PERMISSIONS.STUDENTS_DELETE, PERMISSIONS.STUDENTS_MANAGE), deleteStudent);
+r.post('/bulk-delete', requirePermission(PERMISSIONS.STUDENTS_DELETE, PERMISSIONS.STUDENTS_MANAGE), bulkDeleteStudents);
 
 r.post('/:id/flag', requirePermission(PERMISSIONS.STUDENTS_MANAGE, PERMISSIONS.STUDENTS_VIEW_ALL), async (req: any, res: any) => {
   try {

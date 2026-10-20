@@ -4,9 +4,21 @@ import Tenant from '../models/Tenant.model';
 import logger from './logger';
 
 export async function getDefaultTenantId(): Promise<string> {
-  const tenant = await Tenant.findOne({ slug: 'acetel' });
+  let tenant = await Tenant.findOne({ slug: 'acetel' });
   if (!tenant) {
-    throw new Error('Default ACETEL tenant not found');
+    tenant = await Tenant.findOne({ isActive: true });
+  }
+  if (!tenant) {
+    tenant = await Tenant.findOne();
+  }
+  if (!tenant) {
+    tenant = await Tenant.create({
+      name: 'ACETEL',
+      slug: 'acetel',
+      institutionType: 'University',
+      isActive: true,
+    });
+    logger.info('Auto-created default ACETEL tenant');
   }
   return (tenant._id as mongoose.Types.ObjectId).toString();
 }

@@ -9,7 +9,7 @@ import Student from '../models/Student.model';
 import Company from '../models/Company.model';
 import { z } from 'zod';
 import logger from '../utils/logger';
-import { sendEmail, emailTemplates, isEmailConfigured } from '../utils/mail.service';
+import { sendEmail, emailTemplates, isEmailConfigured, getPrimaryAppUrl } from '../utils/mail.service';
 import { sendWhatsAppMessage, whatsappTemplates, isWhatsAppConfigured } from '../utils/whatsapp.service';
 import Notification from '../models/notification.model';
 import EmailRecord from '../models/EmailRecord.model';
@@ -17,6 +17,7 @@ import { autoAllocateStudent } from '../utils/allocation.service';
 import { normalizeStateName } from '../utils/nigeria-states.util';
 import { purgeSoftDeletedIdentity } from '../utils/identity.util';
 import { hasPermission } from '../middleware/auth.middleware';
+import { getDefaultTenantId } from '../utils/tenant.util';
 import { PERMISSIONS, PERMISSION_CATALOG, ALL_PERMISSIONS, isValidPermission, getDefaultPermissionsForRole } from '../config/permissions';
 
 const STAFF_ROLES = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor'];
@@ -79,28 +80,43 @@ const releaseMatricSchema = z.object({
 });
 
 const createStudentSchema = z.object({
-  firstName: z.string().min(2),
-  lastName: z.string().min(2),
-  email: z.string().email(),
-  matricNumber: z.string().min(5),
-  programme: z.string().optional().or(z.literal('')),
-  phone: z.string().optional().or(z.literal('')),
+  firstName: z.preprocess((v) => String(v || '').trim(), z.string().min(1, 'First name is required')),
+  lastName: z.preprocess((v) => String(v || '').trim(), z.string().min(1, 'Last name is required')),
+  email: z.preprocess((v) => String(v || '').trim().toLowerCase(), z.string().email('Invalid institutional email format')),
+  matricNumber: z.preprocess((v) => String(v || '').trim(), z.string().min(3, 'Matric number must be at least 3 characters')),
+  programme: z.preprocess((v) => (typeof v === 'string' ? v.trim() : (v ? String(v) : '')), z.string().optional().or(z.literal(''))),
+  phone: z.preprocess((v) => (typeof v === 'string' ? v.trim() : ''), z.string().optional()),
   password: z.preprocess(
-    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
-    z.string().min(8).optional()
+    (val) => (typeof val === 'string' && val.trim() !== '' ? val.trim() : undefined),
+    z.string().min(6).optional()
   ),
   personalEmail: z.preprocess(
-    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
-    z.string().email().optional()
+    (val) => {
+      if (typeof val !== 'string') return undefined;
+      const t = val.trim().toLowerCase();
+      return t === '' ? undefined : t;
+    },
+    z.string().email('Invalid personal email format').optional()
   ),
-  gender: z.enum(['Male', 'Female', 'Other']).optional(),
-  isNigerian: z.boolean().optional(),
-  address: z.string().optional().or(z.literal('')),
-  stateOfOrigin: z.string().optional().or(z.literal('')),
-  lga: z.string().optional().or(z.literal('')),
-  academicSession: z.string().optional().or(z.literal('')),
-  level: z.string().optional().or(z.literal('')),
+  gender: z.preprocess((v) => {
+    if (!v) return 'Male';
+    const s = String(v).trim().toLowerCase();
+    if (s === 'female') return 'Female';
+    if (s === 'other') return 'Other';
+    return 'Male';
+  }, z.enum(['Male', 'Female', 'Other']).default('Male')),
+  isNigerian: z.preprocess((v) => {
+    if (typeof v === 'boolean') return v;
+    if (typeof v === 'string') return v.toLowerCase() !== 'false' && v.toLowerCase() !== 'non-nigerian';
+    return true;
+  }, z.boolean().default(true)),
+  address: z.preprocess((v) => (typeof v === 'string' ? v.trim() : ''), z.string().optional().default('')),
+  stateOfOrigin: z.preprocess((v) => (typeof v === 'string' ? v.trim() : ''), z.string().optional().default('')),
+  lga: z.preprocess((v) => (typeof v === 'string' ? v.trim() : ''), z.string().optional().default('')),
+  academicSession: z.preprocess((v) => (typeof v === 'string' && v.trim() ? v.trim() : '2024/2025'), z.string().default('2024/2025')),
+  level: z.preprocess((v) => (typeof v === 'string' && v.trim() ? v.trim() : 'MSc'), z.string().default('MSc')),
 });
+
 
 const updateUserSchema = z.object({
   firstName: z.string().optional().or(z.literal('')),
@@ -494,15 +510,64 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
     const normMatric = normalizeMatricValue(matricNumber);
     const normEmail = email.toLowerCase().trim();
 
-    if (req.user!.role === 'admin') {
-      await purgeSoftDeletedIdentity(tenantId, { email: normEmail, matric: normMatric });
+    // Purge any soft-deleted records for this email or matric so they don't block fresh enrollment
+    await purgeSoftDeletedIdentity(tenantId, { email: normEmail, matric: normMatric });
+
+    // Clean up any orphaned student user records from a previous interrupted enrollment
+    const orphanUser = await User.findOne({
+      tenant: tenantId,
+      role: 'student',
+      $or: [{ email: normEmail }, { username: normMatric.toLowerCase() }],
+    });
+    if (orphanUser) {
+      const hasStudent = await Student.findOne({ user: orphanUser._id });
+      if (!hasStudent) {
+        logger.warn('Cleaning up orphaned student user record from previous interrupted enrollment: %s', orphanUser.email);
+        await User.findByIdAndDelete(orphanUser._id).catch(() => {});
+      }
     }
 
-    // Programme Isolation
-    const targetProgramme = req.user!.role !== 'admin' ? req.user!.programme : programme;
+    // Programme Resolution:
+    // If coordinator is assigned to a specific programme, enforce it.
+    // Otherwise (admin, internship coordinator, ICT support), use the programme passed from the form.
+    let targetProgrammeStr = programme;
+    if (req.user!.role === 'prog_coordinator' && req.user!.programme) {
+      targetProgrammeStr = req.user!.programme;
+    } else if (!targetProgrammeStr && req.user!.programme) {
+      targetProgrammeStr = req.user!.programme;
+    }
 
-    if (!targetProgramme) {
+    if (!targetProgrammeStr) {
       res.status(400).json({ error: 'A programme must be selected' });
+      return;
+    }
+
+    let resolvedProgId: mongoose.Types.ObjectId | null = null;
+    if (mongoose.Types.ObjectId.isValid(targetProgrammeStr)) {
+      const prog = await Programme.findOne({ _id: targetProgrammeStr, tenant: tenantId });
+      if (prog) resolvedProgId = prog._id as mongoose.Types.ObjectId;
+    }
+    if (!resolvedProgId) {
+      const prog = await Programme.findOne({
+        code: new RegExp(`^${targetProgrammeStr.trim()}$`, 'i'),
+        tenant: tenantId,
+      });
+      if (prog) resolvedProgId = prog._id as mongoose.Types.ObjectId;
+    }
+    if (!resolvedProgId) {
+      const anyProg = await Programme.findOne({ tenant: tenantId, isActive: { $ne: false } });
+      if (anyProg) {
+        resolvedProgId = anyProg._id as mongoose.Types.ObjectId;
+      } else {
+        const { seedProgrammes } = await import('../models/database');
+        await seedProgrammes(new mongoose.Types.ObjectId(tenantId));
+        const seeded = await Programme.findOne({ tenant: tenantId });
+        if (seeded) resolvedProgId = seeded._id as mongoose.Types.ObjectId;
+      }
+    }
+
+    if (!resolvedProgId) {
+      res.status(400).json({ error: 'Selected programme not found. Please select a valid academic programme.' });
       return;
     }
 
@@ -519,7 +584,7 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
 
     const existingMatric = await Student.findOne({
       tenant: tenantId,
-      matricNumber: normMatric,
+      matricNumber: { $regex: new RegExp(`^${normMatric}$`, 'i') },
       isDeleted: { $ne: true },
     });
     if (existingMatric) {
@@ -536,7 +601,8 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       username: normMatric.toLowerCase(),
       password: tempPassword,
       role: 'student',
-      phone: phone?.trim(),
+      phone: phone?.trim() || undefined,
+      programme: resolvedProgId,
       tenant: tenantId,
       isActive: true,
     });
@@ -548,19 +614,25 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       user: user._id,
       tenant: tenantId,
       matricNumber: normMatric,
-      programme: targetProgramme,
+      programme: resolvedProgId,
       academicSession: academicSession || '2024/2025',
       level: level || 'MSc',
       status: 'pending',
-      personalEmail: personalEmail?.trim().toLowerCase(),
-      gender,
+      personalEmail: personalEmail?.trim().toLowerCase() || undefined,
+      gender: gender || 'Male',
       isNigerian: isNigerian ?? true,
-      address: address?.trim(),
+      address: address?.trim() || undefined,
       stateOfOrigin: normalizedState,
-      lga: lga?.trim(),
+      lga: lga?.trim() || undefined,
     });
 
-    await student.save();
+    try {
+      await student.save();
+    } catch (saveStudentErr: any) {
+      logger.error('Failed to save student document, rolling back created user %s: %s', user._id, saveStudentErr.message);
+      await User.findByIdAndDelete(user._id).catch(() => {});
+      throw saveStudentErr;
+    }
 
     await AuditLog.create({
       tenant: tenantId,
@@ -568,16 +640,16 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       action: 'CREATE_STUDENT',
       module: 'STUDENT_MANAGEMENT',
       targetId: student._id,
-      details: `Onboarded student ${email} for programme ${targetProgramme}`,
+      details: `Onboarded student ${email} for programme ${resolvedProgId}`,
       ipAddress: req.ip
     });
 
     // Resolve programme name for notification
-    const prog = await Programme.findById(targetProgramme).select('name');
+    const prog = await Programme.findById(resolvedProgId).select('name code');
     const progName = prog?.name || 'your programme';
 
     // Welcome notifications — institutional email + personal email + WhatsApp
-    const appUrl = process.env.FRONTEND_URL || 'https://acetel-frontend.onrender.com';
+    const appUrl = getPrimaryAppUrl();
     const welcomeHtml = emailTemplates.welcomeStudent(`${firstName} ${lastName}`, email, tempPassword, appUrl, 'Pending Placement');
     const delivery = { email: false, personalEmail: false, whatsapp: false };
     const deliveryDetails = {
@@ -606,7 +678,7 @@ Hello ${firstName},
 
 You have been enrolled on the ACETEL Virtual Internship Management System.
 
-*Matric Number:* ${matricNumber}
+*Matric Number:* ${normMatric}
 *Programme:* ${progName}
 *Login Email:* ${email}
 *Temporary Password:* ${tempPassword}
@@ -622,7 +694,7 @@ _Please change your password after first login._`
     await Notification.create({
       user: user._id, tenant: tenantId,
       title: 'Welcome to ACETEL IMS!',
-      message: `Your student account is ready. Matric: ${matricNumber}. Login with your institutional email and temporary password.`,
+      message: `Your student account is ready. Matric: ${normMatric}. Login with your institutional email and temporary password.`,
       type: 'success',
     });
 
@@ -636,6 +708,16 @@ _Please change your password after first login._`
 
     res.status(201).json({
       message: 'Student onboarded successfully',
+      student,
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        programme: resolvedProgId,
+      },
       delivery,
       deliveryDetails,
       posting,
@@ -643,19 +725,20 @@ _Please change your password after first login._`
     });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      const issueDetails = err.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+      res.status(400).json({ error: `Validation failed: ${issueDetails}`, details: err.errors });
       return;
     }
     if (err?.code === 11000) {
       const field = Object.keys(err.keyValue || {})[0] || 'identity';
       res.status(409).json({
-        error: `Duplicate ${field}. If this student was deleted, release the email or matric from Recycle Bin first.`,
+        error: `A user or student with this ${field} already exists. If it was deleted, release the email or matric from Recycle Bin first.`,
         field,
       });
       return;
     }
     logger.error('Create student error: %s', (err as Error).message);
-    res.status(500).json({ error: 'Failed to onboard student. Please check required fields and try again.' });
+    res.status(500).json({ error: err.message || 'Failed to onboard student. Please check required fields and try again.' });
   }
 }
 
@@ -830,6 +913,7 @@ export async function updateUserPermissions(req: AuthRequest, res: Response): Pr
 const sendEnrollmentEmailsSchema = z.object({
   studentIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/)).optional(), // omit = all visible students
   programme: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+  resetPassword: z.boolean().optional(),
 });
 
 /**
@@ -843,10 +927,11 @@ const sendEnrollmentEmailsSchema = z.object({
  */
 export async function sendEnrollmentEmails(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { studentIds, programme } = sendEnrollmentEmailsSchema.parse(req.body);
-    const tenantId = req.user!.tenant;
+    const { studentIds, programme, resetPassword } = sendEnrollmentEmailsSchema.parse(req.body);
+    const tenantId = req.user?.tenant || (await getDefaultTenantId().catch(() => undefined));
 
-    const query: any = { tenant: tenantId, isDeleted: { $ne: true } };
+    const query: any = { isDeleted: { $ne: true } };
+    if (tenantId) query.tenant = tenantId;
     if (studentIds?.length) {
       query._id = { $in: studentIds };
     } else if (!hasPermission(req.user, PERMISSIONS.STUDENTS_VIEW_ALL)) {
@@ -860,7 +945,7 @@ export async function sendEnrollmentEmails(req: AuthRequest, res: Response): Pro
     if (programme) query.programme = programme;
 
     const students = await Student.find(query)
-      .populate('user', 'firstName lastName email isActive')
+      .populate('user', 'firstName lastName email phone isActive')
       .populate('programme', 'name')
       .populate('company', 'name');
 
@@ -876,14 +961,18 @@ export async function sendEnrollmentEmails(req: AuthRequest, res: Response): Pro
       return;
     }
 
-    const appUrl = process.env.FRONTEND_URL || 'https://acetel-frontend.onrender.com';
+    const appUrl = getPrimaryAppUrl();
     const sender = await User.findById(req.user!.id).select('firstName lastName email');
+
+    const emailSubject = resetPassword
+      ? 'Welcome to ACETEL VIMS — Your Account is Ready'
+      : 'You Are Enrolled — ACETEL VIMS';
 
     const record = await EmailRecord.create({
       tenant: tenantId,
       sender: req.user!.id,
-      subject: 'You Are Enrolled — ACETEL VIMS',
-      body: 'Bulk enrollment confirmation email',
+      subject: emailSubject,
+      body: resetPassword ? 'Enrollment credentials & welcome email' : 'Enrollment confirmation notification email',
       recipientScope: programme ? 'programme' : 'all_students',
       programme: programme || undefined,
       recipients: students
@@ -905,17 +994,46 @@ export async function sendEnrollmentEmails(req: AuthRequest, res: Response): Pro
         failed++;
         continue;
       }
-      const html = emailTemplates.enrollmentNotice(
-        `${u.firstName} ${u.lastName}`,
-        s.matricNumber,
-        s.programme?.name || 'N/A',
-        s.status,
-        s.company?.name || null,
-        appUrl
-      );
-      const ok = await sendEmail(u.email, 'You Are Enrolled — ACETEL VIMS', html);
+
+      let html: string;
+      let tempPassword = '';
+
+      if (resetPassword) {
+        tempPassword = `Student@${Math.floor(1000 + Math.random() * 9000)}`;
+        const hash = await bcrypt.hash(tempPassword, 10);
+        await User.findByIdAndUpdate(u._id, { password: hash, mustChangePassword: true });
+        html = emailTemplates.welcomeStudent(
+          `${u.firstName} ${u.lastName}`,
+          u.email,
+          tempPassword,
+          appUrl,
+          s.company?.name || 'Pending Placement'
+        );
+      } else {
+        html = emailTemplates.enrollmentNotice(
+          `${u.firstName} ${u.lastName}`,
+          s.matricNumber,
+          s.programme?.name || 'N/A',
+          s.status,
+          s.company?.name || null,
+          appUrl
+        );
+      }
+
+      const ok = await sendEmail(u.email, emailSubject, html);
       results.push({ studentId: s._id.toString(), email: u.email, sent: ok, error: ok ? undefined : 'Send failed — see server logs' });
       if (ok) sent++; else failed++;
+
+      if (u.phone) {
+        try {
+          const waMsg = resetPassword
+            ? `*ACETEL IMS — Enrollment Details* 🎓\n\nHello ${u.firstName},\n\nYour student account login credentials:\n*Login:* ${u.email}\n*Temporary Password:* ${tempPassword}\n\nPortal: ${appUrl}\n\n_Please change your password after logging in._`
+            : `*ACETEL IMS — Enrollment Confirmed* 🎓\n\nHello ${u.firstName},\n\nYour enrollment on ACETEL IMS has been confirmed. Matric: ${s.matricNumber}.\n\nPortal: ${appUrl}`;
+          await sendWhatsAppMessage(u.phone, waMsg);
+        } catch (waErr: any) {
+          logger.warn('Student WhatsApp failed for %s: %s', u.phone, waErr.message);
+        }
+      }
     }
 
     await EmailRecord.findByIdAndUpdate(record._id, {
@@ -950,6 +1068,156 @@ export async function sendEnrollmentEmails(req: AuthRequest, res: Response): Pro
     res.status(500).json({ error: 'Server error' });
   }
 }
+
+const sendStaffEnrollmentEmailsSchema = z.object({
+  userIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/)).optional(), // omit = all visible staff
+  role: z.string().optional(),
+  resetPassword: z.boolean().optional(),
+});
+
+/**
+ * POST /api/admin/staff/send-enrollment-emails
+ * Resends welcome / enrollment emails to staff members (individual or bulk).
+ * Allows administrators to optionally regenerate a temporary password or
+ * send account login reminders.
+ */
+export async function sendStaffEnrollmentEmails(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { userIds, role, resetPassword } = sendStaffEnrollmentEmailsSchema.parse(req.body);
+    const tenantId = req.user?.tenant || (await getDefaultTenantId().catch(() => undefined));
+
+    const staffRoles = ['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor', 'industry_supervisor'];
+    const query: any = {
+      role: role ? role : { $in: staffRoles },
+      isDeleted: { $ne: true },
+    };
+    if (tenantId) query.tenant = tenantId;
+    if (userIds?.length) {
+      query._id = { $in: userIds };
+    }
+
+    const staffList = await User.find(query).populate('programme', 'name code');
+
+    if (staffList.length === 0) {
+      res.status(400).json({ error: 'No matching staff accounts found' });
+      return;
+    }
+
+    if (!isEmailConfigured()) {
+      res.status(400).json({
+        error: 'Email is not configured on this server. Check SMTP settings under Settings → Integrations before sending enrollment emails.',
+      });
+      return;
+    }
+
+    const appUrl = getPrimaryAppUrl();
+    const sender = await User.findById(req.user!.id).select('firstName lastName email');
+
+    const emailSubject = resetPassword
+      ? 'Welcome to ACETEL IMS — Your Account is Ready'
+      : 'Your ACETEL VIMS Account Notice';
+
+    const record = await EmailRecord.create({
+      tenant: tenantId,
+      sender: req.user!.id,
+      subject: emailSubject,
+      body: resetPassword ? 'Staff welcome/enrollment credentials email' : 'Staff enrollment notification email',
+      recipientScope: role ? 'role' : 'all_staff',
+      recipients: staffList
+        .filter((u: any) => u.email)
+        .map((u: any) => ({ userId: u._id, email: u.email, name: `${u.firstName} ${u.lastName}` })),
+      sentCount: 0,
+      failedCount: 0,
+      status: 'sending',
+    });
+
+    const results: { userId: string; email: string | null; sent: boolean; error?: string }[] = [];
+    let sent = 0;
+    let failed = 0;
+
+    for (const u of staffList as any[]) {
+      if (!u.email) {
+        results.push({ userId: u._id.toString(), email: null, sent: false, error: 'No email on file' });
+        failed++;
+        continue;
+      }
+
+      let html: string;
+      let tempPassword = '';
+
+      if (resetPassword) {
+        tempPassword = `Staff@${Math.floor(1000 + Math.random() * 9000)}`;
+        const hash = await bcrypt.hash(tempPassword, 10);
+        u.password = hash;
+        u.mustChangePassword = true;
+        await u.save();
+
+        html = emailTemplates.welcomeStaff(
+          `${u.firstName} ${u.lastName}`,
+          u.email,
+          u.email,
+          tempPassword,
+          formatRoleLabel(u.role),
+          appUrl
+        );
+      } else {
+        html = emailTemplates.staffEnrollmentNotice(
+          `${u.firstName} ${u.lastName}`,
+          u.email,
+          u.role,
+          appUrl
+        );
+      }
+
+      const ok = await sendEmail(u.email, emailSubject, html);
+      results.push({ userId: u._id.toString(), email: u.email, sent: ok, error: ok ? undefined : 'Send failed — see server logs' });
+      if (ok) sent++; else failed++;
+
+      if (u.phone) {
+        try {
+          const waMsg = resetPassword
+            ? `*ACETEL IMS — Account Credentials* 🎓\n\nHello ${u.firstName},\n\nYour ${formatRoleLabel(u.role)} login credentials have been updated:\n\n*Login:* ${u.email}\n*Temporary Password:* ${tempPassword}\n\nAccess portal: ${appUrl}\n\n_Please change your password upon logging in._`
+            : `*ACETEL IMS — Account Active* 🎓\n\nHello ${u.firstName},\n\nYour ${formatRoleLabel(u.role)} account is active on ACETEL IMS.\n\nPortal: ${appUrl}`;
+          await sendWhatsAppMessage(u.phone, waMsg);
+        } catch (waErr: any) {
+          logger.warn('WhatsApp to staff %s failed: %s', u.phone, waErr.message);
+        }
+      }
+    }
+
+    await EmailRecord.findByIdAndUpdate(record._id, {
+      sentCount: sent,
+      failedCount: failed,
+      status: failed === 0 ? 'sent' : sent === 0 ? 'failed' : 'partial',
+    });
+
+    await AuditLog.create({
+      tenant: tenantId,
+      user: req.user!.id,
+      action: 'BULK_SEND_ENROLLMENT_EMAIL',
+      module: 'COMMUNICATIONS',
+      details: `Sent enrollment/welcome email to ${sent}/${staffList.length} staff (${failed} failed) by ${sender?.email || req.user!.id}`,
+      ipAddress: req.ip,
+    });
+
+    res.json({
+      message: `Staff enrollment email sent to ${sent} of ${staffList.length} staff member(s)${failed > 0 ? ` — ${failed} failed` : ''}.`,
+      emailRecordId: record._id,
+      total: staffList.length,
+      sent,
+      failed,
+      results,
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      return;
+    }
+    logger.error('sendStaffEnrollmentEmails error: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
 
 /** DELETE /api/admin/users/:id  — soft delete */
 export async function deactivateUser(req: AuthRequest, res: Response): Promise<void> {
@@ -1003,14 +1271,19 @@ export async function deactivateUser(req: AuthRequest, res: Response): Promise<v
 /** GET /api/admin/recycle-bin */
 export async function listRecycleBin(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const tenantId = req.user!.tenant;
-    const userFilter: any = { tenant: tenantId, isDeleted: true };
-    const studentFilter: any = { tenant: tenantId, isDeleted: true };
-    const companyFilter: any = { tenant: tenantId, isDeleted: true };
+    const tenantId = req.user?.tenant || (await getDefaultTenantId().catch(() => undefined));
+    const userFilter: any = { isDeleted: true };
+    const studentFilter: any = { isDeleted: true };
+    const companyFilter: any = { isDeleted: true };
+    if (tenantId) {
+      userFilter.tenant = tenantId;
+      studentFilter.tenant = tenantId;
+      companyFilter.tenant = tenantId;
+    }
     
-    if (req.user!.role !== 'admin') {
-      userFilter.programme = req.user!.programme;
-      studentFilter.programme = req.user!.programme;
+    if (req.user?.role !== 'admin' && req.user?.programme) {
+      userFilter.programme = req.user.programme;
+      studentFilter.programme = req.user.programme;
     }
 
     const deletedUsers = await User.find(userFilter)
@@ -1031,7 +1304,7 @@ export async function listRecycleBin(req: AuthRequest, res: Response): Promise<v
 
     res.json({ users: deletedUsers, students: deletedStudents, companies: deletedCompanies });
   } catch (err) {
-    logger.error('Error: %s', (err as Error).message);
+    logger.error('Error in listRecycleBin: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -1077,7 +1350,12 @@ export async function getAuditLogs(req: AuthRequest, res: Response): Promise<voi
 export async function listProgrammes(req: AuthRequest, res: Response): Promise<void> {
   try {
     const tenantId = req.user!.tenant;
-    const programmes = await Programme.find({ tenant: tenantId, isActive: true }).sort({ name: 1 });
+    let programmes = await Programme.find({ tenant: tenantId, isActive: { $ne: false } }).sort({ name: 1 });
+    if (programmes.length === 0) {
+      const { seedProgrammes } = await import('../models/database');
+      await seedProgrammes(new mongoose.Types.ObjectId(tenantId));
+      programmes = await Programme.find({ tenant: tenantId, isActive: { $ne: false } }).sort({ name: 1 });
+    }
     res.json({ programmes });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -1482,7 +1760,10 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
       }
 
       let programmeId = programmeCodeValue ? progMap[programmeCodeValue.toLowerCase()] : null;
-      if (req.user!.role !== 'admin') {
+      if (!programmeId && mongoose.Types.ObjectId.isValid(programmeCodeValue)) {
+        programmeId = new mongoose.Types.ObjectId(programmeCodeValue);
+      }
+      if (!programmeId && req.user!.programme) {
         programmeId = req.user!.programme as any;
       }
 
@@ -1547,7 +1828,7 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
         // Welcome notifications — same behaviour as single-record add, so bulk
         // enrollment actually notifies people instead of silently creating
         // accounts nobody is told about.
-        const appUrl = process.env.FRONTEND_URL || 'https://acetel-frontend.onrender.com';
+        const appUrl = getPrimaryAppUrl();
         const delivery = { email: false, personalEmail: false, whatsapp: false };
         try {
           const html = entityType === 'student'

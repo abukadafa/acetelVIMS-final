@@ -8,6 +8,9 @@ import { sendEmail } from '../utils/mail.service';
 import { z } from 'zod';
 import logger from '../utils/logger';
 
+import mongoose from 'mongoose';
+import { getDefaultTenantId } from '../utils/tenant.util';
+
 const STAFF_ROLES = ['admin', 'prog_coordinator', 'internship_coordinator', 'supervisor', 'ict_support'];
 
 const BASE_STYLE = `font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;margin:0;padding:0;`;
@@ -23,18 +26,27 @@ function buildHtml(senderName: string, body: string): string {
 }
 
 const composeSchema = z.object({
-  subject: z.string().min(1).max(300),
-  body: z.string().min(1).max(10000),
+  subject: z.preprocess((val) => String(val || '').trim(), z.string().min(1, 'Subject is required').max(300)),
+  body: z.preprocess((val) => String(val || '').trim(), z.string().min(1, 'Body is required').max(10000)),
   recipientScope: z.enum(['individual', 'all_students', 'all_staff', 'programme', 'custom']),
-  recipientIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/)).optional(),
-  programmeId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+  recipientIds: z.preprocess(
+    (val) => Array.isArray(val) ? val.filter((id) => mongoose.Types.ObjectId.isValid(String(id))) : undefined,
+    z.array(z.string()).optional()
+  ),
+  programmeId: z.preprocess(
+    (val) => (val && mongoose.Types.ObjectId.isValid(String(val)) ? String(val) : undefined),
+    z.string().optional()
+  ),
 });
 
 /** POST /api/email/compose — all authenticated users can send email */
 export async function composeEmail(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { subject, body, recipientScope, recipientIds, programmeId } = composeSchema.parse(req.body);
-    const tenantId = req.user!.tenant;
+    let tenantId = req.user?.tenant;
+    if (!tenantId) {
+      tenantId = await getDefaultTenantId();
+    }
     const userRole = req.user!.role;
     const isStaff = STAFF_ROLES.includes(userRole);
 
@@ -47,17 +59,17 @@ export async function composeEmail(req: AuthRequest, res: Response): Promise<voi
     let recipientUsers: { _id: any; email: string; firstName: string; lastName: string; }[] = [];
 
     if (recipientScope === 'all_students') {
-      const students = await User.find({ tenant: tenantId, role: 'student', isActive: true }).select('email firstName lastName');
+      const students = await User.find({ ...(tenantId ? { tenant: tenantId } : {}), role: 'student', isActive: true }).select('email firstName lastName');
       recipientUsers = students as any[];
     } else if (recipientScope === 'all_staff') {
-      const staff = await User.find({ tenant: tenantId, role: { $in: STAFF_ROLES }, isActive: true }).select('email firstName lastName');
+      const staff = await User.find({ ...(tenantId ? { tenant: tenantId } : {}), role: { $in: STAFF_ROLES }, isActive: true }).select('email firstName lastName');
       recipientUsers = staff as any[];
     } else if (recipientScope === 'programme' && programmeId) {
-      const students = await Student.find({ programme: programmeId, tenant: tenantId }).populate('user', 'email firstName lastName');
+      const students = await Student.find({ programme: programmeId, ...(tenantId ? { tenant: tenantId } : {}) }).populate('user', 'email firstName lastName');
       recipientUsers = students.map(s => s.user as any).filter(Boolean);
     } else if ((recipientScope === 'individual' || recipientScope === 'custom') && recipientIds?.length) {
       // Allow sending to any user in the tenant
-      const users = await User.find({ _id: { $in: recipientIds }, tenant: tenantId, isActive: true }).select('email firstName lastName');
+      const users = await User.find({ _id: { $in: recipientIds }, ...(tenantId ? { tenant: tenantId } : {}), isActive: true }).select('email firstName lastName');
       recipientUsers = users as any[];
     }
 
@@ -66,6 +78,8 @@ export async function composeEmail(req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
+    const validProgId = (programmeId && mongoose.Types.ObjectId.isValid(programmeId)) ? programmeId : undefined;
+
     const record = await EmailRecord.create({
       tenant: tenantId,
       sender: req.user!.id,
@@ -73,7 +87,7 @@ export async function composeEmail(req: AuthRequest, res: Response): Promise<voi
       body,
       bodyHtml: html,
       recipientScope,
-      programme: programmeId,
+      programme: validProgId,
       recipients: recipientUsers.map(u => ({ userId: u._id, email: u.email, name: `${u.firstName} ${u.lastName}` })),
       sentCount: 0,
       failedCount: 0,
@@ -93,8 +107,13 @@ export async function composeEmail(req: AuthRequest, res: Response): Promise<voi
     }
 
     for (const user of recipientUsers) {
-      const ok = await sendEmail(user.email, subject, html);
-      if (ok) sent++; else failed++;
+      try {
+        const ok = await sendEmail(user.email, subject, html);
+        if (ok) sent++; else failed++;
+      } catch (e: any) {
+        logger.warn('Failed to send email to %s: %s', user.email, e.message);
+        failed++;
+      }
     }
 
     await EmailRecord.findByIdAndUpdate(record._id, {
@@ -121,9 +140,10 @@ export async function composeEmail(req: AuthRequest, res: Response): Promise<voi
 /** GET /api/email/history — all users see their own sent emails; staff see all */
 export async function getEmailHistory(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const tenantId = req.user!.tenant;
+    const tenantId = req.user?.tenant || (await getDefaultTenantId().catch(() => undefined));
     const isStaff = STAFF_ROLES.includes(req.user!.role);
-    const filter: any = { tenant: tenantId };
+    const filter: any = {};
+    if (tenantId) filter.tenant = tenantId;
     if (!isStaff) filter.sender = req.user!.id;
 
     const emails = await EmailRecord.find(filter)
@@ -132,7 +152,7 @@ export async function getEmailHistory(req: AuthRequest, res: Response): Promise<
       .sort({ createdAt: -1 })
       .limit(100);
 
-    res.json({ emails });
+    res.json({ emails: emails || [] });
   } catch (err) {
     logger.error('Email history error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });
@@ -142,22 +162,22 @@ export async function getEmailHistory(req: AuthRequest, res: Response): Promise<
 /** GET /api/email/contacts — scoped by role */
 export async function getEmailContacts(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const tenantId = req.user!.tenant;
+    const tenantId = req.user?.tenant || (await getDefaultTenantId().catch(() => undefined));
     const userRole = req.user!.role;
     const isStaff = STAFF_ROLES.includes(userRole);
 
-    let userFilter: any = { tenant: tenantId, isActive: true, _id: { $ne: req.user!.id } };
-    // All users can see everyone else in the directory
+    let userFilter: any = { isActive: true, _id: { $ne: req.user!.id } };
+    if (tenantId) userFilter.tenant = tenantId;
 
     const users = await User.find(userFilter)
       .select('firstName lastName email role')
       .sort({ role: 1, firstName: 1 });
 
     const programmes = isStaff
-      ? await Programme.find({ tenant: tenantId, isActive: true }).select('name code')
+      ? await Programme.find({ ...(tenantId ? { tenant: tenantId } : {}), isActive: true }).select('name code')
       : [];
 
-    res.json({ users, programmes });
+    res.json({ users: users || [], programmes: programmes || [] });
   } catch (err) {
     logger.error('Email contacts error: %s', (err as Error).message);
     res.status(500).json({ error: 'Server error' });

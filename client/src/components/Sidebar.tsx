@@ -188,7 +188,7 @@ export default function Sidebar() {
             <SectionLabel>Governance</SectionLabel>
             <NavLink to="/users"       icon={UserCog} label="User Management" />
             <NavLink to="/audit-trail" icon={History} label="Audit Trail" />
-            {isRole('admin') && <NavLink to="/bin"      icon={Trash2}  label="Recycle Bin" />}
+            {isRole('admin', 'prog_coordinator', 'internship_coordinator', 'ict_support') && <NavLink to="/bin" icon={Trash2} label="Recycle Bin" />}
             {isRole('admin') && <NavLink to="/firewall" icon={Shield}  label="Firewall" />}
             {isRole('admin') && <NavLink to="/whatsapp" icon={Smartphone} label="WhatsApp Setup" />}
           </div>

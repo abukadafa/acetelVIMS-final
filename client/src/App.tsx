@@ -95,10 +95,10 @@ export default function App() {
               <Route path="/all-students" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><StudentList /></ProtectedRoute>} />
               <Route path="/all-attendance" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor']}><AttendanceRecordsPage /></ProtectedRoute>} />
               <Route path="/all-students/:id" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support', 'supervisor']}><StudentProfilePage /></ProtectedRoute>} />
-              <Route path="/companies" element={<ProtectedRoute roles={['admin', 'internship_coordinator']}><CompanyManagement /></ProtectedRoute>} />
+              <Route path="/companies" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><CompanyManagement /></ProtectedRoute>} />
               <Route path="/users" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><UserManagementPage /></ProtectedRoute>} />
               <Route path="/audit-trail" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><AuditTrailPage /></ProtectedRoute>} />
-              <Route path="/bin" element={<ProtectedRoute roles={['admin']}><RecycleBinPage /></ProtectedRoute>} />
+              <Route path="/bin" element={<ProtectedRoute roles={['admin', 'prog_coordinator', 'internship_coordinator', 'ict_support']}><RecycleBinPage /></ProtectedRoute>} />
               <Route path="/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
               <Route path="/communication" element={<ProtectedRoute><CommunicationPage /></ProtectedRoute>} />

@@ -56,7 +56,7 @@ export async function initDatabase(): Promise<void> {
 }
 
 // Seed Programmes (Idempotent)
-async function seedProgrammes(tenantId: mongoose.Types.ObjectId) {
+export async function seedProgrammes(tenantId: mongoose.Types.ObjectId) {
   const programmes = [
     { code: 'MSC-AI', name: 'MSc Artificial Intelligence', level: 'MSc', tenant: tenantId, isActive: true },
     { code: 'MSC-CYB', name: 'MSc Cybersecurity', level: 'MSc', tenant: tenantId, isActive: true },

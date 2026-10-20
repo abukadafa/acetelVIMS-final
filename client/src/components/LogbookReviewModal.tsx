@@ -14,6 +14,8 @@ interface LogbookEntry {
   attachments: string[];
   status: string;
   student: any;
+  supervisorComment?: string;
+  supervisorRating?: number;
 }
 
 interface Props {
@@ -23,8 +25,8 @@ interface Props {
 }
 
 export default function LogbookReviewModal({ entry, onClose, onSuccess }: Props) {
-  const [comment, setComment] = useState('');
-  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState(entry.supervisorComment || '');
+  const [rating, setRating] = useState(entry.supervisorRating || 5);
   const [loading, setLoading] = useState(false);
 
   const handleReview = async (status: 'approved' | 'rejected') => {

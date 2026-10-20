@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Download, UserPlus, MoreVertical, Mail, MessageSquare, Eye, UserCheck, AlertTriangle, Pencil, Trash2, History, Upload, FileText, ShieldAlert, X } from 'lucide-react';
+import { Search, Download, UserPlus, MoreVertical, Mail, MessageSquare, Eye, UserCheck, AlertTriangle, Pencil, Trash2, History, Upload, FileText, ShieldAlert, X, Send } from 'lucide-react';
 import api from '../lib/api';
 import { apiErrorMessage } from '../lib/errors';
 import { toast } from 'react-hot-toast';
@@ -28,6 +28,10 @@ export default function StudentList() {
   const [purgeMemoFile, setPurgeMemoFile] = useState<File | null>(null);
   const [purging, setPurging] = useState(false);
   const purgeMemoRef = useRef<HTMLInputElement>(null);
+
+  const [sendingEnrollment, setSendingEnrollment] = useState(false);
+  const [resendModalTarget, setResendModalTarget] = useState<{ ids: string[]; count: number; name?: string } | null>(null);
+  const [resetPasswordOption, setResetPasswordOption] = useState(false);
   const [newStudent, setNewStudent]   = useState({
     firstName: '', lastName: '', email: '', matricNumber: '',
     phone: '', programme: '',
@@ -38,7 +42,6 @@ export default function StudentList() {
     stateOfOrigin: '',
     lga: '',
   });
-  const menuRef = useRef<HTMLTableDataCellElement>(null);
   const navigate = useNavigate();
 
   const fetchData = useCallback(async () => {
@@ -58,12 +61,20 @@ export default function StudentList() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenu(null);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+    if (!openMenu) return;
+    const timer = setTimeout(() => {
+      const handler = (e: MouseEvent) => {
+        const target = e.target as HTMLElement | null;
+        if (target && target.closest('[data-student-action-menu]')) {
+          return;
+        }
+        setOpenMenu(null);
+      };
+      document.addEventListener('click', handler);
+      return () => document.removeEventListener('click', handler);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [openMenu]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +85,7 @@ export default function StudentList() {
       if (!payload.phone) delete payload.phone;
       if (!payload.address) delete payload.address;
       if (!payload.lga) delete payload.lga;
+      if (!payload.stateOfOrigin) delete payload.stateOfOrigin;
       const res = await api.post('/admin/students', payload);
       toast.success('Student enrolled successfully');
       const delivery = res.data?.delivery;
@@ -119,11 +131,36 @@ export default function StudentList() {
     } finally { setSubmitting(false); }
   };
 
+  const handleConfirmResendEnrollment = async () => {
+    if (!resendModalTarget) return;
+    setSendingEnrollment(true);
+    try {
+      const { data } = await api.post('/admin/students/send-enrollment-emails', {
+        studentIds: resendModalTarget.ids,
+        resetPassword: resetPasswordOption,
+      });
+      toast.success(data?.message || `Enrollment email sent to ${resendModalTarget.count} student(s)`);
+      setResendModalTarget(null);
+      setResetPasswordOption(false);
+    } catch (err: any) {
+      toast.error(apiErrorMessage(err, 'Failed to send enrollment emails'));
+    } finally {
+      setSendingEnrollment(false);
+    }
+  };
+
   const handleAction = async (action: string, student: any) => {
     setOpenMenu(null);
     switch (action) {
       case 'view':
         navigate(`/all-students/${student._id}`);
+        break;
+      case 'resend-enrollment':
+        setResendModalTarget({
+          ids: [student._id],
+          count: 1,
+          name: `${student.user?.firstName || ''} ${student.user?.lastName || ''}`.trim(),
+        });
         break;
       case 'email':
         try {
@@ -247,6 +284,13 @@ export default function StudentList() {
         <div style={{ display: 'flex', gap: 10 }}>
           {selectedStudents.length > 0 && (
             <>
+              <button
+                className="btn btn-sm btn-outline"
+                style={{ borderColor: 'var(--brand-green, #166534)', color: 'var(--brand-green, #166534)' }}
+                onClick={() => setResendModalTarget({ ids: selectedStudents, count: selectedStudents.length })}
+              >
+                <Send size={15} /> Resend Enrollment ({selectedStudents.length})
+              </button>
               <button className="btn btn-sm btn-outline" style={{ borderColor: 'var(--danger,#ef4444)', color: 'var(--danger,#ef4444)' }}
                 onClick={() => setDeleteTarget({ bulk: true, ids: selectedStudents })}>
                 <Trash2 size={15} /> Deactivate Selected ({selectedStudents.length})
@@ -292,7 +336,7 @@ export default function StudentList() {
       </form>
 
       {/* Table */}
-      <div style={{ overflowX: 'auto' }}>
+      <div style={{ overflowX: 'auto', minHeight: 480, paddingBottom: 220 }}>
         <table className="table">
           <thead>
             <tr>
@@ -351,46 +395,95 @@ export default function StudentList() {
                   </span>
                 </td>
                 <td>{getRiskBadge(s.riskScore || 0)}</td>
-                <td style={{ position: 'relative' }} ref={openMenu === s._id ? menuRef : undefined}>
-                  <button className="btn btn-sm btn-ghost"
-                    onClick={() => setOpenMenu(openMenu === s._id ? null : s._id)}>
-                    <MoreVertical size={15} />
-                  </button>
-                  {openMenu === s._id && (
-                    <div style={{
-                      position: 'absolute', right: 0, top: '100%', zIndex: 200,
-                      background: '#fff', border: '1.5px solid #e5e7eb', borderRadius: 10,
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 180, overflow: 'hidden',
-                    }}>
-                      {[
-                        { action: 'view',     icon: Eye,         label: 'View Profile' },
-                        { action: 'email',    icon: Mail,        label: 'Send Email' },
-                        { action: 'whatsapp', icon: MessageSquare, label: 'Send WhatsApp' },
-                        { action: 'allocate', icon: UserCheck,   label: 'Auto-Allocate' },
-                        ...(s.company && !s.postingApproved
-                          ? [{ action: 'approve-posting', icon: UserCheck, label: 'Approve Posting (email)' }]
-                          : []),
-                        { action: 'flag',     icon: AlertTriangle, label: 'Flag for Review' },
-                        { action: 'edit',     icon: Pencil,      label: 'Edit Student' },
-                        { action: 'audit',    icon: History,     label: 'Audit Trail' },
-                        { action: 'delete',   icon: Trash2,      label: 'Deactivate' },
-                      ].map(({ action, icon: Icon, label }) => (
-                        <button key={action} onClick={() => handleAction(action, s)}
-                          style={{
-                            width: '100%', padding: '10px 16px', background: 'none',
-                            border: 'none', display: 'flex', alignItems: 'center', gap: 10,
-                            cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600,
-                            color: action === 'flag' || action === 'delete' ? '#dc2626' : '#111827',
-                            textAlign: 'left', transition: 'background 0.1s',
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-                          <Icon size={15} color={action === 'flag' || action === 'delete' ? '#dc2626' : '#166534'} />
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  <div
+                    data-student-action-menu
+                    style={{ position: 'relative', display: 'inline-block' }}
+                  >
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      aria-label="Student actions"
+                      style={{
+                        padding: '6px 8px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: 6,
+                        border: openMenu === s._id ? '1.5px solid #166534' : '1px solid transparent',
+                        background: openMenu === s._id ? '#f0fdf4' : 'transparent',
+                        color: openMenu === s._id ? '#166534' : '#4b5563',
+                        cursor: 'pointer'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenu(prev => (prev === s._id ? null : s._id));
+                      }}
+                    >
+                      <MoreVertical size={18} />
+                    </button>
+                    {openMenu === s._id && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: 'calc(100% + 4px)',
+                          zIndex: 9999,
+                          background: '#fff',
+                          border: '1.5px solid #e5e7eb',
+                          borderRadius: 10,
+                          boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
+                          minWidth: 220,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {[
+                          { action: 'view',             icon: Eye,           label: 'View Profile' },
+                          { action: 'resend-enrollment', icon: Send,          label: 'Resend Enrollment Email' },
+                          { action: 'email',            icon: Mail,          label: 'Send Email' },
+                          { action: 'whatsapp',         icon: MessageSquare, label: 'Send WhatsApp' },
+                          { action: 'allocate',         icon: UserCheck,     label: 'Auto-Allocate' },
+                          ...(s.company && !s.postingApproved
+                            ? [{ action: 'approve-posting', icon: UserCheck, label: 'Approve Posting (email)' }]
+                            : []),
+                          { action: 'flag',             icon: AlertTriangle, label: 'Flag for Review' },
+                          { action: 'edit',             icon: Pencil,        label: 'Edit Student' },
+                          { action: 'audit',            icon: History,       label: 'Audit Trail' },
+                          { action: 'delete',           icon: Trash2,        label: 'Deactivate' },
+                        ].map(({ action, icon: Icon, label }) => (
+                          <button
+                            key={action}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAction(action, s);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '10px 16px',
+                              background: 'none',
+                              border: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 10,
+                              cursor: 'pointer',
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              color: action === 'flag' || action === 'delete' ? '#dc2626' : '#111827',
+                              textAlign: 'left',
+                              transition: 'background 0.1s',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                          >
+                            <Icon size={15} color={action === 'flag' || action === 'delete' ? '#dc2626' : '#166534'} />
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -469,10 +562,10 @@ export default function StudentList() {
               </div>
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151',
-                  marginBottom: 5, display: 'block' }}>State of Origin *</label>
-                <select style={inputStyle} required value={newStudent.stateOfOrigin}
+                  marginBottom: 5, display: 'block' }}>State of Origin {newStudent.isNigerian ? '*' : '(Optional)'}</label>
+                <select style={inputStyle} required={newStudent.isNigerian} value={newStudent.stateOfOrigin}
                   onChange={e => setNewStudent(prev => ({ ...prev, stateOfOrigin: e.target.value, lga: '' }))}>
-                  <option value="">Select state…</option>
+                  <option value="">{newStudent.isNigerian ? 'Select state…' : 'N/A (Non-Nigerian)'}</option>
                   {NIGERIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
@@ -743,6 +836,67 @@ export default function StudentList() {
                 }}
               >
                 {purging ? <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Purging…</> : <><Trash2 size={14} /> Confirm Permanent Delete</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resendModalTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 350, padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 460, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', position: 'relative' }}>
+            <button onClick={() => { setResendModalTarget(null); setResetPasswordOption(false); }} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#6b7280' }}>✕</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 10, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#166534' }}>
+                <Send size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#111827' }}>Resend Enrollment Email</h3>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: '#6b7280' }}>
+                  {resendModalTarget.count === 1
+                    ? `Send enrollment notification to ${resendModalTarget.name || 'this student'}`
+                    : `Send enrollment notification to ${resendModalTarget.count} selected students`}
+                </p>
+              </div>
+            </div>
+            
+            <div style={{ background: '#f9fafb', borderRadius: 10, padding: '14px 16px', border: '1px solid #e5e7eb', marginBottom: 20 }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={resetPasswordOption}
+                  onChange={e => setResetPasswordOption(e.target.checked)}
+                  style={{ marginTop: 3, accentColor: '#166534' }}
+                />
+                <div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1f2937' }}>
+                    Reset & send new temporary password
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: 2 }}>
+                    Generate fresh credentials and email them to the student. Check this if the student never received their password.
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => { setResendModalTarget(null); setResetPasswordOption(false); }}
+                disabled={sendingEnrollment}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                style={{ background: '#166534', borderColor: '#166534', display: 'flex', alignItems: 'center', gap: 6 }}
+                onClick={handleConfirmResendEnrollment}
+                disabled={sendingEnrollment}
+              >
+                <Send size={14} />
+                {sendingEnrollment ? 'Sending...' : `Send Email${resendModalTarget.count > 1 ? ` (${resendModalTarget.count})` : ''}`}
               </button>
             </div>
           </div>

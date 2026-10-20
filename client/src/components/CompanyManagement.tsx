@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Building2, Search, MapPin, Users, Plus, ExternalLink, Upload, X, Globe, Settings, Pencil, Trash2, History } from 'lucide-react';
+import { Building2, Search, MapPin, Users, Plus, ExternalLink, Upload, X, Globe, Pencil, Trash2, History, Send, MoreVertical, Eye, UserCheck, LayoutGrid, List } from 'lucide-react';
 import api from '../lib/api';
 import { apiErrorMessage } from '../lib/errors';
 import { toast } from 'react-hot-toast';
@@ -33,11 +33,160 @@ export default function CompanyManagement() {
   const [auditTarget, setAuditTarget]   = useState<{ targetId?: string; title: string } | null>(null);
   const [submitting, setSubmitting]     = useState(false);
   const [allocating, setAllocating]     = useState(false);
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
+  const [sendingPartnerEmail, setSendingPartnerEmail] = useState(false);
+  const [openCompanyMenu, setOpenCompanyMenu] = useState<string | null>(null);
+  const [viewMode, setViewMode]         = useState<'grid' | 'table'>('grid');
   const [form, setForm]                 = useState({
     name: '', address: '', state: 'FCT', sector: 'Information Technology',
     specialisation: '', contactEmail: '', contactPhone: '', contactPerson: '',
     website: '', maxStudents: 10, lat: 9.0765, lng: 7.3986,
   });
+
+  useEffect(() => {
+    if (!openCompanyMenu) return;
+    const timer = setTimeout(() => {
+      const handler = (e: MouseEvent) => {
+        const target = e.target as HTMLElement | null;
+        if (target && target.closest('[data-company-action-menu]')) {
+          return;
+        }
+        setOpenCompanyMenu(null);
+      };
+      document.addEventListener('click', handler);
+      return () => document.removeEventListener('click', handler);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [openCompanyMenu]);
+
+  const handleCompanyAction = async (action: string, company: Company) => {
+    setOpenCompanyMenu(null);
+    switch (action) {
+      case 'manage':
+        setShowManageModal(company);
+        break;
+      case 'resend-email':
+        handleResendPartnerEmail([company._id]);
+        break;
+      case 'allocate':
+        handleAutoAllocate(company._id);
+        break;
+      case 'edit':
+        setEditingId(company._id);
+        setForm({
+          name: company.name || '',
+          address: company.address || '',
+          state: company.state || 'FCT',
+          sector: company.sector || 'Information Technology',
+          specialisation: company.specialisation || '',
+          contactEmail: company.contactEmail || '',
+          contactPhone: company.contactPhone || '',
+          contactPerson: company.contactPerson || '',
+          website: company.website || '',
+          maxStudents: company.maxStudents || 10,
+          lat: company.lat ?? 9.0765,
+          lng: company.lng ?? 7.3986,
+        });
+        setShowAddModal(true);
+        break;
+      case 'audit':
+        setAuditTarget({ targetId: company._id, title: `Audit Trail — ${company.name}` });
+        break;
+      case 'website':
+        if (company.website) {
+          window.open(company.website.startsWith('http') ? company.website : `https://${company.website}`, '_blank');
+        }
+        break;
+      case 'delete':
+        if (!confirm(`Delete ${company.name}?`)) return;
+        try {
+          await api.delete(`/companies/${company._id}`);
+          toast.success('Partner deleted');
+          fetchData();
+        } catch (err: any) {
+          toast.error(err.response?.data?.error || 'Failed to delete partner');
+        }
+        break;
+    }
+  };
+
+  const renderActionDropdown = (company: Company, menuKey: string, align: 'right' | 'left' = 'right', position: 'down' | 'up' = 'down') => {
+    if (openCompanyMenu !== menuKey) return null;
+    const items = [
+      { action: 'manage',       icon: Eye,         label: 'View / Manage Details' },
+      { action: 'resend-email',  icon: Send,        label: 'Resend Onboarding Email' },
+      { action: 'allocate',      icon: UserCheck,   label: 'Allocate Students' },
+      { action: 'edit',          icon: Pencil,      label: 'Edit Partner' },
+      { action: 'audit',         icon: History,     label: 'Audit Trail' },
+      ...(company.website ? [{ action: 'website', icon: Globe, label: 'Visit Website' }] : []),
+      { action: 'delete',        icon: Trash2,      label: 'Delete Partner' },
+    ];
+
+    return (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'absolute',
+          [align]: 0,
+          ...(position === 'up' ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }),
+          zIndex: 9999,
+          background: '#fff',
+          border: '1.5px solid #e5e7eb',
+          borderRadius: 10,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
+          minWidth: 220,
+          overflow: 'hidden',
+        }}
+      >
+        {items.map(({ action, icon: Icon, label }) => (
+          <button
+            key={action}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCompanyAction(action, company);
+            }}
+            style={{
+              width: '100%',
+              padding: '10px 16px',
+              background: 'none',
+              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              cursor: 'pointer',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              color: action === 'delete' ? '#dc2626' : '#111827',
+              textAlign: 'left',
+              transition: 'background 0.1s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+          >
+            <Icon size={15} color={action === 'delete' ? '#dc2626' : '#166534'} />
+            {label}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  const handleResendPartnerEmail = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    setSendingPartnerEmail(true);
+    try {
+      const { data } = await api.post('/companies/send-enrollment-emails', {
+        companyIds: ids,
+      });
+      toast.success(data?.message || `Onboarding email sent to ${ids.length} partner(s)`);
+      setSelectedCompanies([]);
+    } catch (err: any) {
+      toast.error(apiErrorMessage(err, 'Failed to send onboarding email'));
+    } finally {
+      setSendingPartnerEmail(false);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -113,83 +262,319 @@ export default function CompanyManagement() {
         </div>
       </div>
 
-      {/* Search */}
-      <div style={{ marginBottom: 24 }}>
-        <div className="search-bar">
+      {/* Search & View Switcher */}
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <div className="search-bar" style={{ flex: 1, minWidth: 260 }}>
           <Search className="search-icon" size={18} />
           <input type="text" className="form-control" placeholder="Search by name, sector or state..."
             value={search} onChange={e => setSearch(e.target.value)} />
         </div>
+        <div style={{ display: 'flex', background: '#f3f4f6', padding: 3, borderRadius: 8, gap: 2 }}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            style={{
+              padding: '6px 12px',
+              border: 'none',
+              borderRadius: 6,
+              background: viewMode === 'grid' ? '#fff' : 'transparent',
+              color: viewMode === 'grid' ? '#166534' : '#6b7280',
+              boxShadow: viewMode === 'grid' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              cursor: 'pointer',
+            }}
+            onClick={() => setViewMode('grid')}
+          >
+            <LayoutGrid size={15} /> Grid
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            style={{
+              padding: '6px 12px',
+              border: 'none',
+              borderRadius: 6,
+              background: viewMode === 'table' ? '#fff' : 'transparent',
+              color: viewMode === 'table' ? '#166534' : '#6b7280',
+              boxShadow: viewMode === 'table' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              cursor: 'pointer',
+            }}
+            onClick={() => setViewMode('table')}
+          >
+            <List size={15} /> Table
+          </button>
+        </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid-2" style={{ gap: 20 }}>
-        {loading ? (
-          <div style={{ gridColumn: 'span 2', textAlign: 'center', padding: 40 }}><div className="spinner spinner-lg" /></div>
-        ) : companies.length === 0 ? (
-          <div style={{ gridColumn: 'span 2', textAlign: 'center', padding: 48, color: '#6b7280' }}>
-            <Building2 size={40} style={{ margin: '0 auto 12px', color: '#d1d5db' }} />
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>No partner organisations registered yet</div>
-            <div style={{ fontSize: '0.85rem' }}>Click "Register Partner" to add the first one</div>
+      {/* Bulk Action Bar */}
+      {selectedCompanies.length > 0 && (
+        <div style={{
+          background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 8,
+          padding: '10px 16px', display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 20
+        }}>
+          <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#166534' }}>
+            ✓ {selectedCompanies.length} partner organisation{selectedCompanies.length > 1 ? 's' : ''} selected
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              style={{ background: '#166534', borderColor: '#166534', display: 'flex', alignItems: 'center', gap: 6 }}
+              disabled={sendingPartnerEmail}
+              onClick={() => handleResendPartnerEmail(selectedCompanies)}
+            >
+              <Send size={14} /> {sendingPartnerEmail ? 'Sending...' : `Resend Onboarding Email (${selectedCompanies.length})`}
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={() => setSelectedCompanies([])}
+            >
+              Clear Selection
+            </button>
           </div>
-        ) : companies.map(company => (
-          <div key={company._id} className="card" style={{ border: '1.5px solid #e5e7eb', background: '#fff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', gap: 14 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 10, background: '#f0fdf4',
-                  border: '1.5px solid #bbf7d0', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', color: '#166534', flexShrink: 0 }}>
-                  <Building2 size={22} />
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40 }}><div className="spinner spinner-lg" /></div>
+      ) : companies.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 48, color: '#6b7280' }}>
+          <Building2 size={40} style={{ margin: '0 auto 12px', color: '#d1d5db' }} />
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>No partner organisations registered yet</div>
+          <div style={{ fontSize: '0.85rem' }}>Click "Register Partner" to add the first one</div>
+        </div>
+      ) : viewMode === 'grid' ? (
+        <div className="grid-2" style={{ gap: 20 }}>
+          {companies.map(company => {
+            const isSelected = selectedCompanies.includes(company._id);
+            return (
+            <div key={company._id} className="card" style={{ border: `1.5px solid ${isSelected ? '#86efac' : '#e5e7eb'}`, background: isSelected ? '#f0fdf4' : '#fff' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${company.name}`}
+                    checked={isSelected}
+                    onChange={() => {
+                      setSelectedCompanies(prev =>
+                        prev.includes(company._id) ? prev.filter(id => id !== company._id) : [...prev, company._id]
+                      );
+                    }}
+                    style={{ marginTop: 12, accentColor: '#166534', cursor: 'pointer', transform: 'scale(1.15)' }}
+                  />
+                  <div style={{ width: 48, height: 48, borderRadius: 10, background: '#f0fdf4',
+                    border: '1.5px solid #bbf7d0', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', color: '#166534', flexShrink: 0 }}>
+                    <Building2 size={22} />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontFamily: "'Syne', sans-serif", fontWeight: 800, color: '#111827' }}>{company.name}</h4>
+                    <div style={{ fontSize: '0.78rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <MapPin size={11} /> {company.address || company.state}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h4 style={{ margin: 0, fontFamily: "'Syne', sans-serif", fontWeight: 800, color: '#111827' }}>{company.name}</h4>
-                  <div style={{ fontSize: '0.78rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                    <MapPin size={11} /> {company.address || company.state}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ background: company.isApproved ? '#f0fdf4' : '#fef9c3',
+                    color: company.isApproved ? '#166534' : '#854d0e',
+                    border: `1px solid ${company.isApproved ? '#bbf7d0' : '#fde047'}`,
+                    fontSize: '0.7rem', fontWeight: 700, padding: '3px 9px', borderRadius: 100 }}>
+                    {company.isApproved ? 'Approved' : 'Pending'}
+                  </span>
+                  <div data-company-action-menu style={{ position: 'relative', display: 'inline-block' }}>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      aria-label={`Actions for ${company.name}`}
+                      style={{
+                        padding: '5px 7px',
+                        borderRadius: 6,
+                        border: openCompanyMenu === `${company._id}-header` ? '1.5px solid #166534' : '1px solid #e5e7eb',
+                        background: openCompanyMenu === `${company._id}-header` ? '#f0fdf4' : '#fff',
+                        color: openCompanyMenu === `${company._id}-header` ? '#166534' : '#4b5563',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenCompanyMenu(prev => prev === `${company._id}-header` ? null : `${company._id}-header`);
+                      }}
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+                    {renderActionDropdown(company, `${company._id}-header`, 'right', 'down')}
                   </div>
                 </div>
               </div>
-              <span style={{ background: company.isApproved ? '#f0fdf4' : '#fef9c3',
-                color: company.isApproved ? '#166534' : '#854d0e',
-                border: `1px solid ${company.isApproved ? '#bbf7d0' : '#fde047'}`,
-                fontSize: '0.7rem', fontWeight: 700, padding: '3px 9px', borderRadius: 100 }}>
-                {company.isApproved ? 'Approved' : 'Pending'}
-              </span>
-            </div>
 
-            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[
-                ['Sector', company.sector],
-                ['Specialisation', company.specialisation || 'General IT'],
-                ['Contact', company.contactPerson || '—'],
-                ['Email', company.contactEmail || '—'],
-                ['Interns', `${company.currentStudents || 0} / ${company.maxStudents || 10}`],
-              ].map(([label, val]) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.83rem' }}>
-                  <span style={{ color: '#6b7280' }}>{label}:</span>
-                  <span style={{ fontWeight: 600, color: '#111827' }}>{val}</span>
-                </div>
-              ))}
-            </div>
+              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  ['Sector', company.sector],
+                  ['Specialisation', company.specialisation || 'General IT'],
+                  ['Contact', company.contactPerson || '—'],
+                  ['Email', company.contactEmail || '—'],
+                  ['Interns', `${company.currentStudents || 0} / ${company.maxStudents || 10}`],
+                ].map(([label, val]) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.83rem' }}>
+                    <span style={{ color: '#6b7280' }}>{label}:</span>
+                    <span style={{ fontWeight: 600, color: '#111827' }}>{val}</span>
+                  </div>
+                ))}
+              </div>
 
-            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f3f4f6', display: 'flex', gap: 8 }}>
-              {company.website && (
-                <button className="btn btn-sm btn-ghost" style={{ flex: 1 }}
-                  onClick={() => window.open(company.website!.startsWith('http') ? company.website : `https://${company.website}`, '_blank')}>
-                  <Globe size={13} /> Website
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f3f4f6', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button className="btn btn-sm btn-primary" style={{ flex: 1.2 }}
+                  onClick={() => handleAutoAllocate(company._id)} disabled={allocating}>
+                  <Users size={13} /> {allocating ? 'Allocating...' : 'Allocate Students'}
                 </button>
-              )}
-              <button className="btn btn-sm btn-ghost" style={{ flex: 1 }}
-                onClick={() => setShowManageModal(company)}>
-                <Settings size={13} /> Manage
-              </button>
-              <button className="btn btn-sm btn-primary" style={{ flex: 1 }}
-                onClick={() => handleAutoAllocate(company._id)} disabled={allocating}>
-                <Users size={13} /> {allocating ? 'Allocating...' : 'Allocate Students'}
-              </button>
+                <button className="btn btn-sm btn-outline" style={{ flex: 1, borderColor: '#166534', color: '#166534' }}
+                  title="Resend Onboarding Email"
+                  disabled={sendingPartnerEmail}
+                  onClick={() => handleResendPartnerEmail([company._id])}>
+                  <Send size={13} /> Resend Email
+                </button>
+                <div data-company-action-menu style={{ position: 'relative', display: 'inline-block', flex: 1 }}>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost"
+                    style={{
+                      width: '100%',
+                      border: openCompanyMenu === `${company._id}-footer` ? '1.5px solid #166534' : '1px solid #d1d5db',
+                      background: openCompanyMenu === `${company._id}-footer` ? '#f0fdf4' : '#fff',
+                      color: openCompanyMenu === `${company._id}-footer` ? '#166534' : '#374151',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenCompanyMenu(prev => prev === `${company._id}-footer` ? null : `${company._id}-footer`);
+                    }}
+                  >
+                    <MoreVertical size={14} /> Actions
+                  </button>
+                  {renderActionDropdown(company, `${company._id}-footer`, 'right', 'up')}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          )})}
+        </div>
+      ) : (
+        <div style={{ overflowX: 'auto', minHeight: 480, paddingBottom: 220 }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th style={{ width: 40 }}>
+                  <input
+                    type="checkbox"
+                    checked={companies.length > 0 && selectedCompanies.length === companies.length}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedCompanies(companies.map(c => c._id));
+                      else setSelectedCompanies([]);
+                    }}
+                  />
+                </th>
+                <th>Partner Organisation</th>
+                <th>Sector & Specialisation</th>
+                <th>Contact & Email</th>
+                <th>Interns</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'right' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {companies.map(company => {
+                const isSelected = selectedCompanies.includes(company._id);
+                return (
+                  <tr key={company._id} style={{ background: isSelected ? '#f0fdf4' : 'transparent' }}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {
+                          setSelectedCompanies(prev =>
+                            prev.includes(company._id) ? prev.filter(id => id !== company._id) : [...prev, company._id]
+                          );
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 700, color: '#111827' }}>{company.name}</div>
+                      <div style={{ fontSize: '0.78rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <MapPin size={11} /> {company.address || company.state}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 600, color: '#111827' }}>{company.sector}</div>
+                      <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>{company.specialisation || 'General IT'}</div>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 600, color: '#111827' }}>{company.contactPerson || '—'}</div>
+                      <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>{company.contactEmail || '—'}</div>
+                    </td>
+                    <td>
+                      <span style={{ fontWeight: 600, color: '#111827' }}>
+                        {company.currentStudents || 0} / {company.maxStudents || 10}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{
+                        background: company.isApproved ? '#f0fdf4' : '#fef9c3',
+                        color: company.isApproved ? '#166534' : '#854d0e',
+                        border: `1px solid ${company.isApproved ? '#bbf7d0' : '#fde047'}`,
+                        fontSize: '0.7rem', fontWeight: 700, padding: '3px 9px', borderRadius: 100
+                      }}>
+                        {company.isApproved ? 'Approved' : 'Pending'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <div data-company-action-menu style={{ position: 'relative', display: 'inline-block' }}>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-ghost"
+                          aria-label={`Actions for ${company.name}`}
+                          style={{
+                            padding: '6px 8px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 6,
+                            border: openCompanyMenu === `${company._id}-table` ? '1.5px solid #166534' : '1px solid transparent',
+                            background: openCompanyMenu === `${company._id}-table` ? '#f0fdf4' : 'transparent',
+                            color: openCompanyMenu === `${company._id}-table` ? '#166534' : '#4b5563',
+                            cursor: 'pointer',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenCompanyMenu(prev => prev === `${company._id}-table` ? null : `${company._id}-table`);
+                          }}
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+                        {renderActionDropdown(company, `${company._id}-table`, 'right', 'down')}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* ── Register/Edit Partner Modal ── */}
       {showAddModal && (
@@ -356,6 +741,14 @@ export default function CompanyManagement() {
                   setShowManageModal(null);
                 }}>
                 <History size={14} /> Audit
+              </button>
+              <button className="btn btn-outline btn-sm" style={{ flex: 1, borderColor: '#166534', color: '#166534' }}
+                disabled={sendingPartnerEmail}
+                onClick={() => {
+                  handleResendPartnerEmail([showManageModal._id]);
+                  setShowManageModal(null);
+                }}>
+                <Send size={14} /> Resend Email
               </button>
               <button className="btn btn-outline btn-sm" style={{ flex: 1 }}
                 onClick={() => { handleAutoAllocate(showManageModal._id); setShowManageModal(null); }}>

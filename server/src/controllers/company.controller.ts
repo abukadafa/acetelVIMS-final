@@ -4,11 +4,12 @@ import Company from '../models/Company.model';
 import Student from '../models/Student.model';
 import logger from '../utils/logger';
 import { z } from 'zod';
-import { sendEmail, emailTemplates } from '../utils/mail.service';
+import { sendEmail, emailTemplates, isEmailConfigured, getPrimaryAppUrl } from '../utils/mail.service';
 import { sendWhatsAppMessage } from '../utils/whatsapp.service';
 import AuditLog from '../models/AuditLog.model';
 import { normalizeCompanySector } from '../utils/sector.util';
 import { normalizeStateName } from '../utils/nigeria-states.util';
+import { getDefaultTenantId } from '../utils/tenant.util';
 
 const companyQuerySchema = z.object({
   state: z.string().optional(),
@@ -19,22 +20,28 @@ const companyQuerySchema = z.object({
 });
 
 const companyBodySchema = z.object({
-  name: z.string().min(2).max(100),
-  address: z.string().min(5).max(200),
-  state: z.preprocess((val) => normalizeStateName(String(val || '')), z.string().min(2)),
-  lga: z.string().optional().or(z.literal('')),
+  name: z.preprocess((val) => String(val || '').trim(), z.string().min(1, 'Organisation name is required').max(150)),
+  address: z.preprocess((val) => String(val || '').trim(), z.string().min(1, 'Address is required').max(300)),
+  state: z.preprocess((val) => normalizeStateName(String(val || '')), z.string().min(1)),
+  lga: z.preprocess((val) => String(val || '').trim(), z.string().optional().or(z.literal(''))),
   sector: z.preprocess(
     (val) => normalizeCompanySector(String(val || 'General IT')),
     z.enum(['AI', 'CS', 'MIS', 'Cybersecurity', 'Data Science', 'General IT'])
   ),
-  specialisation: z.string().optional().or(z.literal('')),
-  contactPerson: z.string().optional().or(z.literal('')),
-  contactEmail: z.string().email().optional().or(z.literal('')),
-  contactPhone: z.string().optional().or(z.literal('')),
-  website: z.string().optional().or(z.literal('')),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
-  maxStudents: z.number().min(1).optional().default(5),
+  specialisation: z.preprocess((val) => String(val || '').trim(), z.string().optional().or(z.literal(''))),
+  contactPerson: z.preprocess((val) => String(val || '').trim(), z.string().optional().or(z.literal(''))),
+  contactEmail: z.preprocess(
+    (val) => String(val || '').trim().toLowerCase(),
+    z.string().email().optional().or(z.literal(''))
+  ),
+  contactPhone: z.preprocess((val) => String(val || '').trim(), z.string().optional().or(z.literal(''))),
+  website: z.preprocess((val) => String(val || '').trim(), z.string().optional().or(z.literal(''))),
+  lat: z.preprocess((val) => (val !== undefined && val !== '' && !isNaN(Number(val)) ? Number(val) : undefined), z.number().optional()),
+  lng: z.preprocess((val) => (val !== undefined && val !== '' && !isNaN(Number(val)) ? Number(val) : undefined), z.number().optional()),
+  maxStudents: z.preprocess((val) => {
+    const num = Number(val);
+    return isNaN(num) || num < 1 ? 5 : num;
+  }, z.number().min(1).optional().default(5)),
 });
 
 const idParamSchema = z.object({
@@ -44,9 +51,12 @@ const idParamSchema = z.object({
 export async function getAllCompanies(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { state, sector, specialisation, search, isApproved } = companyQuerySchema.parse(req.query);
-    const { tenant: userTenant } = req.user!;
+    const userTenant = req.user?.tenant || (await getDefaultTenantId().catch(() => undefined));
     
-    let query: any = { tenant: userTenant, isDeleted: false };
+    let query: any = { isDeleted: { $ne: true } };
+    if (userTenant) {
+      query.tenant = userTenant;
+    }
 
     if (state) query.state = normalizeStateName(state);
     if (sector) query.sector = sector;
@@ -65,7 +75,11 @@ export async function getAllCompanies(req: AuthRequest, res: Response): Promise<
     
     const companiesWithCount = await Promise.all(
       companies.map(async (c) => {
-        const studentCount = await Student.countDocuments({ company: c._id, tenant: userTenant, isDeleted: false });
+        const studentCount = await Student.countDocuments({
+          company: c._id,
+          ...(userTenant ? { tenant: userTenant } : {}),
+          isDeleted: { $ne: true },
+        });
         return { ...c.toObject(), studentCount };
       })
     );
@@ -84,10 +98,9 @@ export async function getAllCompanies(req: AuthRequest, res: Response): Promise<
 export async function createCompany(req: AuthRequest, res: Response): Promise<void> {
   try {
     const data = companyBodySchema.parse(req.body);
-    const userTenant = req.user!.tenant;
+    let userTenant = req.user?.tenant;
     if (!userTenant) {
-      res.status(400).json({ error: 'Session expired or missing tenant. Please log out and sign in again.' });
-      return;
+      userTenant = await getDefaultTenantId();
     }
 
     const website = data.website?.trim() ? String(data.website).trim() : undefined;
@@ -109,17 +122,20 @@ export async function createCompany(req: AuthRequest, res: Response): Promise<vo
     // Auto-send onboarding to partner contact (email + WhatsApp if provided)
     const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
     if (company.contactEmail) {
-      const html = emailTemplates.welcomeCompany(
-        company.name,
-        company.contactPerson || 'Partner Contact',
-        appUrl
-      );
-      await sendEmail(company.contactEmail, 'ACETEL IMS — Partner Registration Confirmed', html).catch((e) => {
-        logger.warn('Partner welcome email failed: %s', (e as Error).message);
-      });
+      try {
+        const html = emailTemplates.welcomeCompany(
+          company.name,
+          company.contactPerson || 'Partner Contact',
+          appUrl
+        );
+        await sendEmail(company.contactEmail, 'ACETEL IMS — Partner Registration Confirmed', html);
+      } catch (e: any) {
+        logger.warn('Partner welcome email failed: %s', e.message);
+      }
     }
     if (company.contactPhone) {
-      await sendWhatsAppMessage(company.contactPhone, `*ACETEL IMS — Partner Registered* 🏢
+      try {
+        await sendWhatsAppMessage(company.contactPhone, `*ACETEL IMS — Partner Registered* 🏢
 
 Hello ${company.contactPerson || 'Partner'},
 
@@ -127,7 +143,10 @@ Your organisation *${company.name}* has been registered on ACETEL IMS.
 
 Portal: ${appUrl}
 
-_You will be contacted by the institution for next steps._`).catch(() => false);
+_You will be contacted by the institution for next steps._`);
+      } catch (e: any) {
+        logger.warn('Partner welcome whatsapp failed: %s', e.message);
+      }
     }
 
     logger.info('Company created: %s by user %s', company._id, req.user!.id);
@@ -187,7 +206,7 @@ export async function deleteCompany(req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const studentCount = await Student.countDocuments({ company: id, tenant: userTenant, isDeleted: false });
+    const studentCount = await Student.countDocuments({ company: id, ...(userTenant ? { tenant: userTenant } : {}), isDeleted: { $ne: true } });
     if (studentCount > 0) {
       res.status(400).json({ error: 'Cannot delete company with assigned students' });
       return;
@@ -213,15 +232,15 @@ export async function deleteCompany(req: AuthRequest, res: Response): Promise<vo
 export async function getCompanyById(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { id } = idParamSchema.parse(req.params);
-    const { tenant: userTenant } = req.user!;
+    const userTenant = req.user?.tenant || (await getDefaultTenantId().catch(() => undefined));
 
-    const company = await Company.findOne({ _id: id, tenant: userTenant });
+    const company = await Company.findOne({ _id: id, ...(userTenant ? { tenant: userTenant } : {}), isDeleted: { $ne: true } });
     if (!company) {
       res.status(404).json({ error: 'Company not found' });
       return;
     }
 
-    const students = await Student.find({ company: company._id, tenant: userTenant, isDeleted: false })
+    const students = await Student.find({ company: company._id, ...(userTenant ? { tenant: userTenant } : {}), isDeleted: { $ne: true } })
       .populate('user', 'firstName lastName')
       .populate('programme', 'name level');
     
@@ -238,10 +257,11 @@ export async function getCompanyById(req: AuthRequest, res: Response): Promise<v
 
 export async function getCompanyMetadata(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { tenant: userTenant } = req.user!;
-    const states = await Company.distinct('state', { tenant: userTenant, isDeleted: false });
-    const sectors = await Company.distinct('sector', { tenant: userTenant, isDeleted: false });
-    const specialisations = await Company.distinct('specialisation', { tenant: userTenant, isDeleted: false });
+    const userTenant = req.user?.tenant || (await getDefaultTenantId().catch(() => undefined));
+    const baseQuery = { ...(userTenant ? { tenant: userTenant } : {}), isDeleted: { $ne: true } };
+    const states = await Company.distinct('state', baseQuery);
+    const sectors = await Company.distinct('sector', baseQuery);
+    const specialisations = await Company.distinct('specialisation', baseQuery);
     
     res.json({ 
       states: states.sort(), 
@@ -253,3 +273,97 @@ export async function getCompanyMetadata(req: AuthRequest, res: Response): Promi
     res.status(500).json({ error: 'Server error' });
   }
 }
+
+const sendPartnerEnrollmentEmailsSchema = z.object({
+  companyIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/)).optional(),
+});
+
+/**
+ * POST /api/companies/send-enrollment-emails
+ * Resends onboarding / registration emails to partner organisations (individual or bulk).
+ */
+export async function sendPartnerEnrollmentEmails(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { companyIds } = sendPartnerEnrollmentEmailsSchema.parse(req.body);
+    const tenantId = req.user?.tenant || (await getDefaultTenantId().catch(() => undefined));
+
+    const query: any = { isDeleted: { $ne: true } };
+    if (tenantId) query.tenant = tenantId;
+    if (companyIds?.length) {
+      query._id = { $in: companyIds };
+    }
+
+    const companies = await Company.find(query);
+
+    if (companies.length === 0) {
+      res.status(400).json({ error: 'No matching partner organisations found' });
+      return;
+    }
+
+    if (!isEmailConfigured()) {
+      res.status(400).json({
+        error: 'Email is not configured on this server. Check SMTP settings under Settings → Integrations before sending enrollment emails.',
+      });
+      return;
+    }
+
+    const appUrl = getPrimaryAppUrl();
+    const results: { companyId: string; email: string | null; sent: boolean; error?: string }[] = [];
+    let sent = 0;
+    let failed = 0;
+
+    for (const c of companies) {
+      if (!c.contactEmail) {
+        results.push({ companyId: c._id.toString(), email: null, sent: false, error: 'No contact email on file' });
+        failed++;
+        continue;
+      }
+
+      const html = emailTemplates.welcomeCompany(
+        c.name,
+        c.contactPerson || 'Partner Contact',
+        appUrl
+      );
+
+      const ok = await sendEmail(c.contactEmail, 'ACETEL IMS — Partner Registration & Onboarding', html);
+      results.push({ companyId: c._id.toString(), email: c.contactEmail, sent: ok, error: ok ? undefined : 'Send failed — see server logs' });
+      if (ok) sent++; else failed++;
+
+      if (c.contactPhone) {
+        try {
+          await sendWhatsAppMessage(
+            c.contactPhone,
+            `*ACETEL IMS — Partner Onboarding* 🏢\n\nHello ${c.contactPerson || 'Partner'},\n\nYour organisation *${c.name}* is registered on ACETEL IMS.\n\nPortal: ${appUrl}\n\n_Access the partner portal to manage interns and monitor attendance._`
+          );
+        } catch (waErr: any) {
+          logger.warn('Partner WhatsApp failed for %s: %s', c.contactPhone, (waErr as Error).message);
+        }
+      }
+    }
+
+    await AuditLog.create({
+      tenant: tenantId,
+      user: req.user!.id,
+      action: 'BULK_SEND_PARTNER_EMAIL',
+      module: 'COMPANY_MANAGEMENT',
+      details: `Sent onboarding email to ${sent}/${companies.length} partner(s) (${failed} failed)`,
+      ipAddress: req.ip,
+    }).catch(() => {});
+
+    res.json({
+      message: `Partner onboarding email sent to ${sent} of ${companies.length} partner(s)${failed > 0 ? ` — ${failed} failed` : ''}.`,
+      total: companies.length,
+      sent,
+      failed,
+      results,
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      return;
+    }
+    logger.error('Error in sendPartnerEnrollmentEmails: %s', (err as Error).message);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+

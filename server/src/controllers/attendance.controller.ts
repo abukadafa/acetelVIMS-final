@@ -9,6 +9,7 @@ import Setting from '../models/Setting.model';
 import Programme from '../models/Programme.model';
 import { calculateDistance } from '../utils/geo.utils';
 import { resolveCurrentSession, getAttendanceDateKey } from '../utils/attendance.util';
+import { getDefaultTenantId } from '../utils/tenant.util';
 import logger from '../utils/logger';
 import { z } from 'zod';
 
@@ -20,9 +21,18 @@ const checkInSchema = z.object({
 });
 
 const attendanceQuerySchema = z.object({
-  studentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ID format').optional(),
-  month: z.preprocess((val) => Number(val), z.number().min(1).max(12)).optional(),
-  year: z.preprocess((val) => Number(val), z.number().min(2000).max(2100)).optional(),
+  studentId: z.preprocess(
+    (val) => (val && mongoose.Types.ObjectId.isValid(String(val)) ? String(val) : undefined),
+    z.string().optional()
+  ),
+  month: z.preprocess(
+    (val) => (val !== undefined && val !== '' && !isNaN(Number(val)) ? Number(val) : undefined),
+    z.number().min(1).max(12).optional()
+  ),
+  year: z.preprocess(
+    (val) => (val !== undefined && val !== '' && !isNaN(Number(val)) ? Number(val) : undefined),
+    z.number().min(2000).max(2100).optional()
+  ),
 });
 
 const manualAttendanceSchema = z.object({
@@ -210,29 +220,35 @@ export async function getTodayStatus(req: AuthRequest, res: Response): Promise<v
 export async function getAttendanceRecords(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { studentId, month, year } = attendanceQuerySchema.parse(req.query);
-    const { role: userRole, id: userId, tenant: userTenant } = req.user!;
+    const userRole = req.user?.role;
+    const userId = req.user?.id;
+    const userTenant = req.user?.tenant || (await getDefaultTenantId().catch(() => undefined));
     let targetId = studentId;
 
-    let filter: any = { tenant: userTenant };
+    let filter: any = {};
+    if (userTenant) filter.tenant = userTenant;
 
     if (userRole === 'student') {
-      const student = await Student.findOne({ user: userId, tenant: userTenant });
-      targetId = student?._id.toString();
-    }
-
-    if (targetId) {
-      // SECURITY Check
-      const targetStudent = await Student.findOne({ _id: targetId, tenant: userTenant });
-      if (!targetStudent) {
-        res.status(403).json({ error: 'Access denied' });
+      const student = await Student.findOne({ user: userId, ...(userTenant ? { tenant: userTenant } : {}) });
+      if (!student) {
+        res.json({ records: [], summary: { total: 0, valid: 0 } });
         return;
       }
-      
-      if (userRole === 'supervisor' && targetStudent.supervisor?.toString() !== userId) {
-        res.status(403).json({ error: 'Access denied' });
-        return;
+      targetId = student._id.toString();
+      filter.student = targetId;
+    } else if (userRole === 'supervisor') {
+      if (targetId) {
+        const targetStudent = await Student.findOne({ _id: targetId, ...(userTenant ? { tenant: userTenant } : {}) });
+        if (!targetStudent || targetStudent.supervisor?.toString() !== userId) {
+          res.status(403).json({ error: 'Access denied' });
+          return;
+        }
+        filter.student = targetId;
+      } else {
+        const supervisedStudents = await Student.find({ supervisor: userId, ...(userTenant ? { tenant: userTenant } : {}) }).distinct('_id');
+        filter.student = { $in: supervisedStudents };
       }
-
+    } else if (targetId) {
       filter.student = targetId;
     }
 
@@ -252,12 +268,12 @@ export async function getAttendanceRecords(req: AuthRequest, res: Response): Pro
     let summary = null;
     if (targetId) {
       summary = {
-        total: await Attendance.countDocuments({ student: targetId, tenant: userTenant }),
-        valid: await Attendance.countDocuments({ student: targetId, tenant: userTenant, isValid: true })
+        total: await Attendance.countDocuments({ student: targetId, ...(userTenant ? { tenant: userTenant } : {}) }),
+        valid: await Attendance.countDocuments({ student: targetId, ...(userTenant ? { tenant: userTenant } : {}), isValid: true })
       };
     }
 
-    res.json({ records, summary });
+    res.json({ records: records || [], summary });
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.errors });
