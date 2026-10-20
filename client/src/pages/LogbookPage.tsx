@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
 import { 
@@ -49,6 +50,7 @@ interface PerformanceRecord {
 
 /* ═══════════════════════════════════════════════════════════════ */
 export default function LogbookPage() {
+  const navigate = useNavigate();
   const { isRole } = useAuth();
   const [entries, setEntries] = useState<LogbookEntry[]>([]);
   const [supStudents, setSupStudents] = useState<SupervisorStudent[]>([]);
@@ -242,7 +244,17 @@ export default function LogbookPage() {
                              <span className={`badge badge-${p.status === 'active' ? 'green' : 'amber'}`}>{p.status}</span>
                           </td>
                           <td style={{ textAlign: 'right' }}>
-                            <button className="btn btn-xs btn-ghost">View Full Profile</button>
+                            <button
+                              type="button"
+                              className="btn btn-xs btn-ghost"
+                              onClick={() => {
+                                const targetId = (p as any).studentId || (p as any)._id;
+                                if (targetId) navigate(`/all-students/${targetId}`);
+                                else navigate('/all-students');
+                              }}
+                            >
+                              View Full Profile
+                            </button>
                           </td>
                         </tr>
                       ))}

@@ -87,7 +87,9 @@ const StudentSchema: Schema = new Schema({
   postingApprovedAt: { type: Date },
   postingApprovedBy: { type: Schema.Types.ObjectId, ref: 'User' },
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
 });
 
 StudentSchema.index(

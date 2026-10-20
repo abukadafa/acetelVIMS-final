@@ -63,15 +63,19 @@ export default function StudentList() {
   useEffect(() => {
     if (!openMenu) return;
     const timer = setTimeout(() => {
-      const handler = (e: MouseEvent) => {
+      const handler = (e: MouseEvent | TouchEvent) => {
         const target = e.target as HTMLElement | null;
-        if (target && target.closest('[data-student-action-menu]')) {
+        if (target && typeof target.closest === 'function' && target.closest('[data-student-action-menu]')) {
           return;
         }
         setOpenMenu(null);
       };
       document.addEventListener('click', handler);
-      return () => document.removeEventListener('click', handler);
+      document.addEventListener('touchstart', handler);
+      return () => {
+        document.removeEventListener('click', handler);
+        document.removeEventListener('touchstart', handler);
+      };
     }, 50);
     return () => clearTimeout(timer);
   }, [openMenu]);
@@ -151,13 +155,15 @@ export default function StudentList() {
 
   const handleAction = async (action: string, student: any) => {
     setOpenMenu(null);
+    const sid = student._id || student.id;
+    const uid = student.user?._id || student.user?.id || (typeof student.user === 'string' ? student.user : sid);
     switch (action) {
       case 'view':
-        navigate(`/all-students/${student._id}`);
+        navigate(`/all-students/${sid}`);
         break;
       case 'resend-enrollment':
         setResendModalTarget({
-          ids: [student._id],
+          ids: [sid],
           count: 1,
           name: `${student.user?.firstName || ''} ${student.user?.lastName || ''}`.trim(),
         });
@@ -165,7 +171,7 @@ export default function StudentList() {
       case 'email':
         try {
           await api.post('/notifications/send', {
-            recipientId: student.user?._id || student.user,
+            recipientId: uid,
             subject: 'Message from ACETEL',
             body: 'Please log in to ACETEL VIMS to check important updates.',
             channel: 'email',
@@ -176,7 +182,7 @@ export default function StudentList() {
       case 'whatsapp':
         try {
           await api.post('/notifications/send', {
-            recipientId: student.user?._id || student.user,
+            recipientId: uid,
             body: 'ACETEL VIMS: Please log in to check important updates.',
             channel: 'whatsapp',
           });
@@ -185,7 +191,7 @@ export default function StudentList() {
         break;
       case 'allocate':
         try {
-          const { data } = await api.post(`/students/${student._id}/allocate`);
+          const { data } = await api.post(`/students/${sid}/allocate`);
           const pending = data?.pendingApproval ?? data?.allocation?.pendingApproval;
           const companyName = data?.company ?? data?.allocation?.company;
           toast.success(
@@ -200,7 +206,7 @@ export default function StudentList() {
         break;
       case 'approve-posting':
         try {
-          const { data } = await api.post(`/students/${student._id}/approve-posting`);
+          const { data } = await api.post(`/students/${sid}/approve-posting`);
           const n = data?.postingNotifications;
           if (n?.sent) {
             const parts = [];
@@ -223,7 +229,7 @@ export default function StudentList() {
         break;
       case 'flag':
         try {
-          await api.post(`/students/${student._id}/flag`);
+          await api.post(`/students/${sid}/flag`);
           toast.success('Student flagged for review');
           fetchData();
         } catch { toast.error('Failed to flag student'); }
@@ -236,7 +242,7 @@ export default function StudentList() {
         break;
       case 'audit':
         setAuditTarget({
-          targetId: student.user?._id || student.user,
+          targetId: uid,
           title: `Audit Trail — ${student.user?.firstName || ''} ${student.user?.lastName || ''}`.trim(),
         });
         break;
@@ -350,7 +356,7 @@ export default function StudentList() {
                 />
               </th>
               <th>Student</th><th>Matric No.</th><th>Programme</th>
-              <th>Company</th><th>Status</th><th>Risk</th><th>Action</th>
+              <th>Company</th><th>Status</th><th>Risk</th><th style={{ textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -358,14 +364,25 @@ export default function StudentList() {
               <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40 }}><div className="spinner" /></td></tr>
             ) : students.length === 0 ? (
               <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40, color: '#6b7280' }}>No students found</td></tr>
-            ) : students.map(s => (
-              <tr key={s._id} style={{ background: selectedStudents.includes(s._id) ? 'var(--bg-2)' : 'transparent' }}>
+            ) : students.map((s, idx) => {
+              const studentId = String(s._id || s.id || '');
+              const isMenuOpen = openMenu === studentId;
+              const openUp = idx >= Math.max(1, students.length - 2);
+              return (
+              <tr
+                key={studentId}
+                style={{
+                  background: selectedStudents.includes(studentId) ? 'var(--bg-2)' : 'transparent',
+                  position: isMenuOpen ? 'relative' : undefined,
+                  zIndex: isMenuOpen ? 100 : undefined,
+                }}
+              >
                 <td>
                   <input type="checkbox"
-                    checked={selectedStudents.includes(s._id)}
+                    checked={selectedStudents.includes(studentId)}
                     onChange={() => {
-                      if (selectedStudents.includes(s._id)) setSelectedStudents(prev => prev.filter(id => id !== s._id));
-                      else setSelectedStudents(prev => [...prev, s._id]);
+                      if (selectedStudents.includes(studentId)) setSelectedStudents(prev => prev.filter(id => id !== studentId));
+                      else setSelectedStudents(prev => [...prev, studentId]);
                     }}
                   />
                 </td>
@@ -395,46 +412,50 @@ export default function StudentList() {
                   </span>
                 </td>
                 <td>{getRiskBadge(s.riskScore || 0)}</td>
-                <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                <td style={{ textAlign: 'right', whiteSpace: 'nowrap', position: 'relative' }}>
                   <div
                     data-student-action-menu
                     style={{ position: 'relative', display: 'inline-block' }}
                   >
                     <button
                       type="button"
-                      className="btn btn-sm btn-ghost"
-                      aria-label="Student actions"
+                      className="btn btn-sm"
+                      aria-label={`Actions for ${s.user?.firstName || ''} ${s.user?.lastName || ''}`}
                       style={{
-                        padding: '6px 8px',
+                        padding: '6px 12px',
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        gap: 6,
                         borderRadius: 6,
-                        border: openMenu === s._id ? '1.5px solid #166534' : '1px solid transparent',
-                        background: openMenu === s._id ? '#f0fdf4' : 'transparent',
-                        color: openMenu === s._id ? '#166534' : '#4b5563',
-                        cursor: 'pointer'
+                        border: isMenuOpen ? '1.5px solid #166534' : '1px solid #d1d5db',
+                        background: isMenuOpen ? '#f0fdf4' : '#fff',
+                        color: isMenuOpen ? '#166534' : '#374151',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontSize: '0.82rem',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setOpenMenu(prev => (prev === s._id ? null : s._id));
+                        setOpenMenu(prev => (prev === studentId ? null : studentId));
                       }}
                     >
-                      <MoreVertical size={18} />
+                      <MoreVertical size={15} /> Actions
                     </button>
-                    {openMenu === s._id && (
+                    {isMenuOpen && (
                       <div
                         onClick={(e) => e.stopPropagation()}
                         style={{
                           position: 'absolute',
                           right: 0,
-                          top: 'calc(100% + 4px)',
-                          zIndex: 9999,
+                          ...(openUp ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }),
+                          zIndex: 99999,
                           background: '#fff',
                           border: '1.5px solid #e5e7eb',
                           borderRadius: 10,
-                          boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
-                          minWidth: 220,
+                          boxShadow: '0 12px 36px rgba(0,0,0,0.22)',
+                          minWidth: 230,
                           overflow: 'hidden',
                         }}
                       >
@@ -486,7 +507,8 @@ export default function StudentList() {
                   </div>
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>
