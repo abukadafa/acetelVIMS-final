@@ -12,12 +12,18 @@ export const socket = io(SOCKET_URL, {
   reconnectionDelay: 2000,
 });
 
-export const connectSocket = (userId: string) => {
+export const connectSocket = (userId?: string | null) => {
+  if (!userId || typeof userId !== 'string' || !/^[0-9a-fA-F]{24}$/.test(userId)) {
+    return;
+  }
   if (!socket.connected) {
     socket.connect();
+    socket.off('connect');
     socket.on('connect', () => {
       socket.emit('register', userId);
     });
+  } else {
+    socket.emit('register', userId);
   }
 };
 

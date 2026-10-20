@@ -20,8 +20,9 @@ export default function ChatPage() {
   const activeIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (user) {
-      connectSocket(user.id);
+    const currentUserId = (user as any)?._id || user?.id;
+    if (currentUserId && typeof currentUserId === 'string') {
+      connectSocket(currentUserId);
       fetchRooms();
       fetchContacts();
       onNewMessage(msg => {
@@ -90,8 +91,9 @@ export default function ChatPage() {
   };
 
   const getOtherParticipant = (room: any) => {
+    const currentUserId = (user as any)?._id || user?.id;
     const parts = room.participants || [];
-    return parts.find((p: any) => (p._id || p) !== user?.id) || parts[0];
+    return parts.find((p: any) => (p._id || p) !== currentUserId) || parts[0];
   };
 
   const filteredContacts = contacts.filter(c =>
@@ -241,7 +243,8 @@ export default function ChatPage() {
                 <div>No messages yet — say hello!</div>
               </div>
             ) : messages.map((msg: any, i) => {
-              const isMine = (msg.sender?._id || msg.sender) === user?.id;
+              const currentUserId = (user as any)?._id || user?.id;
+              const isMine = (msg.sender?._id || msg.sender) === currentUserId;
               return (
                 <div key={i} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
                   <div style={{

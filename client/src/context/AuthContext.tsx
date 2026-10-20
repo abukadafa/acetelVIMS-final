@@ -2,9 +2,14 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import api, { setAuthToken } from '../lib/api';
 
 interface User {
-  id: string; email: string; role: string;
-  firstName: string; lastName: string;
-  phone?: string; avatar?: string;
+  id: string;
+  _id?: string;
+  email: string;
+  role: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  avatar?: string;
   tenant?: string;
   programme?: { _id: string; name: string };
 }
@@ -63,7 +68,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
         const { data } = await api.get('auth/profile');
-        setUser(data.user);
+        const rawUser = data.user;
+        const normalized = rawUser ? { ...rawUser, id: rawUser.id || rawUser._id, _id: rawUser._id || rawUser.id } : null;
+        setUser(normalized);
         if (data.student) setStudent(data.student);
         setLoading(false);
         initialLoadDone.current = true;
@@ -121,7 +128,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (identifier: string, password: string) => {
     const { data } = await api.post('auth/login', { identifier, password });
     setAuthToken(data.accessToken || null, data.refreshToken || null);
-    setUser(data.user);
+    const rawUser = data.user;
+    const normalized = rawUser ? { ...rawUser, id: rawUser.id || rawUser._id, _id: rawUser._id || rawUser.id } : null;
+    setUser(normalized);
     if (data.student) setStudent(data.student);
     initialLoadDone.current = true;
   };

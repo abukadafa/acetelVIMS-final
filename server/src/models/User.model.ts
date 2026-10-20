@@ -53,7 +53,9 @@ const UserSchema: Schema = new Schema({
   lastLogin: { type: Date },
   mustChangePassword: { type: Boolean, default: false }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
 });
 
 // Active users only — soft-deleted records do not block email/username reuse

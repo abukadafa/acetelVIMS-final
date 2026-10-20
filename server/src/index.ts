@@ -217,9 +217,8 @@ io.on('connection', (socket) => {
     if (typeof userId === 'string' && /^[0-9a-fA-F]{24}$/.test(userId)) {
       connectedUsers.set(userId, socket.id);
       socket.join(`user:${userId}`);
-    } else {
+    } else if (userId && userId !== 'null' && userId !== 'undefined') {
       logger.warn('Socket: invalid userId format on register: %s', userId);
-      socket.disconnect(true);
     }
   });
   socket.on('disconnect', () => {

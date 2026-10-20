@@ -35,8 +35,9 @@ function SyncWrapper({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      connectSocket(user.id);
+    const uid = (user as any)?._id || user?.id;
+    if (uid && typeof uid === 'string') {
+      connectSocket(uid);
       socket.on('notification', (data) => {
         toast.success(data.message, { icon: '🔔' });
       });
