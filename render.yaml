@@ -52,9 +52,8 @@ services:
         sync: false
 
   # ── Frontend (Static Site) ────────────────────────────────────────────────
-  - type: web
+  - type: static
     name: acetel-frontend
-    runtime: static
     rootDir: client
     buildCommand: npm install && npm run build
     staticPublishPath: dist
