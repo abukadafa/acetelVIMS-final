@@ -196,9 +196,18 @@ const base = (content: string) => `
 </body>
 </html>`;
 
+/** Returns the clean, single primary frontend URL for clickable links in emails. */
+export function getPrimaryAppUrl(): string {
+  const raw = process.env.FRONTEND_URL || 'https://acetel-frontend-r1hx.onrender.com';
+  const urls = raw.split(',').map((u) => u.trim()).filter(Boolean);
+  return urls.find((u) => u.includes('acetel-frontend')) || urls[0] || 'https://acetel-frontend-r1hx.onrender.com';
+}
+
 export const emailTemplates = {
 
-  welcomeStudent: (name: string, email: string, password: string, appUrl: string, company: string) => base(`
+  welcomeStudent: (name: string, email: string, password: string, appUrl: string, company: string) => {
+    const cleanAppUrl = (appUrl ? appUrl.split(',')[0].trim() : getPrimaryAppUrl());
+    return base(`
     <h2>Welcome to ACETEL VIMS, ${name}!</h2>
     <p>Your Virtual Internship Management System account has been successfully created. Below are your login credentials and placement details:</p>
     <div class="info-box">
@@ -206,13 +215,14 @@ export const emailTemplates = {
       <div class="info-row"><span class="info-label">Login Email</span><span class="info-value">${email}</span></div>
       <div class="info-row"><span class="info-label">Temporary Password</span><span class="info-value"><strong>${password}</strong></span></div>
       <div class="info-row"><span class="info-label">Placed At</span><span class="info-value"><strong>${company}</strong></span></div>
-      <div class="info-row"><span class="info-label">Portal URL</span><span class="info-value"><a href="${appUrl}">${appUrl}</a></span></div>
+      <div class="info-row"><span class="info-label">Portal URL</span><span class="info-value"><a href="${cleanAppUrl}">${cleanAppUrl}</a></span></div>
     </div>
     <p><strong>Important:</strong> Please change your password immediately after your first login.</p>
     <p>You are required to update your logbook daily and mark your biometric attendance every working day.</p>
-    <a class="btn" href="${appUrl}">Access ACETEL VIMS Portal</a>
+    <a class="btn" href="${cleanAppUrl}">Access ACETEL VIMS Portal</a>
     <p style="margin-top:24px; color: #6b7280; font-size: 0.85rem;">If you have any issues, contact your Programme Coordinator or the ICT Support desk.</p>
-  `),
+  `);
+  },
 
   welcomeStaff: (name: string, email: string, username: string, password: string, role: string, appUrl: string) => base(`
     <h2>Welcome to ACETEL VIMS, ${name}!</h2>

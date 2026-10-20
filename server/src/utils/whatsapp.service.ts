@@ -129,7 +129,8 @@ export async function sendWhatsAppMessage(phone: string, message: string): Promi
   }
 }
 
-const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
+const rawFrontend = process.env.FRONTEND_URL || 'https://acetel-frontend-r1hx.onrender.com';
+const appUrl = rawFrontend.split(',').map(u => u.trim()).find(u => u.includes('acetel-frontend')) || rawFrontend.split(',')[0].trim();
 
 export const whatsappTemplates = {
 
