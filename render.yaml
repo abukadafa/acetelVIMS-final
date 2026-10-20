@@ -31,7 +31,7 @@ services:
       - key: ADMIN_PASSWORD
         sync: false
       - key: FRONTEND_URL
-        value: https://acetel.vims.nou.ng,https://acetel-frontend.onrender.com
+        value: https://acetel.vims.nou.ng,https://acetel-frontend-r1hx.onrender.com,https://acetel-frontend.onrender.com
       - key: GEMINI_API_KEY
         sync: false
       - key: SMTP_HOST
@@ -58,9 +58,9 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        value: https://acetel-backend.onrender.com/api/
+        value: https://acetel-backend-r1hx.onrender.com/api/
       - key: VITE_SOCKET_URL
-        value: https://acetel-backend.onrender.com
+        value: https://acetel-backend-r1hx.onrender.com
     routes:
       - type: rewrite
         source: /*

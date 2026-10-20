@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Vite bakes VITE_* vars at build time. Ensure VITE_API_URL is set in the
 // Render frontend service env vars ending with /api/
-const API_BASE = (import.meta.env.VITE_API_URL as string) || 'https://acetel-backend.onrender.com/api/';
+const API_BASE = (import.meta.env.VITE_API_URL as string) || 'https://acetel-backend-r1hx.onrender.com/api/';
 
 // Normalise: must end with /
 const normalisedBase = API_BASE.endsWith('/') ? API_BASE : API_BASE + '/';
