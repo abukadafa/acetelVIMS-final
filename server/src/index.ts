@@ -84,10 +84,20 @@ const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(',').map(u => u.trim())
   : ['http://localhost:5173'];
 
+export function isAllowedOrigin(origin?: string): boolean {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  // Automatically allow all Render deployment subdomains for acetel
+  if (/^https:\/\/acetel-[a-z0-9-]+\.onrender\.com$/.test(origin)) return true;
+  if (/^https:\/\/([a-z0-9-]+\.)?nou\.ng$/.test(origin)) return true;
+  if (/^http:\/\/localhost(:[0-9]+)?$/.test(origin)) return true;
+  return false;
+}
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow server-to-server (no origin) and whitelisted origins only
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow server-to-server (no origin) and whitelisted origins
+    if (isAllowedOrigin(origin)) {
       callback(null, true);
     } else {
       logger.warn('CORS blocked request from: %s', origin);
@@ -182,7 +192,17 @@ if (process.env.NODE_ENV === 'production') {
 // 9. SOCKET.IO — user-scoped rooms, no unauthenticated broadcast
 // ─────────────────────────────────────────────────────────────────────────────
 export const io = new Server(httpServer, {
-  cors: { origin: allowedOrigins, methods: ['GET', 'POST'], credentials: true },
+  cors: {
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
   pingTimeout: 60000,
   pingInterval: 25000,
   transports: ['websocket', 'polling'],

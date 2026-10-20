@@ -33,8 +33,8 @@ function timingSafeStringEqual(a: string, b: string): boolean {
   return bufA.length === bufB.length && crypto.timingSafeEqual(paddedA, paddedB);
 }
 
-// Allow cookies on HTTP for local testing even in production mode
-const isSecure = process.env.FRONTEND_URL?.startsWith('https') || false;
+// Always secure in production (Render uses HTTPS), or if FRONTEND_URL is HTTPS
+const isSecure = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL?.startsWith('https') ?? false);
 
 const COOKIE_OPTIONS: CookieOptions = {
   httpOnly: true,

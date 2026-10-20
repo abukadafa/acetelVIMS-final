@@ -24,7 +24,9 @@ export default function LoginPage() {
       toast.success('Welcome to ACETEL VIMS');
       navigate('/', { replace: true });
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Login failed. Check your credentials.');
+      const msg = err.response?.data?.error 
+        || (err.message === 'Network Error' ? 'Cannot reach server. Backend might be starting or CORS blocked.' : (err.response?.status === 401 ? 'Invalid email or password.' : 'Login failed. Check your credentials.'));
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
