@@ -17,13 +17,6 @@ const REQUIRED_ENV_VARS = [
   'NODE_ENV',
 ];
 
-const OPTIONAL_ENV_VARS = [
-  'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS',         // Email
-  'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_WHATSAPP_FROM', // WhatsApp
-  'WA_PHONE_NUMBER_ID', 'WA_ACCESS_TOKEN', 'META_WA_VERIFY_TOKEN',   // WhatsApp (Meta Cloud API)
-  'GEMINI_API_KEY',                                             // AI
-];
-
 export function validateEnv() {
   const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
 
@@ -37,9 +30,14 @@ export function validateEnv() {
     }
   }
 
-  const missingOptional = OPTIONAL_ENV_VARS.filter(v => !process.env[v]);
-  if (missingOptional.length > 0) {
-    logger.warn('ℹ️ Optional features disabled (missing ENV vars): %s', missingOptional.join(', '));
+  // Check optional services cleanly without false warnings for unused providers
+  const unconfiguredServices: string[] = [];
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS || process.env.SMTP_PASS === 'none') unconfiguredServices.push('Email/SMTP');
+  if (!process.env.WA_PHONE_NUMBER_ID && !process.env.TWILIO_ACCOUNT_SID) unconfiguredServices.push('WhatsApp');
+  if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'none') unconfiguredServices.push('Gemini AI');
+
+  if (unconfiguredServices.length > 0) {
+    logger.info('ℹ️ Optional service integrations not active: %s', unconfiguredServices.join(', '));
   }
 
   if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) {

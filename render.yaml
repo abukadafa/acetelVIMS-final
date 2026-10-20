@@ -12,6 +12,8 @@ services:
     startCommand: node dist/index.js
     healthCheckPath: /api/health
     envVars:
+      - key: NODE_VERSION
+        value: "20.18.0"
       - key: NODE_ENV
         value: production
       - key: PORT
@@ -57,6 +59,8 @@ services:
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
+      - key: NODE_VERSION
+        value: "20.18.0"
       - key: VITE_API_URL
         value: https://acetel-backend-r1hx.onrender.com/api/
       - key: VITE_SOCKET_URL

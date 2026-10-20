@@ -185,7 +185,7 @@ for (const dir of [dataDir, uploadsDir, logsDir]) {
 }
 
 if (process.env.NODE_ENV === 'production') {
-  logger.warn('⚠️  File uploads are stored locally. Add a Render Persistent Disk or integrate Cloudinary/S3 for production.');
+  logger.info('📦 Storage: Local filesystem initialized (/uploads)');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

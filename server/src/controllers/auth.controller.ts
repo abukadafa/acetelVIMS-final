@@ -524,7 +524,8 @@ export async function whatsappWebhookVerify(req: Request, res: Response): Promis
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
-  if (mode === 'subscribe' && token === process.env.META_WA_VERIFY_TOKEN) {
+  const expectedToken = process.env.WA_WEBHOOK_VERIFY_TOKEN || process.env.META_WA_VERIFY_TOKEN;
+  if (mode === 'subscribe' && token === expectedToken) {
     res.status(200).send(challenge);
   } else {
     res.status(403).json({ error: 'Forbidden' });
