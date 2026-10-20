@@ -1,7 +1,7 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import logger from '../utils/logger';
 
 // Allowed MIME types and their expected file signatures (magic bytes)
@@ -31,7 +31,7 @@ const storage = multer.diskStorage({
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
       return cb(new Error('Invalid file extension'), '');
     }
-    cb(null, `${uuidv4()}${ext}`);
+    cb(null, `${randomUUID()}${ext}`);
   },
 });
 
