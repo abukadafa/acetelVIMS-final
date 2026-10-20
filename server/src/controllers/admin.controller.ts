@@ -1892,7 +1892,10 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
 // ─── BULK RECYCLE BIN ACTIONS ───────────────────────────────────────────────
 
 const bulkActionSchema = z.object({
-  ids: z.union([z.string(), z.array(z.string())]).transform((val) => Array.isArray(val) ? val : val.split(',')),
+  ids: z.union([z.string(), z.array(z.string())]).transform((val) => {
+    const raw = Array.isArray(val) ? val : String(val || '').split(',');
+    return raw.map((s) => String(s).trim()).filter((s) => mongoose.Types.ObjectId.isValid(s));
+  }),
   reason: z.string().min(1, 'Reason is required')
 });
 
@@ -1969,20 +1972,32 @@ export async function bulkPermanentDeleteStudents(req: AuthRequest, res: Respons
     const tenantId = req.user!.tenant;
     if (!approvalMemo) { res.status(400).json({ error: 'Approval memo is required' }); return; }
 
-    const students = await Student.find({ _id: { $in: ids }, tenant: tenantId }).select('user');
-    const userIds = students.map(s => s.user);
+    if (!ids.length) {
+      res.status(400).json({ error: 'No valid student IDs provided' });
+      return;
+    }
 
-    await Student.deleteMany({ _id: { $in: ids }, tenant: tenantId });
-    await User.deleteMany({ _id: { $in: userIds } });
+    const studentQuery: any = { _id: { $in: ids } };
+    if (tenantId) {
+      studentQuery.$or = [{ tenant: tenantId }, { tenant: { $exists: false } }, { tenant: null }];
+    }
+    const students = await Student.find(studentQuery).select('user');
+    const userIds = students.map(s => s.user).filter(Boolean);
+
+    await Student.deleteMany({ _id: { $in: ids } });
+    if (userIds.length > 0) {
+      await User.deleteMany({ _id: { $in: userIds } });
+    }
 
     await AuditLog.create({
       tenant: tenantId, user: req.user!.id, action: 'BULK_PERMANENT_DELETE_STUDENTS', module: 'RECYCLE_BIN',
       reason, details: `Bulk permanently deleted ${students.length} students. Memo: ${approvalMemo}`, ipAddress: req.ip,
     });
     res.json({ message: `Successfully deleted ${students.length} students` });
-  } catch (err) {
+  } catch (err: any) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: 'Validation failed', details: err.errors }); return; }
-    res.status(500).json({ error: 'Server error' });
+    logger.error('bulkPermanentDeleteStudents error: %s', err.message);
+    res.status(500).json({ error: err.message || 'Server error' });
   }
 }
 

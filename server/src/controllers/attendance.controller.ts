@@ -5,6 +5,8 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import Attendance from '../models/Attendance.model';
 import Student from '../models/Student.model';
+import User from '../models/User.model';
+import Company from '../models/Company.model';
 import Setting from '../models/Setting.model';
 import Programme from '../models/Programme.model';
 import { calculateDistance } from '../utils/geo.utils';
@@ -226,7 +228,9 @@ export async function getAttendanceRecords(req: AuthRequest, res: Response): Pro
     let targetId = studentId;
 
     let filter: any = {};
-    if (userTenant) filter.tenant = userTenant;
+    if (userTenant) {
+      filter.$or = [{ tenant: userTenant }, { tenant: { $exists: false } }, { tenant: null }];
+    }
 
     if (userRole === 'student') {
       const student = await Student.findOne({ user: userId, ...(userTenant ? { tenant: userTenant } : {}) });
@@ -248,6 +252,15 @@ export async function getAttendanceRecords(req: AuthRequest, res: Response): Pro
         const supervisedStudents = await Student.find({ supervisor: userId, ...(userTenant ? { tenant: userTenant } : {}) }).distinct('_id');
         filter.student = { $in: supervisedStudents };
       }
+    } else if (userRole === 'industry_supervisor') {
+      const company = await Company.findOne({
+        $or: [{ contactEmail: req.user?.email }, { contactPerson: req.user?.email }],
+        ...(userTenant ? { tenant: userTenant } : {}),
+      });
+      if (company) {
+        const companyStudents = await Student.find({ company: company._id }).distinct('_id');
+        filter.student = { $in: companyStudents };
+      }
     } else if (targetId) {
       filter.student = targetId;
     }
@@ -263,7 +276,8 @@ export async function getAttendanceRecords(req: AuthRequest, res: Response): Pro
         path: 'student',
         populate: { path: 'user', select: 'firstName lastName email' }
       })
-      .sort({ checkInTime: -1 });
+      .sort({ checkInTime: -1 })
+      .lean();
 
     let summary = null;
     if (targetId) {
@@ -274,13 +288,13 @@ export async function getAttendanceRecords(req: AuthRequest, res: Response): Pro
     }
 
     res.json({ records: records || [], summary });
-  } catch (err) {
+  } catch (err: any) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    logger.error('Error in getAttendanceRecords: %s', (err as Error).message);
-    res.status(500).json({ error: 'Server error' });
+    logger.error('Error in getAttendanceRecords: %s', err.message);
+    res.status(500).json({ error: err.message || 'Server error' });
   }
 }
 

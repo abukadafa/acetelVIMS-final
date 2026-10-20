@@ -191,7 +191,9 @@ export default function CompanyManagement() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/companies', { params: { search } });
+      const { data } = await api.get('/companies', {
+        params: search.trim() ? { search: search.trim() } : undefined,
+      });
       setCompanies(data.companies || []);
     } catch (err: any) { toast.error(err.response?.data?.error || 'Failed to load partner organisations'); }
     finally { setLoading(false); }

@@ -53,31 +53,37 @@ export async function getAllCompanies(req: AuthRequest, res: Response): Promise<
     const { state, sector, specialisation, search, isApproved } = companyQuerySchema.parse(req.query);
     const userTenant = req.user?.tenant || (await getDefaultTenantId().catch(() => undefined));
     
-    let query: any = { isDeleted: { $ne: true } };
+    const andClauses: any[] = [{ isDeleted: { $ne: true } }];
     if (userTenant) {
-      query.tenant = userTenant;
+      andClauses.push({
+        $or: [{ tenant: userTenant }, { tenant: { $exists: false } }, { tenant: null }],
+      });
     }
 
-    if (state) query.state = normalizeStateName(state);
-    if (sector) query.sector = sector;
-    if (specialisation) query.specialisation = specialisation;
-    if (isApproved !== undefined) query.isApproved = isApproved;
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { address: { $regex: search, $options: 'i' } },
-        { specialisation: { $regex: search, $options: 'i' } },
-        { sector: { $regex: search, $options: 'i' } }
-      ];
+    if (state) andClauses.push({ state: normalizeStateName(state) });
+    if (sector) andClauses.push({ sector });
+    if (specialisation) andClauses.push({ specialisation });
+    if (isApproved !== undefined) andClauses.push({ isApproved });
+
+    if (search && search.trim()) {
+      const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      andClauses.push({
+        $or: [
+          { name: { $regex: escaped, $options: 'i' } },
+          { address: { $regex: escaped, $options: 'i' } },
+          { specialisation: { $regex: escaped, $options: 'i' } },
+          { sector: { $regex: escaped, $options: 'i' } },
+        ],
+      });
     }
 
+    const query = andClauses.length > 1 ? { $and: andClauses } : andClauses[0];
     const companies = await Company.find(query).sort({ name: 1 });
     
     const companiesWithCount = await Promise.all(
       companies.map(async (c) => {
         const studentCount = await Student.countDocuments({
           company: c._id,
-          ...(userTenant ? { tenant: userTenant } : {}),
           isDeleted: { $ne: true },
         });
         return { ...c.toObject(), studentCount };
@@ -85,13 +91,13 @@ export async function getAllCompanies(req: AuthRequest, res: Response): Promise<
     );
 
     res.json({ companies: companiesWithCount });
-  } catch (err) {
+  } catch (err: any) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.errors });
       return;
     }
-    logger.error('Error in getAllCompanies: %s', (err as Error).message);
-    res.status(500).json({ error: 'Server error' });
+    logger.error('Error in getAllCompanies: %s', err.message);
+    res.status(500).json({ error: err.message || 'Server error' });
   }
 }
 

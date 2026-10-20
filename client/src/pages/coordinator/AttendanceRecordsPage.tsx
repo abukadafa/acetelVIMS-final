@@ -21,8 +21,8 @@ export default function AttendanceRecordsPage() {
     try {
       const { data } = await api.get('/attendance');
       setRecords(data.records || []);
-    } catch {
-      toast.error('Failed to load attendance records');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to load attendance records');
     } finally {
       setLoading(false);
     }

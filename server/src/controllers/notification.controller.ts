@@ -2,7 +2,8 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import NotificationModel from '../models/notification.model';
 import User from '../models/User.model';
-import { sendEmail } from '../utils/mail.service';
+import Student from '../models/Student.model';
+import { sendEmail, isEmailConfigured } from '../utils/mail.service';
 import { sendWhatsAppMessage } from '../utils/whatsapp.service';
 import logger from '../utils/logger';
 import { io } from '../index';
@@ -63,8 +64,17 @@ export async function sendNotification(req: AuthRequest, res: Response): Promise
     // Determine recipients
     let recipients: any[] = [];
     if (recipientId && recipientId !== 'all' && recipientId !== 'broadcast' && mongoose.Types.ObjectId.isValid(String(recipientId))) {
-      const u = await User.findOne({ _id: recipientId, ...(tenantId ? { tenant: tenantId } : {}), isActive: true });
-      if (!u) { res.status(404).json({ error: 'Recipient not found' }); return; }
+      let u = await User.findOne({ _id: recipientId, ...(tenantId ? { tenant: tenantId } : {}) });
+      if (!u) {
+        u = await User.findById(recipientId);
+      }
+      if (!u) {
+        const student = await Student.findById(recipientId).populate('user');
+        if (student && student.user) {
+          u = student.user as any;
+        }
+      }
+      if (!u) { res.status(404).json({ error: 'Recipient user not found' }); return; }
       recipients = [u];
     } else {
       // Broadcast to all active users in tenant
@@ -73,6 +83,9 @@ export async function sendNotification(req: AuthRequest, res: Response): Promise
 
     const appUrl = process.env.FRONTEND_URL || 'https://acetel-vims.onrender.com';
     let sent = 0;
+    const emailConfigured = isEmailConfigured();
+    let emailDeliveryAttempted = false;
+    let emailDelivered = false;
 
     for (const recipient of recipients) {
       const notifBody = `${senderName}: ${body}`;
@@ -110,11 +123,21 @@ export async function sendNotification(req: AuthRequest, res: Response): Promise
               Open ACETEL VIMS
             </a>
           </div>`;
-        try {
-          await sendEmail(recipient.email, subject || `Message from ${senderName}`, html);
-        } catch (e: any) {
-          logger.warn('sendEmail error in sendNotification: %s', e.message);
+
+        if (recipient.email) {
+          emailDeliveryAttempted = true;
+          try {
+            if (emailConfigured) {
+              const ok = await sendEmail(recipient.email, subject || `Message from ${senderName}`, html);
+              if (ok) emailDelivered = true;
+            } else {
+              logger.warn('sendNotification: SMTP not configured, skipped sending email to %s', recipient.email);
+            }
+          } catch (e: any) {
+            logger.warn('sendEmail error in sendNotification: %s', e.message);
+          }
         }
+
         const created = await NotificationModel.create({
           ...(tenantId ? { tenant: tenantId } : {}),
           user: recipient._id,
@@ -161,9 +184,18 @@ export async function sendNotification(req: AuthRequest, res: Response): Promise
       }
     }
 
-    res.json({ message: `Message sent to ${sent} recipient(s)` });
-  } catch (err) {
-    logger.error('sendNotification: %s', (err as Error).message);
-    res.status(500).json({ error: 'Server error' });
+    let warning: string | undefined = undefined;
+    if (channel === 'email' && emailDeliveryAttempted && !emailConfigured) {
+      warning = 'Notification recorded, but email could not be delivered because SMTP is not configured on the server.';
+    }
+
+    res.json({
+      message: `Message sent to ${sent} recipient(s)`,
+      warning,
+      sent,
+    });
+  } catch (err: any) {
+    logger.error('sendNotification: %s', err.message);
+    res.status(500).json({ error: err.message || 'Server error' });
   }
 }

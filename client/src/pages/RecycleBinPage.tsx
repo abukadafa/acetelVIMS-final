@@ -162,7 +162,7 @@ export default function RecycleBinPage() {
       if (isBulk) formData.append('ids', binTarget._id);
 
       await api.post(endpoint, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': undefined },
       });
 
       toast.success(

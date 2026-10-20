@@ -170,14 +170,20 @@ export default function StudentList() {
         break;
       case 'email':
         try {
-          await api.post('/notifications/send', {
+          const res = await api.post('/notifications/send', {
             recipientId: uid,
             subject: 'Message from ACETEL',
             body: 'Please log in to ACETEL VIMS to check important updates.',
             channel: 'email',
           });
-          toast.success(`Email sent to ${student.user?.firstName || 'student'}`);
-        } catch { toast.error('Failed to send email'); }
+          if (res.data?.warning) {
+            toast.error(res.data.warning);
+          } else {
+            toast.success(`Email sent to ${student.user?.firstName || 'student'}`);
+          }
+        } catch (err: any) {
+          toast.error(err.response?.data?.error || 'Failed to send email');
+        }
         break;
       case 'whatsapp':
         try {
@@ -187,7 +193,9 @@ export default function StudentList() {
             channel: 'whatsapp',
           });
           toast.success('WhatsApp notification sent');
-        } catch { toast.error('Failed to send WhatsApp'); }
+        } catch (err: any) {
+          toast.error(err.response?.data?.error || 'Failed to send WhatsApp');
+        }
         break;
       case 'allocate':
         try {
@@ -232,7 +240,9 @@ export default function StudentList() {
           await api.post(`/students/${sid}/flag`);
           toast.success('Student flagged for review');
           fetchData();
-        } catch { toast.error('Failed to flag student'); }
+        } catch (err: any) {
+          toast.error(err.response?.data?.error || 'Failed to flag student');
+        }
         break;
       case 'edit':
         setEditing(student);
@@ -846,7 +856,7 @@ export default function StudentList() {
                     fd.append('reason', purgeReason);
                     fd.append('approvalMemo', purgeMemoFile);
                     await api.post('/admin/students/bulk-permanent-delete', fd, {
-                      headers: { 'Content-Type': 'multipart/form-data' },
+                      headers: { 'Content-Type': undefined },
                     });
                     toast.success(`🗑️ ${selectedStudents.length} student(s) permanently deleted`);
                     setShowPurgeModal(false);
