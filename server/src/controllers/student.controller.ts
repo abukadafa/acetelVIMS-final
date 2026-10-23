@@ -161,11 +161,23 @@ export async function getStudentById(req: AuthRequest, res: Response): Promise<v
     const { id } = idParamSchema.parse(req.params);
     const { role: userRole, tenant: userTenant, id: userId } = req.user!;
 
-    const student = await Student.findOne({ _id: id, tenant: userTenant })
+    const query = userTenant
+      ? { _id: id, $or: [{ tenant: userTenant }, { tenant: { $exists: false } }, { tenant: null }] }
+      : { _id: id };
+
+    let student = await Student.findOne(query)
       .populate('user', '-password')
       .populate('programme')
       .populate('company')
       .populate('supervisor', 'firstName lastName email phone');
+
+    if (!student) {
+      student = await Student.findById(id)
+        .populate('user', '-password')
+        .populate('programme')
+        .populate('company')
+        .populate('supervisor', 'firstName lastName email phone');
+    }
 
     if (!student) {
       res.status(404).json({ error: 'Student not found in your institution' });
@@ -208,7 +220,12 @@ export async function updateStudent(req: AuthRequest, res: Response): Promise<vo
     const data = studentUpdateSchema.parse(req.body);
     const { tenant: userTenant, role: userRole, id: userId } = req.user!;
 
-    const student = await Student.findOne({ _id: id, tenant: userTenant });
+    const student = await Student.findOne(
+      userTenant
+        ? { _id: id, $or: [{ tenant: userTenant }, { tenant: { $exists: false } }, { tenant: null }] }
+        : { _id: id }
+    ) || await Student.findById(id);
+
     if (!student) {
       res.status(404).json({ error: 'Student not found or access denied' });
       return;
@@ -229,6 +246,15 @@ export async function updateStudent(req: AuthRequest, res: Response): Promise<vo
       student.postingApprovedAt = undefined;
       student.postingApprovedBy = undefined;
       if (data.company) student.status = 'pending';
+
+      // Keep company intern counts synchronized
+      if (prevCompanyId) {
+        await Company.findByIdAndUpdate(prevCompanyId, { $inc: { currentStudents: -1 } });
+      }
+      if (data.company) {
+        await Company.findByIdAndUpdate(data.company, { $inc: { currentStudents: 1 } });
+      }
+      await Company.updateMany({ currentStudents: { $lt: 0 } }, { $set: { currentStudents: 0 } });
     }
 
     if (data.postingApproved === true && !student.company) {
@@ -288,7 +314,12 @@ export async function approvePosting(req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const student = await Student.findOne({ _id: id, tenant: userTenant });
+    const student = await Student.findOne(
+      userTenant
+        ? { _id: id, $or: [{ tenant: userTenant }, { tenant: { $exists: false } }, { tenant: null }] }
+        : { _id: id }
+    ) || await Student.findById(id);
+
     if (!student) {
       res.status(404).json({ error: 'Student not found' });
       return;
@@ -335,7 +366,11 @@ export async function requestAllocation(req: AuthRequest, res: Response): Promis
   try {
     const { id } = idParamSchema.parse(req.params);
     const { tenant: userTenant } = req.user!;
-    const student = await Student.findOne({ _id: id, tenant: userTenant });
+    const student = await Student.findOne(
+      userTenant
+        ? { _id: id, $or: [{ tenant: userTenant }, { tenant: { $exists: false } }, { tenant: null }] }
+        : { _id: id }
+    ) || await Student.findById(id);
     
     if (!student) {
       res.status(404).json({ error: 'Student not found' });

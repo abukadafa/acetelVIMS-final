@@ -130,6 +130,57 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
     toast.success('Onboarding report copied to clipboard');
   };
 
+  /* ── Robust Row Data Extraction for Preview & Diagnostics ── */
+  const getRowValue = (row: any, ...keys: string[]) => {
+    if (!row || typeof row !== 'object') return '';
+    const normalizedKeyMap: Record<string, any> = {};
+    for (const [k, v] of Object.entries(row)) {
+      const cleanKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (normalizedKeyMap[cleanKey] === undefined && v !== undefined && v !== null && String(v).trim() !== '') {
+        normalizedKeyMap[cleanKey] = v;
+      }
+    }
+    for (const key of keys) {
+      if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+        return String(row[key]).trim();
+      }
+      const cleanLookup = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (normalizedKeyMap[cleanLookup] !== undefined) {
+        return String(normalizedKeyMap[cleanLookup]).trim();
+      }
+    }
+    return '';
+  };
+
+  const getCandidateName = (row: any) => {
+    const first = getRowValue(row, 'Other Names', 'First Name', 'firstname', 'givenname');
+    const last = getRowValue(row, 'Surname', 'Last Name', 'lastname', 'familyname');
+    if (first || last) return `${first} ${last}`.trim();
+    return getRowValue(row, 'Name', 'Full Name', 'Candidate Name', 'Student Name') || '—';
+  };
+
+  const getCandidateIdentity = (row: any) => {
+    const email = getRowValue(row, 'Institutional Email', 'Personal Email', 'Email', 'Student Email', 'Email Address');
+    const matric = getRowValue(row, 'Matric Number', 'Matric No', 'Reg No', 'Registration Number', 'Student ID', 'ID');
+    if (email && matric) return `${email} (${matric})`;
+    return email || matric || '—';
+  };
+
+  const getCandidateRoleProg = (row: any, entityType: OnboardType) => {
+    if (entityType === 'student') {
+      return getRowValue(row, 'programmeCode', 'Programme Code', 'Programme', 'Course', 'Department', 'Specialisation') || '—';
+    }
+    return getRowValue(row, 'role', 'Designation', 'Position', 'Department') || 'supervisor';
+  };
+
+  const getCompanyValue = (row: any, field: 'name' | 'address' | 'spec' | 'state') => {
+    if (field === 'name') return getRowValue(row, 'Company Name', 'Organization Name', 'Name', 'Partner Name', 'Institution') || '—';
+    if (field === 'address') return getRowValue(row, 'Company Address', 'Address', 'Location', 'Office Address') || '—';
+    if (field === 'spec') return getRowValue(row, 'Area of Specialisation', 'Specialisation', 'Specialization', 'Sector', 'Industry', 'Field') || '—';
+    if (field === 'state') return getRowValue(row, 'State', 'State of Origin', 'State of Residence', 'Region', 'Location State') || '—';
+    return '—';
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 680, maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
@@ -203,8 +254,8 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
                 <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <ShieldCheck size={16} /> Data Consistency Note
                 </div>
-                Please use the official {type.toUpperCase()} template. 
-                {type === 'company' ? ' Required: Company Name, Company Address.' : ' Required: Institutional Email, Name.'}
+                Please use the official {type.toUpperCase()} template or any standard CSV. Headers are flexible (e.g. First Name, Last Name, Matric No, Email, Programme).
+                {type === 'company' ? ' Required: Company Name, Company Address.' : ' Required: Email/Matric Number, Candidate Name.'}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -254,16 +305,16 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
                       <tr key={i}>
                         {type === 'company' ? (
                           <>
-                            <td>{row['Company Name'] || row.companyName || row.name}</td>
-                            <td>{row['Company Address'] || row.address}</td>
-                            <td>{row['Area of Specialisation'] || row.specialisation || row.sector}</td>
-                            <td>{row['State'] || row.state}</td>
+                            <td>{getCompanyValue(row, 'name')}</td>
+                            <td>{getCompanyValue(row, 'address')}</td>
+                            <td>{getCompanyValue(row, 'spec')}</td>
+                            <td>{getCompanyValue(row, 'state')}</td>
                           </>
                         ) : (
                           <>
-                            <td>{(row['Other Names'] || row.firstName)} {(row['Surname'] || row.lastName)}</td>
-                            <td>{row['Institutional Email'] || row.email || row['Matric Number'] || row.matricNumber}</td>
-                            <td>{type === 'student' ? row.programmeCode : row.role}</td>
+                            <td>{getCandidateName(row)}</td>
+                            <td>{getCandidateIdentity(row)}</td>
+                            <td>{getCandidateRoleProg(row, type)}</td>
                           </>
                         )}
                       </tr>
@@ -295,12 +346,16 @@ export default function BulkEnrollModal({ onClose, onSuccess, defaultType = 'stu
                     Rows that failed ({results.failed.length})
                   </div>
                   <div style={{ maxHeight: 180, overflowY: 'auto', fontSize: '0.75rem' }}>
-                    {results.failed.map((f, i) => (
-                      <div key={i} style={{ borderBottom: '1px solid #feb2b2', padding: '6px 0' }}>
-                        <strong>{f.email || f.name || (f.row && (f.row['Institutional Email'] || f.row.email)) || `Row ${i + 1}`}</strong>
-                        {' — '}{f.reason}
-                      </div>
-                    ))}
+                    {results.failed.map((f, i) => {
+                      const rowId = f.row ? (getCandidateIdentity(f.row) !== '—' ? getCandidateIdentity(f.row) : getCandidateName(f.row)) : '';
+                      const identifier = f.email || f.name || (rowId !== '—' ? rowId : '') || `Row ${i + 1}`;
+                      return (
+                        <div key={i} style={{ borderBottom: '1px solid #feb2b2', padding: '6px 0' }}>
+                          <strong>{identifier}</strong>
+                          {' — '}{f.reason}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

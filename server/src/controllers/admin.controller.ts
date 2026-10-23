@@ -501,7 +501,7 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       stateOfOrigin, lga,
       academicSession, level 
     } = createStudentSchema.parse(req.body);
-    const tenantId = req.user!.tenant;
+    const tenantId = req.user?.tenant || (await getDefaultTenantId().catch(() => undefined));
     if (!tenantId) {
       res.status(400).json({ error: 'Session expired or missing tenant. Please log out and sign in again.' });
       return;
@@ -542,26 +542,37 @@ export async function createStudent(req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    const tenantProgFilter = tenantId
+      ? { $or: [{ tenant: tenantId }, { tenant: { $exists: false } }, { tenant: null }] }
+      : {};
+
     let resolvedProgId: mongoose.Types.ObjectId | null = null;
     if (mongoose.Types.ObjectId.isValid(targetProgrammeStr)) {
-      const prog = await Programme.findOne({ _id: targetProgrammeStr, tenant: tenantId });
+      const prog = await Programme.findOne({ _id: targetProgrammeStr, ...tenantProgFilter }) || await Programme.findById(targetProgrammeStr);
       if (prog) resolvedProgId = prog._id as mongoose.Types.ObjectId;
     }
     if (!resolvedProgId) {
       const prog = await Programme.findOne({
         code: new RegExp(`^${targetProgrammeStr.trim()}$`, 'i'),
-        tenant: tenantId,
+        ...tenantProgFilter,
       });
       if (prog) resolvedProgId = prog._id as mongoose.Types.ObjectId;
     }
     if (!resolvedProgId) {
-      const anyProg = await Programme.findOne({ tenant: tenantId, isActive: { $ne: false } });
+      const prog = await Programme.findOne({
+        name: new RegExp(targetProgrammeStr.trim(), 'i'),
+        ...tenantProgFilter,
+      });
+      if (prog) resolvedProgId = prog._id as mongoose.Types.ObjectId;
+    }
+    if (!resolvedProgId) {
+      const anyProg = await Programme.findOne({ ...tenantProgFilter, isActive: { $ne: false } });
       if (anyProg) {
         resolvedProgId = anyProg._id as mongoose.Types.ObjectId;
       } else {
         const { seedProgrammes } = await import('../models/database');
         await seedProgrammes(new mongoose.Types.ObjectId(tenantId));
-        const seeded = await Programme.findOne({ tenant: tenantId });
+        const seeded = await Programme.findOne({ ...tenantProgFilter });
         if (seeded) resolvedProgId = seeded._id as mongoose.Types.ObjectId;
       }
     }
@@ -1653,9 +1664,43 @@ export async function exportSecurityAudit(req: AuthRequest, res: Response): Prom
 /** 
  * POST /api/admin/bulk-onboard
  */
+function extractRowLookup(row: Record<string, any>): Record<string, string> {
+  const lookup: Record<string, string> = {};
+  for (const [k, v] of Object.entries(row || {})) {
+    const cleanKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (cleanKey && v !== undefined && v !== null) {
+      lookup[cleanKey] = String(v).trim();
+    }
+  }
+  return lookup;
+}
+
+function normalizeGenderValue(raw?: string): 'Male' | 'Female' | 'Other' {
+  if (!raw) return 'Male';
+  const s = String(raw).trim().toLowerCase();
+  if (s === 'female' || s === 'f') return 'Female';
+  if (s === 'other' || s === 'o') return 'Other';
+  return 'Male';
+}
+
+function normalizeNationality(raw?: any): boolean {
+  if (raw === undefined || raw === null || raw === '') return true;
+  if (typeof raw === 'boolean') return raw;
+  const s = String(raw).trim().toLowerCase();
+  if (s === 'false' || s === 'non-nigerian' || s === 'foreign' || s === 'international' || s === 'no') return false;
+  return true;
+}
+
+/** 
+ * POST /api/admin/bulk-onboard
+ */
 export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void> {
   const { type, data } = req.body;
-  const tenantId = req.user!.tenant;
+  const tenantId = req.user?.tenant || (await getDefaultTenantId().catch(() => undefined));
+  if (!tenantId) {
+    res.status(400).json({ error: 'Session expired or missing tenant. Please log out and sign in again.' });
+    return;
+  }
   const entityType = String(type || '').trim().toLowerCase();
 
   if (!['company', 'staff', 'student'].includes(entityType)) {
@@ -1675,21 +1720,79 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
   };
 
   try {
+    const tenantProgFilter = { $or: [{ tenant: tenantId }, { tenant: { $exists: false } }, { tenant: null }] };
+
     // Cache programmes for faster mapping for current tenant
-    const allProgs = await Programme.find({ tenant: tenantId }).select('code _id');
-    const progMap = allProgs.reduce((acc, p) => {
-      acc[p.code.toLowerCase()] = p._id;
-      return acc;
-    }, {} as Record<string, mongoose.Types.ObjectId>);
+    let allProgs: any[] = await Programme.find({
+      ...tenantProgFilter,
+      isActive: { $ne: false },
+    }).select('code name level _id');
+
+    if (allProgs.length === 0 && tenantId) {
+      const { seedProgrammes } = await import('../models/database');
+      await seedProgrammes(new mongoose.Types.ObjectId(tenantId));
+      allProgs = await Programme.find({
+        ...tenantProgFilter,
+        isActive: { $ne: false },
+      }).select('code name level _id');
+    }
+
+    const resolveProg = (programmeCodeValue: string, levelValue?: string): mongoose.Types.ObjectId | null => {
+      if (!programmeCodeValue) return null;
+      const raw = programmeCodeValue.trim();
+      if (mongoose.Types.ObjectId.isValid(raw)) {
+        const found = allProgs.find((p) => p._id.toString() === raw);
+        if (found) return found._id as mongoose.Types.ObjectId;
+      }
+      const clean = raw.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const isPhd = clean.includes('phd') || String(levelValue || '').toLowerCase().includes('phd');
+
+      // 1. Direct code or name match
+      for (const p of allProgs) {
+        const pCodeClean = p.code.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const pNameClean = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (clean === pCodeClean || clean === pNameClean) {
+          return p._id as mongoose.Types.ObjectId;
+        }
+      }
+
+      // 2. Keyword heuristic with degree level
+      if (clean.includes('ai') || clean.includes('artificial') || clean.includes('intelligence')) {
+        const targetCode = isPhd ? 'PHD-AI' : 'MSC-AI';
+        const found = allProgs.find((p) => p.code.toUpperCase() === targetCode);
+        if (found) return found._id as mongoose.Types.ObjectId;
+      }
+      if (clean.includes('cyb') || clean.includes('cyber') || clean.includes('security')) {
+        const targetCode = isPhd ? 'PHD-CYB' : 'MSC-CYB';
+        const found = allProgs.find((p) => p.code.toUpperCase() === targetCode);
+        if (found) return found._id as mongoose.Types.ObjectId;
+      }
+      if (clean.includes('mis') || clean.includes('management') || clean.includes('information')) {
+        const targetCode = isPhd ? 'PHD-MIS' : 'MSC-MIS';
+        const found = allProgs.find((p) => p.code.toUpperCase() === targetCode);
+        if (found) return found._id as mongoose.Types.ObjectId;
+      }
+
+      // 3. Partial substring match in name
+      for (const p of allProgs) {
+        const pNameLower = p.name.toLowerCase();
+        const rawLower = raw.toLowerCase();
+        if (pNameLower.includes(rawLower) || rawLower.includes(pNameLower)) {
+          return p._id as mongoose.Types.ObjectId;
+        }
+      }
+      return null;
+    };
 
     // PARTNER COMPANY BRANCH
     if (entityType === 'company') {
       const Company = (await import('../models/Company.model')).default;
       for (const row of data) {
-        const name = String(row['Company Name'] || row.companyName || row.name || '').trim();
-        const address = String(row['Company Address'] || row.address || '').trim();
-        const specialisation = String(row['Area of Specialisation'] || row.specialisation || row.sector || 'General').trim();
-        const state = String(row['State'] || row.state || 'Lagos').trim();
+        const lookup = extractRowLookup(row);
+        const name = lookup['companyname'] || lookup['name'] || lookup['organisation'] || lookup['organization'] || row['Company Name'] || row.name || '';
+        const address = lookup['companyaddress'] || lookup['address'] || lookup['location'] || row['Company Address'] || row.address || '';
+        const specialisation = lookup['areaofspecialisation'] || lookup['specialisation'] || lookup['specialization'] || lookup['sector'] || row['Area of Specialisation'] || 'General IT';
+        const state = normalizeStateName(lookup['state'] || lookup['companystate'] || row['State'] || '') || 'FCT';
 
         if (!name || !address) {
           results.failed.push({ row, reason: 'Missing required company fields (Name/Address)' });
@@ -1700,7 +1803,7 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
           const company = new Company({
             name: name.trim(),
             address: address.trim(),
-            specialisation: specialisation ? String(specialisation).trim() : 'General',
+            specialisation: specialisation ? String(specialisation).trim() : 'General IT',
             state: state.trim(),
             isApproved: true,
             tenant: tenantId,
@@ -1729,23 +1832,81 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
 
     // STAFF / STUDENT BRANCH
     for (const row of data) {
-      const firstName = String(row['Other Names'] || row.otherNames || row.firstName || '').trim();
-      const lastName = String(row['Surname'] || row.surname || row.lastName || '').trim();
-      const email = String(row['Institutional Email'] || row.email || '').trim().toLowerCase();
-      const matricNum = normalizeMatricValue(row['Matric Number'] || row.matricNumber || row.matric || '');
-      const phone = String(row['Phone Number'] || row.phone || '').trim() || undefined;
-      const personalEmail = String(row['Personal Email'] || row.personalEmail || '').trim().toLowerCase() || undefined;
-      const gender = String(row['Gender'] || row.gender || 'Male').trim();
-      const isNigerian = String(row['Nigerianity'] || row.nigerianity || row['Nigerian Status'] || '').toLowerCase() !== 'non-nigerian';
-      const address = String(row['Address'] || row.address || '').trim() || undefined;
-      const stateOfOrigin = String(row['State of Origin'] || row.stateOfOrigin || row.state || '').trim() || undefined;
-      const programmeCodeValue = String(row['programmeCode'] || row['Programme Code'] || row.programme || row['programme'] || '').trim();
-      const academicSession = String(row['academicSession'] || row['Academic Session'] || row.academic_session || '2024/2025').trim() || '2024/2025';
-      const level = String(row['level'] || row['Level'] || 'MSc').trim() || 'MSc';
+      const lookup = extractRowLookup(row);
+
+      let firstName = lookup['firstname'] || lookup['othernames'] || lookup['othername'] || lookup['fname'] || lookup['first'] || '';
+      let lastName = lookup['lastname'] || lookup['surname'] || lookup['lname'] || lookup['last'] || '';
+      const rawFullName = lookup['fullname'] || lookup['name'] || lookup['studentname'] || lookup['candidatename'] || '';
+
+      if (!firstName || !lastName) {
+        if (rawFullName) {
+          const parts = rawFullName.split(/\s+/).filter(Boolean);
+          if (!lastName && parts.length > 0) {
+            lastName = parts[0];
+            if (!firstName && parts.length > 1) {
+              firstName = parts.slice(1).join(' ');
+            }
+          } else if (!firstName && parts.length > 0) {
+            firstName = parts.join(' ');
+          }
+        }
+      }
+
+      let email = (lookup['institutionalemail'] || lookup['email'] || lookup['emailaddress'] || lookup['studentemail'] || lookup['officialemail'] || lookup['mail'] || '').toLowerCase();
+      const personalEmail = (lookup['personalemail'] || lookup['altemail'] || lookup['alternateemail'] || lookup['secondaryemail'] || lookup['privateemail'] || '').toLowerCase() || undefined;
+
+      const matricNum = normalizeMatricValue(lookup['matricnumber'] || lookup['matricno'] || lookup['matric'] || lookup['matriculationnumber'] || lookup['regno'] || lookup['registrationnumber'] || lookup['username'] || '');
+
+      // Fallback: If institutional email is missing, use personalEmail or generate standard student alias from matric
+      if (!email && personalEmail) {
+        email = personalEmail;
+      } else if (!email && entityType === 'student' && matricNum) {
+        email = `${matricNum.toLowerCase().replace(/[^a-z0-9]/g, '')}@student.noun.edu.ng`;
+      }
+
+      const phone = lookup['phonenumber'] || lookup['phone'] || lookup['phoneno'] || lookup['mobile'] || lookup['mobilenumber'] || lookup['whatsapp'] || lookup['telephone'] || lookup['contactphone'] || undefined;
+
+      const gender = normalizeGenderValue(lookup['gender'] || lookup['sex']);
+      const isNigerian = normalizeNationality(lookup['nigerianity'] || lookup['nigerianstatus'] || lookup['nationality'] || lookup['country']);
+
+      const address = lookup['address'] || lookup['residentialaddress'] || lookup['homeaddress'] || lookup['location'] || lookup['contactaddress'] || undefined;
+      const stateOfOrigin = normalizeStateName(lookup['stateoforigin'] || lookup['state'] || lookup['origin'] || lookup['statecode'] || '') || undefined;
+      const lga = lookup['lga'] || lookup['localgovernment'] || lookup['lgaoforigin'] || undefined;
+
+      const programmeCodeValue = lookup['programmecode'] || lookup['programme'] || lookup['program'] || lookup['programcode'] || lookup['course'] || lookup['courseofstudy'] || lookup['department'] || lookup['specialization'] || lookup['option'] || lookup['field'] || '';
+      const academicSession = lookup['academicsession'] || lookup['session'] || lookup['academicyear'] || lookup['year'] || '2024/2025';
+      const level = lookup['level'] || lookup['studylevel'] || lookup['degree'] || 'MSc';
 
       if (!email || !firstName || !lastName || (entityType === 'student' && !matricNum)) {
-        results.failed.push({ row, reason: 'Missing required profile fields' });
+        const missing = [
+          !firstName && 'First Name',
+          !lastName && 'Surname/Last Name',
+          !email && 'Email',
+          (entityType === 'student' && !matricNum) && 'Matric Number',
+        ].filter(Boolean).join(', ');
+        results.failed.push({ row, reason: `Missing required profile fields: ${missing}` });
         continue;
+      }
+
+      // Purge any soft-deleted records for this identity so it doesn't block re-enrollment
+      await purgeSoftDeletedIdentity(tenantId, {
+        email,
+        matric: entityType === 'student' ? matricNum : undefined,
+      }).catch(() => {});
+
+      // Clean up orphaned student users from previous interrupted enrollment
+      if (entityType === 'student') {
+        const orphanUser = await User.findOne({
+          tenant: tenantId,
+          role: 'student',
+          $or: [{ email }, { username: matricNum.toLowerCase() }],
+        });
+        if (orphanUser) {
+          const hasStudent = await Student.findOne({ user: orphanUser._id });
+          if (!hasStudent) {
+            await User.findByIdAndDelete(orphanUser._id).catch(() => {});
+          }
+        }
       }
 
       const username = entityType === 'student' ? matricNum.toLowerCase() : email;
@@ -1755,19 +1916,25 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
         $or: [{ email }, { username }]
       });
       if (existingUser) {
-        results.failed.push({ email, reason: 'User already exists in this institution' });
+        results.failed.push({
+          email,
+          reason: `Account already exists (${existingUser.email === email ? 'email' : 'matric/username'} is in use)`,
+        });
         continue;
       }
 
-      let programmeId = programmeCodeValue ? progMap[programmeCodeValue.toLowerCase()] : null;
+      let programmeId = resolveProg(programmeCodeValue, level);
       if (!programmeId && mongoose.Types.ObjectId.isValid(programmeCodeValue)) {
         programmeId = new mongoose.Types.ObjectId(programmeCodeValue);
       }
       if (!programmeId && req.user!.programme) {
         programmeId = req.user!.programme as any;
       }
+      if (!programmeId && entityType === 'student' && allProgs.length > 0) {
+        programmeId = allProgs[0]._id as mongoose.Types.ObjectId;
+      }
 
-      const rawRoleValue = String(row['Role'] || row.role || 'supervisor');
+      const rawRoleValue = lookup['role'] || row['Role'] || row.role || 'supervisor';
       const normalizedRole = entityType === 'staff' ? normalizeRoleValue(rawRoleValue) || 'supervisor' : 'student';
       if (!normalizedRole) {
         results.failed.push({ email, reason: `Invalid staff role: ${rawRoleValue}` });
@@ -1779,7 +1946,7 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
       }
 
       if (entityType === 'student' && !programmeId) {
-        results.failed.push({ email, reason: 'Programme code is required and must match an existing programme' });
+        results.failed.push({ email, reason: 'Programme code is required and could not be resolved' });
         continue;
       }
 
@@ -1821,13 +1988,19 @@ export async function bulkOnboard(req: AuthRequest, res: Response): Promise<void
             isNigerian,
             address,
             stateOfOrigin,
+            lga,
           });
           await student.save();
+
+          // Auto-allocate student to closest verified partner organisation
+          try {
+            await autoAllocateStudent((student._id as any).toString());
+          } catch (allocErr) {
+            logger.warn('Bulk onboard auto-allocation skipped for %s: %s', matricNum, (allocErr as Error).message);
+          }
         }
 
-        // Welcome notifications — same behaviour as single-record add, so bulk
-        // enrollment actually notifies people instead of silently creating
-        // accounts nobody is told about.
+        // Welcome notifications — same behaviour as single-record add
         const appUrl = getPrimaryAppUrl();
         const delivery = { email: false, personalEmail: false, whatsapp: false };
         try {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../lib/api';
-import { ArrowLeft, User, Building2, BookOpen, Shield, Pencil, Trash2, Camera as CameraIcon, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, User, Building2, BookOpen, Shield, Pencil, Trash2, Camera as CameraIcon, CheckCircle, XCircle, UserCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { NIGERIAN_STATES, getLgasForState, normalizeStateValue } from '../data/nigeria-locations';
@@ -17,8 +17,69 @@ export default function StudentProfilePage() {
   const [editing, setEditing] = useState<any | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [allocating, setAllocating] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+
+  const fetchProfile = async () => {
+    if (!id) return;
+    try {
+      const { data } = await api.get(`/students/${id}`);
+      setStudent(data.student);
+      setLogbookSummary(data.logbookSummary);
+    } catch {
+      toast.error('Failed to load student profile');
+    }
+  };
+
+  const handleAllocate = async () => {
+    if (!student?._id) return;
+    setAllocating(true);
+    try {
+      const { data } = await api.post(`/students/${student._id}/allocate`);
+      const pending = data?.pendingApproval ?? data?.allocation?.pendingApproval;
+      const companyName = data?.company ?? data?.allocation?.company;
+      toast.success(
+        pending
+          ? `Assigned to ${companyName || 'partner'}. Use "Approve Posting" to email student and partner.`
+          : data?.message || 'Student auto-allocated'
+      );
+      await fetchProfile();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Auto-allocation failed');
+    } finally {
+      setAllocating(false);
+    }
+  };
+
+  const handleApprovePosting = async () => {
+    if (!student?._id) return;
+    setApproving(true);
+    try {
+      const { data } = await api.post(`/students/${student._id}/approve-posting`);
+      const n = data?.postingNotifications;
+      if (n?.sent) {
+        const parts = [];
+        if (n.studentEmail) parts.push('student');
+        if (n.partnerEmail) parts.push('partner');
+        toast.success(
+          parts.length
+            ? `Posting approved — ${parts.join(' and ')} emailed`
+            : 'Posting approved'
+        );
+      } else if (n?.reason === 'email_delivery_failed') {
+        toast.error('Posting approved but emails failed — configure SMTP on the server');
+      } else {
+        toast.success(data?.message || 'Posting approved');
+      }
+      await fetchProfile();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Could not approve posting');
+    } finally {
+      setApproving(false);
+    }
+  };
 
   useEffect(() => {
     if (student?._id) {
@@ -106,12 +167,46 @@ export default function StudentProfilePage() {
         </div>
 
         <div className="card">
-          <div className="card-header">
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 className="card-title"><Building2 size={18} /> Placement</h3>
+            {student.company ? (
+              student.postingApproved ? (
+                <span className="badge badge-green" style={{ fontSize: '0.75rem' }}>Approved</span>
+              ) : (
+                <span className="badge badge-amber" style={{ fontSize: '0.75rem' }}>Awaiting Approval</span>
+              )
+            ) : (
+              <span className="badge" style={{ background: '#f3f4f6', color: '#6b7280', fontSize: '0.75rem' }}>Unassigned</span>
+            )}
           </div>
           <div className="card-body" style={{ display: 'grid', gap: 10 }}>
             <div><strong>Company:</strong> {student.company?.name || 'Unassigned'}</div>
+            {student.company?.state && <div><strong>Location:</strong> {student.company.state}</div>}
+            {student.company?.sector && <div><strong>Sector:</strong> {student.company.sector}</div>}
             <div><strong>Supervisor:</strong> {student.supervisor ? `${student.supervisor.firstName} ${student.supervisor.lastName}` : '—'}</div>
+            {canManage && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={handleAllocate}
+                  disabled={allocating || saving}
+                >
+                  <UserCheck size={14} /> {allocating ? 'Allocating...' : student.company ? 'Re-allocate Partner' : 'Auto-Allocate Partner'}
+                </button>
+                {student.company && !student.postingApproved && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    style={{ background: '#166534', borderColor: '#166534' }}
+                    onClick={handleApprovePosting}
+                    disabled={approving || saving}
+                  >
+                    <CheckCircle size={14} /> {approving ? 'Approving...' : 'Approve Posting & Email'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

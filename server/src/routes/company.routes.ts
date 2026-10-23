@@ -43,11 +43,17 @@ r.post(
         return;
       }
 
+      const userTenant = req.user?.tenant;
+      const tenantClause = userTenant
+        ? { $or: [{ tenant: userTenant }, { tenant: { $exists: false } }, { tenant: null }] }
+        : {};
+
       const candidates = await Student.find({
-        tenant: req.user!.tenant,
+        ...tenantClause,
         $or: [{ company: { $exists: false } }, { company: null }],
         status: { $in: ['pending', 'active'] },
         postingApproved: { $ne: true },
+        isDeleted: { $ne: true },
       });
 
       const matchedStudents = candidates.filter((student) =>
